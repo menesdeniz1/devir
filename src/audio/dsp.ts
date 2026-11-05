@@ -1,3 +1,5 @@
+import { SOFTEN } from './config';
+
 /**
  * Küçük sayısal ses sentezi araç kutusu (osilatör, gürültü, zarf, süzgeç).
  * Saf fonksiyonlar/sınıflar; AudioContext veya DOM gerektirmez. Efekt ve müzik notaları
@@ -101,9 +103,9 @@ export class Osc {
 
 // ---- Süzgeç -----------------------------------------------------------------
 
-export type FilterKind = 'lp' | 'hp' | 'bp';
+export type FilterKind = 'lp' | 'hp' | 'bp' | 'hs';
 
-/** RBJ ikinci dereceden süzgeç. Kesim sıklığı `set` ile çalışırken değiştirilebilir. */
+/** RBJ ikinci dereceden süzgeç ('hs': yüksek raf, `gainDb` kadar). Kesim sıklığı `set` ile çalışırken değiştirilebilir. */
 export class Biquad {
   private b0 = 0;
   private b1 = 0;
@@ -120,6 +122,7 @@ export class Biquad {
     private readonly kind: FilterKind,
     freq: number,
     private readonly q = 0.707,
+    private readonly gainDb = 0,
   ) {
     this.set(freq);
   }
@@ -133,6 +136,17 @@ export class Biquad {
     let b0: number;
     let b1: number;
     let b2: number;
+    if (this.kind === 'hs') {
+      const A = Math.pow(10, this.gainDb / 40);
+      const k = 2 * Math.sqrt(A) * alpha;
+      const s0 = (A + 1) - (A - 1) * cos + k;
+      this.b0 = (A * ((A + 1) + (A - 1) * cos + k)) / s0;
+      this.b1 = (-2 * A * ((A - 1) + (A + 1) * cos)) / s0;
+      this.b2 = (A * ((A + 1) + (A - 1) * cos - k)) / s0;
+      this.a1 = (2 * ((A - 1) - (A + 1) * cos)) / s0;
+      this.a2 = ((A + 1) - (A - 1) * cos - k) / s0;
+      return;
+    }
     if (this.kind === 'lp') {
       b0 = (1 - cos) / 2;
       b1 = 1 - cos;
@@ -184,7 +198,7 @@ interface LayerBase {
   tau: number;
   /** Katmanın başlama gecikmesi (sn). */
   delay?: number;
-  /** Yükselme süresi (sn). */
+  /** Yükselme süresi (sn); varsayılan SOFTEN.attackSec, en az SOFTEN.minAttackSec. */
   attack?: number;
   /** Sabit tutma süresi (sn); sonra söner. */
   hold?: number;
@@ -202,17 +216,23 @@ export interface ToneLayer extends LayerBase {
   vibDepth?: number;
 }
 
-/** Süzgeçli beyaz gürültü; `fEnd` verilirse süzgeç sıklığı `sweepTau` ile kayar. */
+/**
+ * Süzgeçli beyaz gürültü; `fEnd` verilirse süzgeç sıklığı `sweepTau` ile kayar. Her zaman bant sınırlıdır:
+ * SOFTEN.noiseCeilHz üstü alçak geçirenle kesilir, yüksek geçiren kesimi ve Q sınırlanır (cızırtı ve rezonans yok).
+ */
 export interface NoiseLayer extends LayerBase {
   k: 'noise';
-  filter: FilterKind | 'none';
+  filter: Exclude<FilterKind, 'hs'> | 'none';
   f: number;
   fEnd?: number;
   q?: number;
   sweepTau?: number;
 }
 
-/** Metalik/çınlayan katman: f * ratios[i] frekanslı, giderek hızlı sönen kısmi sesler. */
+/**
+ * Metalik/çınlayan katman: f * ratios[i] frekanslı, giderek hızlı sönen kısmi sesler. Yüksek kısmiler doğal
+ * malzeme sönümüyle zayıflar (SOFTEN.ringRollHz), SOFTEN.ringMaxHz üstü atılır.
+ */
 export interface RingLayer extends LayerBase {
   k: 'ring';
   f: number;
@@ -230,9 +250,19 @@ function layerSpan(l: Layer): number {
   return (l.delay ?? 0) + (l.attack ?? 0) + (l.hold ?? 0) + l.tau * 9.5;
 }
 
+/** Testere/kare/darbe dalgası için perdeyi izleyen yuvarlatma süzgecinin kesimi (Hz). */
+export function toneLowpassHz(f: number): number {
+  return clamp(f * SOFTEN.toneLpHarmonics, SOFTEN.toneLpMinHz, SOFTEN.toneLpMaxHz);
+}
+
+/** Gürültü katmanının süzgeç sıklığı: yüksek geçiren kesimi SOFTEN.noiseHpMaxHz ile sınırlıdır. */
+function noiseFilterHz(kind: NoiseLayer['filter'], f: number): number {
+  return kind === 'hp' ? Math.min(f, SOFTEN.noiseHpMaxHz) : f;
+}
+
 function renderLayer(out: Float32Array, sr: number, l: Layer, rng: Rng): void {
   const start = Math.round((l.delay ?? 0) * sr);
-  const attack = l.attack ?? 0.002;
+  const attack = Math.max(SOFTEN.minAttackSec, l.attack ?? SOFTEN.attackSec);
   const hold = l.hold ?? 0;
   const end = Math.min(out.length, Math.round(layerSpan(l) * sr));
   if (start >= out.length) return;
@@ -241,20 +271,29 @@ function renderLayer(out: Float32Array, sr: number, l: Layer, rng: Rng): void {
   if (l.k === 'tone') {
     const osc = new Osc(sr, l.wave);
     const sweep = l.sweep ?? l.tau * 0.35;
+    // Sinüs dışındaki dalgalar perdeyi izleyen iki kutuplu alçak geçirenle yuvarlatılır (çiğ testere/kare tizliği yok).
+    const round = l.wave === 'sine' ? null : new Biquad(sr, 'lp', toneLowpassHz(l.f), 0.707);
     for (let i = start; i < end; i++) {
       const t = (i - start) / sr;
       let f = sweptFreq(l.f, l.fEnd, sweep, t);
       if (l.vibHz) f *= 1 + (l.vibDepth ?? 0.01) * Math.sin(TAU * l.vibHz * t);
-      out[i]! += osc.next(f) * l.gain * envelope(t, attack, hold, l.tau);
+      let v = osc.next(f);
+      if (round) {
+        if (((i - start) & 15) === 0) round.set(toneLowpassHz(f));
+        v = round.process(v);
+      }
+      out[i]! += v * l.gain * envelope(t, attack, hold, l.tau);
     }
   } else if (l.k === 'noise') {
-    const filter = l.filter === 'none' ? null : new Biquad(sr, l.filter, l.f, l.q ?? 0.8);
+    const q = Math.min(l.q ?? 0.8, SOFTEN.maxQ);
+    const filter = l.filter === 'none' ? null : new Biquad(sr, l.filter, noiseFilterHz(l.filter, l.f), q);
+    const ceil = new Biquad(sr, 'lp', SOFTEN.noiseCeilHz, 0.707);
     const sweepTau = l.sweepTau ?? l.tau;
     for (let i = start; i < end; i++) {
       const t = (i - start) / sr;
-      if (filter && l.fEnd !== undefined && (i & 15) === 0) filter.set(sweptFreq(l.f, l.fEnd, sweepTau, t));
+      if (filter && l.fEnd !== undefined && (i & 15) === 0) filter.set(noiseFilterHz(l.filter, sweptFreq(l.f, l.fEnd, sweepTau, t)));
       const n = rng() * 2 - 1;
-      out[i]! += (filter ? filter.process(n) : n) * l.gain * envelope(t, attack, hold, l.tau);
+      out[i]! += ceil.process(filter ? filter.process(n) : n) * l.gain * envelope(t, attack, hold, l.tau);
     }
   } else {
     const freqs: number[] = [];
@@ -262,9 +301,9 @@ function renderLayer(out: Float32Array, sr: number, l: Layer, rng: Rng): void {
     const taus: number[] = [];
     l.ratios.forEach((r, idx) => {
       const f = l.f * r;
-      if (f < nyq) {
+      if (f < nyq && f <= SOFTEN.ringMaxHz) {
         freqs.push(f);
-        amps.push(1 / (1 + idx * 0.6));
+        amps.push(1 / (1 + idx * 0.6) / (1 + (f / SOFTEN.ringRollHz) ** 2));
         taus.push(l.tau / (1 + idx * 0.7));
       }
     });
@@ -301,7 +340,7 @@ export function finalize(buf: Float32Array, sr: number, peak: number): Float32Ar
     if (Math.abs(buf[i]!) > max) max = Math.abs(buf[i]!);
   }
   const scale = max > 1e-9 ? peak / max : 0;
-  const fadeIn = Math.min(buf.length, Math.round(sr * 0.0015));
+  const fadeIn = Math.min(buf.length, Math.round(sr * SOFTEN.fadeInSec));
   const fadeOut = Math.min(buf.length, Math.round(sr * 0.03));
   // Sönümlerden sonra kalan ortalama, sönüm profiliyle ağırlıklı çıkarılır (uçlar sıfır kalır, DC ≈ 0).
   const fade = new Float32Array(buf.length);

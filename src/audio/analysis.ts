@@ -1,8 +1,8 @@
 import { MIX, MUSIC, SFX_SETTINGS } from './config';
 import { Biquad, windowRms } from './dsp';
-import { bandShares, measureLoudness, type BandShares } from './loudness';
+import { measureLoudness, spectrumStats, type BandShares } from './loudness';
 import { composeSong } from './music/compose';
-import { renderInstrument } from './music/instruments';
+import { INSTRUMENT_IDS, renderInstrument, type InstrumentId } from './music/instruments';
 import { planSteps, stepDurationSec } from './music/sequencer';
 import { songDefForAge } from './music/songs';
 import { SFX_IDS, SFX_SAMPLE_RATE, renderSfx, type SfxId } from './sfx';
@@ -19,10 +19,16 @@ import { volumeToGain } from './volume';
  * - dc: örnek ortalaması (doğrusal).
  * - kuyruk: son 10 ms'deki en büyük |örnek| (tıklama göstergesi).
  * - hf: 12 kHz üstü enerjinin toplam enerjiye oranı (örnek hızı < 24 kHz ise ölçülemez, 0).
+ * - tiz payı: 4 kHz üstü enerji payı (bands.high) — "cızırtı/batma" göstergesi.
+ * - ağırlık merkezi: güçle ağırlıklı ortalama frekans (Hz) — tınının parlaklığı.
+ * - yükselme: ilk olayın %10 → %90 yükselme süresi (bkz. attackTime) — tıklama göstergesi.
  */
 
 export const HF_CUTOFF_HZ = 12000;
 export const TAIL_SEC = 0.01;
+/** Yükselme ölçümü: ilk olayın tepesinin arandığı pencere (sn) ve başlangıç eşiği (genel tepeye oranla). */
+export const ATTACK_WINDOW_SEC = 0.06;
+export const ATTACK_ONSET_FRAC = 0.1;
 const FLOOR_DB = -180;
 
 export function toDb(linear: number): number {
@@ -46,7 +52,35 @@ export interface LevelStats {
   integratedLufs: number;
   /** < 250 Hz, 250 Hz–4 kHz, > 4 kHz enerji payları. */
   bands: BandShares;
+  /** Spektral ağırlık merkezi (Hz). */
+  centroidHz: number;
+  /** İlk olayın %10 → %90 yükselme süresi (sn). */
+  attackSec: number;
   finite: boolean;
+}
+
+/**
+ * İlk olayın yükselme süresi (%10 → %90, sn), örnek genliği |x| üzerinden:
+ * 1) başlangıç: |x| ilk kez genel tepenin %10'una ulaştığı örnek;
+ * 2) yerel tepe L: başlangıçtan sonraki 60 ms içindeki en büyük |x| (ilk olayın tepesi);
+ * 3) %10 ve %90 anları: |x|'in ilk kez 0,1·L ve 0,9·L'ye ulaştığı örnekler.
+ * Tepe tutma yaklaşımıdır: bas seslerde (dalga yarım periyodu > yükselme) sonuç en az çeyrek periyot çıkar;
+ * tıklama (anlık başlayan geniş bantlı ses) ise < 1 ms ölçülür. Sessiz tampon 0 verir.
+ */
+export function attackTime(data: Float32Array, sr: number): number {
+  let g = 0;
+  for (const v of data) if (Math.abs(v) > g) g = Math.abs(v);
+  if (!(g > 1e-9)) return 0;
+  let start = 0;
+  while (start < data.length && Math.abs(data[start]!) < ATTACK_ONSET_FRAC * g) start++;
+  const end = Math.min(data.length, start + Math.round(ATTACK_WINDOW_SEC * sr));
+  let local = 0;
+  for (let i = start; i < end; i++) local = Math.max(local, Math.abs(data[i]!));
+  let t10 = 0;
+  while (t10 < data.length && Math.abs(data[t10]!) < 0.1 * local) t10++;
+  let t90 = t10;
+  while (t90 < data.length && Math.abs(data[t90]!) < 0.9 * local) t90++;
+  return (t90 - t10) / sr;
 }
 
 /** Bir tamponu `gain` ile çarpılmış gibi ölçer (tamponu değiştirmez). */
@@ -83,6 +117,7 @@ export function analyzeSamples(data: Float32Array, sr: number, gain = 1): LevelS
   }
 
   const loud = measureLoudness(data, sr, gain);
+  const spec = spectrumStats(data, sr);
   return {
     peakDb: toDb(peak * gain),
     rmsDb: toDb(Math.sqrt(sq / n) * gain),
@@ -93,7 +128,9 @@ export function analyzeSamples(data: Float32Array, sr: number, gain = 1): LevelS
     hfShare,
     momentaryLufs: loud.momentaryMaxLufs,
     integratedLufs: loud.integratedLufs,
-    bands: bandShares(data, sr),
+    bands: { low: spec.low, mid: spec.mid, high: spec.high },
+    centroidHz: spec.centroidHz,
+    attackSec: attackTime(data, sr),
     finite,
   };
 }
@@ -173,6 +210,108 @@ export function analyzeAllMusic(musicVolume = 100, tension = 0): MusicRow[] {
     rows.push({ age, ...analyzeSamples(mixMusicLoop(age, tension), MUSIC.sampleRate, musicMixGain(age, musicVolume)) });
   }
   return rows;
+}
+
+export interface InstrumentRow extends LevelStats {
+  id: InstrumentId;
+  /** Enstrümanın kullanıldığı ilk çağ. */
+  age: number;
+  /** Ölçülen nota sayısı. */
+  notes: number;
+}
+
+/**
+ * Müzik enstrümanları: her enstrümanın şarkılarda gerçekten çaldığı tüm (perde, uzunluk) notaları üretilip
+ * art arda eklenir ve tek tampon olarak ölçülür (nota şiddeti × parça kazancıyla). Yükselme süresi notaların en kısasıdır.
+ */
+export function analyzeInstruments(sr: number = MUSIC.sampleRate): InstrumentRow[] {
+  const used = new Map<InstrumentId, { age: number; notes: Map<string, { midi: number; durSec: number; gain: number }> }>();
+  for (let age = 1; age <= 5; age++) {
+    const def = songDefForAge(age);
+    if (!def) continue;
+    const song = composeSong(def);
+    const stepSec = stepDurationSec(song.bpm, 0);
+    for (const step of song.byStep) {
+      for (const n of step) {
+        let u = used.get(n.instrument);
+        if (!u) used.set(n.instrument, (u = { age, notes: new Map() }));
+        const key = `${n.midi}|${n.durSteps}`;
+        const prev = u.notes.get(key);
+        if (!prev || prev.gain < n.gain) u.notes.set(key, { midi: n.midi, durSec: n.durSteps * stepSec, gain: n.gain });
+      }
+    }
+  }
+  const rows: InstrumentRow[] = [];
+  for (const id of INSTRUMENT_IDS) {
+    const u = used.get(id);
+    if (!u) continue;
+    const bufs = [...u.notes.values()].map((n) => {
+      const b = renderInstrument(id, sr, n.midi, n.durSec);
+      for (let i = 0; i < b.length; i++) b[i]! *= n.gain;
+      return b;
+    });
+    const all = new Float32Array(bufs.reduce((a, b) => a + b.length, 0));
+    let off = 0;
+    for (const b of bufs) {
+      all.set(b, off);
+      off += b.length;
+    }
+    const st = analyzeSamples(all, sr);
+    rows.push({ id, age: u.age, notes: bufs.length, ...st, attackSec: Math.min(...bufs.map((b) => attackTime(b, sr))) });
+  }
+  return rows;
+}
+
+// ---- Tını özeti (önce → sonra karşılaştırması) ------------------------------
+
+/** Tını ölçütlerinin düz özeti (JSON'a yazılıp sonraki ölçümle karşılaştırılabilir). */
+export interface TimbreRow {
+  key: string;
+  /** 4 kHz üstü enerji payı (0..1). */
+  hf4k: number;
+  centroidHz: number;
+  attackMs: number;
+  peakDb: number;
+  /** Efekt: kısa süreli en yüksek gürlük; müzik: entegre gürlük (LUFS). */
+  lufs: number;
+}
+
+export function timbreOf(key: string, st: LevelStats, loudness: 'momentary' | 'integrated'): TimbreRow {
+  return {
+    key,
+    hf4k: st.bands.high,
+    centroidHz: st.centroidHz,
+    attackMs: st.attackSec * 1000,
+    peakDb: st.peakDb,
+    lufs: loudness === 'momentary' ? st.momentaryLufs : st.integratedLufs,
+  };
+}
+
+/** Tüm efektler (çıkış düzeyinde), çağ döngüleri ve enstrümanlar için tını özeti. */
+export function timbreReport(): { sfx: TimbreRow[]; music: TimbreRow[]; instruments: TimbreRow[] } {
+  return {
+    sfx: analyzeAllSfx().map((r) => timbreOf(`${r.id}/${r.age}`, r, 'momentary')),
+    music: analyzeAllMusic().map((r) => timbreOf(`müzik/${r.age}`, r, 'integrated')),
+    instruments: analyzeInstruments().map((r) => timbreOf(`${r.id}/${r.age}`, r, 'momentary')),
+  };
+}
+
+/** Önce → sonra tablosu (anahtar eşleşmesiyle). `after` sırası korunur; `before`da olmayan satırlar "—" gösterir. */
+export function formatTimbreComparison(before: readonly TimbreRow[], after: readonly TimbreRow[]): string {
+  const prev = new Map(before.map((r) => [r.key, r]));
+  const arrow = (a: number | undefined, b: number, fmt: (x: number) => string, w: number) =>
+    `${(a === undefined ? '—' : fmt(a)).padStart(w)}→${fmt(b).padEnd(w)}`;
+  const pc = (x: number) => (x * 100).toFixed(1);
+  const hz = (x: number) => x.toFixed(0);
+  const ms = (x: number) => x.toFixed(1);
+  const lines = ['ses                     >4kHz%         merkez Hz       yükselme ms    tepe dBFS       LUFS'];
+  for (const r of after) {
+    const b = prev.get(r.key);
+    lines.push(
+      `${r.key.padEnd(22)}  ${arrow(b?.hf4k, r.hf4k, pc, 5)}  ${arrow(b?.centroidHz, r.centroidHz, hz, 5)}  ${arrow(b?.attackMs, r.attackMs, ms, 5)}  ${arrow(b?.peakDb, r.peakDb, f1, 5)}  ${arrow(b?.lufs, r.lufs, f1, 5)}`,
+    );
+  }
+  return lines.join('\n');
 }
 
 const f1 = (x: number): string => (x <= FLOOR_DB ? '-inf' : x.toFixed(1));

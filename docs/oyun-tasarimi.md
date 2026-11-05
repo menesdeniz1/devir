@@ -184,7 +184,12 @@ arka sırasını silmez, aşındırır (Aşama 6 denge bulgusu: Sürü Hücumu 1
   Sayaç ±100'e ulaşınca o taraf **sahip** olur; sayaç sıfırı geçince sahiplik düşer.
 - **Ödül (sahip tarafa):** sahibin çağına göre saniyede ek altın (temel gelirin ≈%30'u) ve deneyim
   (≈ 1,5 × 1,75^(çağ−1)); tamsayı değerler `src/data/ages.ts`'te, bölge `src/data/stone.ts`'te.
-- **Görsel:** taş, sahibinin amblemini ve rengini taşır; ilerleme halkası gösterilir.
+- **Görsel:** taş, sahibinin amblemini ve rengini taşır; ilerleme halkası gösterilir. Sahibi her saniye gelir
+  aldığında taşın üstünden taşın altın payı ("+2 altın") yükselir.
+- **Arayüzde getiri (insan oyun testi, 1.1.0):** ilk insan testinde taşın ne işe yaradığı anlaşılmadı; gelir
+  satırı taşı saymıyordu. Artık gelir satırı taş sendeyken toplamı ve taşın payını ("+9/sn · taş +2"), üst
+  şeritteki taş göstergesi sahibin kazancını ("Sen · +2 altın, +3 XP/sn"), yakalama/kaybetme bildirimleri de
+  kazancı söyler; ipucu ve öğretici adımı kuralı açıkça anlatır.
 - **Yedek plan:** Denge testlerinde taş, yalnız savunma stratejisini önlemekte yetersiz kalırsa üsse verilen
   her 100 hasar 15 deneyim kazandırır (PRD E-10). Varsayılan olarak kapalıdır (veride 0).
 
@@ -370,3 +375,21 @@ Her üs kendi sahibinin çağını gösterir; arka plan oyuncunun çağını izl
   değişir (davul ve kemik flüt → lir → org ve yaylılar → bakır nefesliler ve mekanik ritim → sentezleyici).
   Kodla üretilen müziğin kalitesi sınırlıdır; dışarıdan müzik tercih edilirse aynı mikser üzerinden eklenir.
 - **Mikser:** müzik ve efekt ayrı kanallar; ses ilk kullanıcı etkileşimiyle başlar (tarayıcı kuralı).
+- **Tını yönü: yumuşak ve organik.** İlk insan oyun testinde efektler "hafif itici" bulundu; gürlük zaten
+  normalleştirilmişti, sorun tınıydı. Ölçülen kök nedenler: bant dengeleyicinin her efekte eklediği 5,5 kHz üstü
+  hışırtı (efektlerin ≈%10'u 4 kHz üstündeydi), 1–2 ms'lik anlık başlangıçlar (tıklama), çiğ testere/kare dalgalar,
+  süzgeçsiz tiz gürültü ve çınlama, rezonanslı dar bant gürültü, sık seslerin birebir tekrarı. Kurallar:
+  - Darbeler ahşap/taş/metal "tok" sesidir: süzgeçli, bant sınırlı gürültü + kısa sönen çınlama; bip ve cızırtı değil.
+    Elektronik çağda bile vınlama üçgen dalga ve orta bant gürültüdür.
+  - Testere/kare dalga perdeyi izleyen alçak geçirenle yuvarlatılır; gürültü 7 kHz üstünde kesilir, rezonans (Q > 1) yok;
+    çınlamanın yüksek kısmileri doğal biçimde zayıflar.
+  - Her katman en az 5 ms'de yükselir (ölçülen yükselme ≥ 3 ms; yalnız telli çalgı çekişi bilinçli olarak daha hızlı);
+    çarpma gibi kısa seslere yumuşak bir "toz/gövde" kuyruğu eklenir.
+  - Efekt veriyolu: 3,5 kHz üstüne −4 dB yumuşak raf + 10 kHz alçak geçiren; dengeleyici tiz banda dolgu eklemez.
+  - Sık savaş sesleri (vuruş, atış, çarpma, patlama, doğma, ölüm, üs ve kule sesleri) üç tını çeşidiyle çalar
+    (art arda aynısı gelmez), her çalışta ±%5 perde ve ±1,5 dB düzey sapması alır; aynı sesten en çok 3 kopya
+    çalar, üst üste binen kopyalar kısılır; toplam eşzamanlı ses 16, aynı karede birleşen olay en çok +3 dB.
+  - Efektler müziğe göre ≈1 dB geri çekildi (müzik, tipik savaş efektinin ≈9,5 LU altında).
+  - Müzikte tiz vurmalılar (çalkalayıcı, zil, buhar, trampet) orta banda indirildi; sentezleyici süzgecinde rezonans yok.
+  - Ölçüm ve hedefler: `src/audio/analysis.ts` (4 kHz üstü pay, spektral ağırlık merkezi, yükselme süresi, tepe, LUFS;
+    önce → sonra tablosu) ve `tests/audio-timbre.test.ts`.

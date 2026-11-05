@@ -2,11 +2,11 @@ import { midiToFreq, type Layer } from '../dsp';
 import type { SfxId } from './ids';
 import { GLASS, noise, ring, thump, tone, type Recipe } from './layers';
 
-/** Arayüz sesleri ve maç sonu kısa müzik parçaları (stinger). */
+/** Arayüz sesleri ve maç sonu kısa müzik parçaları (stinger). Yön: yumuşak "tok" tık, cam değil ahşap. */
 
 const uiClick: Recipe = {
   dur: 0.09,
-  layers: () => [tone('triangle', 1200, 0.025, 0.7, { fEnd: 800, sweep: 0.01 }), noise('bp', 4200, 0.008, 0.4)],
+  layers: () => [tone('triangle', 950, 0.025, 0.7, { fEnd: 650, sweep: 0.01 }), noise('bp', 2400, 0.01, 0.3, { q: 0.8 })],
 };
 
 const uiError: Recipe = {
@@ -24,7 +24,7 @@ const uiNotice: Recipe = {
   layers: () => [
     tone('sine', 880, 0.18, 0.7),
     tone('sine', 1319, 0.25, 0.6, { delay: 0.12 }),
-    ring(2637, GLASS, 0.2, 0.15, { delay: 0.12 }),
+    ring(1760, GLASS, 0.2, 0.15, { delay: 0.12 }),
   ],
 };
 
@@ -39,7 +39,7 @@ const stingerWin: Recipe = {
     ...notes([60, 64, 67, 72], [0, 0.14, 0.28, 0.42], 'triangle', 0.5, 0.35),
     ...notes([60, 67, 72, 76], [0.7, 0.7, 0.7, 0.7], 'triangle', 0.4, 0.7, 0.6),
     ...notes([48, 55], [0.7, 0.7], 'square', 0.12, 0.7, 0.5),
-    ring(2093, GLASS, 0.8, 0.2, { delay: 0.7 }),
+    ring(1046, GLASS, 0.8, 0.2, { delay: 0.7 }),
     thump(100, 60, 0.1, 0.6, { delay: 0.7 }),
   ],
 };

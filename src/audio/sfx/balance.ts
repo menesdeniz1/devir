@@ -4,9 +4,11 @@ import { bandShares, type BandShares } from '../loudness';
 
 /**
  * Frekans dengesi düzeltmesi (tarifin son katmanı). Bir efektin enerjisi tek bantta (< 250 Hz, 250 Hz–4 kHz, > 4 kHz)
- * `BALANCE.trigger` payını aşıyorsa, yetersiz kalan bantlara efektin kendi zarfını izleyen küçük bir süzgeçli gürültü
- * katmanı eklenir (bas efekte hışırtı ve gövde, tam tonal efekte hava ve gümbürtü). Böylece hiçbir efekt "tamamen bas"
- * ya da "tamamen tonal" kalmaz. Saf ve tekrarlanabilir (gürültü tarifin tohumundan gelir).
+ * `BALANCE.trigger` payını aşıyorsa, komşu banda efektin kendi zarfını izleyen küçük bir süzgeçli gürültü katmanı
+ * eklenir: bas efekte orta bantta gövde/doku, tonal (orta bant) efekte alçak bantta gövde, tiz efekte orta bant.
+ * Dolgu yalnızca baskın bandı eşiğe indirecek kadardır. Tiz banda (> 4 kHz) hiçbir zaman dolgu eklenmez: önceki
+ * sürüm her efekte zarfı izleyen 5,5 kHz üstü hışırtı ekliyordu ve bu, ilk oyun testindeki "itici" tınının ana
+ * nedeniydi. Saf ve tekrarlanabilir (gürültü tarifin tohumundan gelir).
  */
 
 type Band = keyof BandShares;
@@ -25,13 +27,11 @@ function followEnvelope(buf: Float32Array, sr: number): Float32Array {
   return env;
 }
 
-function bandNoise(band: Band, sr: number, env: Float32Array, rng: Rng): Float32Array {
+function bandNoise(band: Exclude<Band, 'high'>, sr: number, env: Float32Array, rng: Rng): Float32Array {
   const filters =
     band === 'low'
       ? [new Biquad(sr, 'lp', BALANCE.lowHz, 0.7), new Biquad(sr, 'lp', BALANCE.lowHz, 0.7)]
-      : band === 'mid'
-        ? [new Biquad(sr, 'bp', BALANCE.midHz, 0.4)]
-        : [new Biquad(sr, 'hp', BALANCE.highHz, 0.7), new Biquad(sr, 'hp', BALANCE.highHz, 0.7)];
+      : [new Biquad(sr, 'bp', BALANCE.midHz, 0.4), new Biquad(sr, 'lp', BALANCE.midCeilHz, 0.7)];
   const out = new Float32Array(env.length);
   for (let i = 0; i < env.length; i++) {
     let v = rng() * 2 - 1;
@@ -41,23 +41,35 @@ function bandNoise(band: Band, sr: number, env: Float32Array, rng: Rng): Float32
   return out;
 }
 
+/** Baskın banda göre dolgunun gideceği komşu bant (tiz bant hiç doldurulmaz). */
+const FILL_BAND: Record<Band, Exclude<Band, 'high'>> = { low: 'mid', mid: 'low', high: 'mid' };
+
+/** Dengeleyici en çok bu kadar tur döner (dolgunun bir kısmı başka banda düşebilir). */
+const MAX_PASSES = 3;
+
 /** Gerekirse `buf`a bant dengeleyici katman ekler (yerinde). */
 export function balanceBands(buf: Float32Array, sr: number, rng: Rng): void {
+  for (let pass = 0; pass < MAX_PASSES; pass++) if (!balancePass(buf, sr, rng)) return;
+}
+
+/** Tek dengeleme turu; dolgu eklendiyse true. */
+function balancePass(buf: Float32Array, sr: number, rng: Rng): boolean {
   const shares = bandShares(buf, sr);
-  if (Math.max(shares.low, shares.mid, shares.high) <= BALANCE.trigger) return;
+  const dominant = (['low', 'mid', 'high'] as const).reduce((a, b) => (shares[b] > shares[a] ? b : a));
+  if (shares[dominant] <= BALANCE.trigger) return false;
 
   let energy = 0;
   for (const v of buf) energy += v * v;
-  if (energy <= 0) return;
+  if (energy <= 0) return false;
   const env = followEnvelope(buf, sr);
 
-  for (const band of ['low', 'mid', 'high'] as const) {
-    if (shares[band] >= BALANCE.minShare) continue;
-    const filler = bandNoise(band, sr, env, rng);
-    let fe = 0;
-    for (const v of filler) fe += v * v;
-    if (fe <= 0) continue;
-    const g = Math.sqrt((BALANCE.fillShare * energy) / fe);
-    for (let i = 0; i < buf.length; i++) buf[i]! += filler[i]! * g;
-  }
+  const filler = bandNoise(FILL_BAND[dominant], sr, env, rng);
+  let fe = 0;
+  for (const v of filler) fe += v * v;
+  if (fe <= 0) return false;
+  // Baskın payı eşiğe indirecek dolgu oranı (tamamı komşu banda düşmeyebileceği için küçük pay), en çok fillShare.
+  const share = Math.min(BALANCE.fillShare, (shares[dominant] / BALANCE.trigger - 1) * 1.25 + 0.01);
+  const g = Math.sqrt((share * energy) / fe);
+  for (let i = 0; i < buf.length; i++) buf[i]! += filler[i]! * g;
+  return true;
 }

@@ -80,7 +80,8 @@ function synth(p: SynthParams): InstrumentFn {
       oscs.push(new Osc(sr, wave, v * 0.37));
     }
     const spread = p.detuneCents ?? 0;
-    const lp = new Biquad(sr, 'lp', p.cutoff0, 0.9);
+    // Q = 0,707: rezonans tepesi yok (önceki 0,9 kesimde hafif bir "vızıltı" tepesi veriyordu).
+    const lp = new Biquad(sr, 'lp', p.cutoff0, 0.707);
     const breath = p.breath ? new Biquad(sr, 'bp', clamp(f0 * 1.5, 200, 6000), 2) : null;
     const norm = 1 / Math.sqrt(voiceCount);
     for (let i = 0; i < out.length; i++) {
@@ -172,7 +173,7 @@ const INSTRUMENTS: Record<InstrumentId, InstrumentFn> = {
   // İlkel Çağ
   frameDrum: drum({ f0Mul: 1.1, pitchTau: 0.03, tau: 0.14, noise: { filter: 'lp', f: 350, tau: 0.03, gain: 0.35 }, len: 0.6 }),
   skinDrum: drum({ f0Mul: 0.8, pitchTau: 0.02, tau: 0.09, noise: { filter: 'bp', f: 1500, tau: 0.02, gain: 0.3 }, len: 0.35 }),
-  stickClick: noiseHit('bp', 2400, 0.02, 0.15, 2),
+  stickClick: noiseHit('bp', 1900, 0.02, 0.15, 1),
   shaker: noiseHit('hp', 6000, 0.04, 0.2, 0.7, 0.012),
   boneFlute: synth({
     partials: [[1, 1], [2, 0.18], [3, 0.08]],
@@ -186,7 +187,7 @@ const INSTRUMENTS: Record<InstrumentId, InstrumentFn> = {
     attack: 0.5, decayTau: 1, sustain: 1, release: 1.0,
   }),
   // Antik Çağ
-  lyre: pluck(0.995, 0.5),
+  lyre: pluck(0.995, 0.42),
   bronzeBell: bell([1, 2.0, 2.76, 4.07, 5.43], 0.9, 2.2),
   handDrum: drum({ f0Mul: 0.9, pitchTau: 0.02, tau: 0.11, noise: { filter: 'bp', f: 1800, tau: 0.02, gain: 0.4 }, len: 0.4 }),
   softPad: synth({
@@ -242,16 +243,16 @@ const INSTRUMENTS: Record<InstrumentId, InstrumentFn> = {
       0.7,
     ),
   kickMech: drum({ f0Mul: 2.2, pitchTau: 0.03, tau: 0.12, noise: { filter: 'hp', f: 3000, tau: 0.005, gain: 0.5 }, len: 0.5 }),
-  steamHiss: noiseHit('bp', 5500, 0.08, 0.3, 0.6, 0.006),
+  steamHiss: noiseHit('bp', 3800, 0.08, 0.3, 0.6, 0.006),
   pistonBass: synth({
     waves: ['saw', 'square'], detuneCents: 4,
     cutoff0: 1400, cutoff1: 300, cutoffTau: 0.15,
-    attack: 0.005, decayTau: 0.25, sustain: 0.3, release: 0.08,
+    attack: 0.008, decayTau: 0.25, sustain: 0.3, release: 0.08,
   }),
   pistonArp: synth({
     waves: ['pulse25'],
     cutoff0: 4500, cutoff1: 1200, cutoffTau: 0.1,
-    attack: 0.003, decayTau: 0.12, sustain: 0.2, release: 0.05,
+    attack: 0.009, decayTau: 0.12, sustain: 0.2, release: 0.05,
   }),
   // Gelecek Çağı
   synthLead: synth({
@@ -263,7 +264,7 @@ const INSTRUMENTS: Record<InstrumentId, InstrumentFn> = {
   synthArp: synth({
     waves: ['pulse25', 'square'], detuneCents: 6,
     cutoff0: 5500, cutoff1: 1400, cutoffTau: 0.08,
-    attack: 0.003, decayTau: 0.1, sustain: 0.15, release: 0.06,
+    attack: 0.006, decayTau: 0.1, sustain: 0.15, release: 0.06,
   }),
   synthPad: synth({
     waves: ['saw', 'saw', 'saw', 'saw'], detuneCents: 16,

@@ -1,5 +1,6 @@
 /**
- * Eşzamanlı ses sınırlayıcı (TDD §8): aynı efekt en fazla `maxPerSfx`, toplam en fazla `maxTotal`.
+ * Eşzamanlı ses sınırlayıcı (TDD §8): aynı efekt en fazla `maxPerSfx` (ya da istekte verilen efekte özgü sınır),
+ * toplam en fazla `maxTotal`.
  * Saf mantık: zaman dışarıdan verilir, ses düğümü bilmez.
  *
  * Kural:
@@ -39,13 +40,15 @@ export class VoiceLimiter {
     }
   }
 
-  acquire(sfx: string, priority: number, now: number, durationSec: number): AcquireResult {
+  acquire(sfx: string, priority: number, now: number, durationSec: number, maxSame: number = this.maxPerSfx): AcquireResult {
     this.prune(now);
     const evicted: number[] = [];
 
     const same = this.voices.filter((v) => v.sfx === sfx);
-    if (same.length >= this.maxPerSfx) {
+    const cap = Math.max(1, Math.min(maxSame, this.maxPerSfx));
+    while (same.length >= cap) {
       const oldest = same.reduce((a, b) => (b.startTime < a.startTime ? b : a));
+      same.splice(same.indexOf(oldest), 1);
       this.remove(oldest.id);
       evicted.push(oldest.id);
     }
@@ -72,7 +75,9 @@ export class VoiceLimiter {
     return this.voices.length;
   }
 
-  countFor(sfx: string): number {
+  /** Aynı efektin çalan ses sayısı; `now` verilirse süresi dolanlar önce düşülür. */
+  countFor(sfx: string, now?: number): number {
+    if (now !== undefined) this.prune(now);
     return this.voices.filter((v) => v.sfx === sfx).length;
   }
 

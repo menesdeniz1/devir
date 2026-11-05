@@ -170,8 +170,14 @@ function fft(re: Float64Array, im: Float64Array): void {
   }
 }
 
-/** Üç bant (< 250 Hz, 250 Hz–4 kHz, > 4 kHz) enerji payları (tüm tamponun güç spektrumu, Parseval). */
-export function bandShares(data: Float32Array, fs: number): BandShares {
+/** Güç spektrumu özeti: üç bant payı ve spektral ağırlık merkezi (Hz). */
+export interface SpectrumStats extends BandShares {
+  /** Güçle ağırlıklı ortalama frekans (Hz): tınının "parlaklığı". */
+  centroidHz: number;
+}
+
+/** Tüm tamponun güç spektrumundan (Parseval) bant payları ve spektral ağırlık merkezi. */
+export function spectrumStats(data: Float32Array, fs: number): SpectrumStats {
   let n = 1;
   while (n < data.length) n <<= 1;
   const re = new Float64Array(n);
@@ -182,13 +188,23 @@ export function bandShares(data: Float32Array, fs: number): BandShares {
   let low = 0;
   let mid = 0;
   let high = 0;
+  let moment = 0;
   for (let k = 1; k <= n / 2; k++) {
     const p = re[k]! * re[k]! + im[k]! * im[k]!;
     const f = k * binHz;
+    moment += p * f;
     if (f < BAND_EDGES_HZ.low) low += p;
     else if (f < BAND_EDGES_HZ.high) mid += p;
     else high += p;
   }
   const total = low + mid + high;
-  return total > 0 ? { low: low / total, mid: mid / total, high: high / total } : { low: 0, mid: 0, high: 0 };
+  return total > 0
+    ? { low: low / total, mid: mid / total, high: high / total, centroidHz: moment / total }
+    : { low: 0, mid: 0, high: 0, centroidHz: 0 };
+}
+
+/** Üç bant (< 250 Hz, 250 Hz–4 kHz, > 4 kHz) enerji payları (tüm tamponun güç spektrumu, Parseval). */
+export function bandShares(data: Float32Array, fs: number): BandShares {
+  const { low, mid, high } = spectrumStats(data, fs);
+  return { low, mid, high };
 }

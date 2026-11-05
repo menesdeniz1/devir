@@ -28,10 +28,11 @@ const CRACKLE_DELAYS = [0.1, 0.18, 0.3, 0.37, 0.5, 0.62, 0.71, 0.9, 1.05, 1.2] a
 const abilityFireTrench: Recipe = {
   dur: 1.8,
   layers: () => [
-    noise('bp', 500, 0.5, 0.8, { attack: 0.12, fEnd: 2800, sweepTau: 0.25, q: 0.6 }),
+    noise('bp', 500, 0.5, 0.8, { attack: 0.12, fEnd: 1800, sweepTau: 0.25, q: 0.6 }),
     noise('lp', 600, 0.7, 0.6, { attack: 0.1, hold: 0.6 }),
     thump(90, 50, 0.15, 0.5, { delay: 0.05 }),
-    ...CRACKLE_DELAYS.map((d, i) => noise('hp', 3500 + i * 250, 0.012, 0.5, { delay: d })),
+    // Çıtırtılar: odun kıvılcımı, orta bantta kısa tıkırtılar (tiz cızırtı değil)
+    ...CRACKLE_DELAYS.map((d, i) => noise('bp', 1600 + i * 120, 0.012, 0.45, { delay: d, q: 0.8 })),
   ],
 };
 
@@ -42,7 +43,7 @@ const abilityCaltrops: Recipe = {
   layers: () => [
     noise('bp', 900, 0.2, 0.4, { attack: 0.05 }),
     ...CALTROP_DELAYS.flatMap((d, i): Layer[] => [
-      ring(1800 + ((i * 397) % 1500), [1, 2.7], 0.05, 0.4, { delay: d }),
+      ring(1200 + ((i * 397) % 900), [1, 2.7], 0.045, 0.4, { delay: d }),
       thump(220, 120, 0.03, 0.4, { delay: d }),
     ]),
   ],
@@ -53,8 +54,8 @@ const abilityBarrage: Recipe = {
   dur: 1.7,
   layers: () => [
     thump(120, 50, 0.15, 0.7),
-    noise('bp', 800, 0.4, 0.6, { attack: 0.05, fEnd: 3000, sweepTau: 0.4 }),
-    tone('sine', 2600, 0.9, 0.5, { fEnd: 700, sweep: 0.6, attack: 0.02, hold: 0.4, delay: 0.1 }),
+    noise('bp', 800, 0.4, 0.6, { attack: 0.05, fEnd: 2200, sweepTau: 0.4 }),
+    tone('sine', 1800, 0.9, 0.45, { fEnd: 600, sweep: 0.6, attack: 0.03, hold: 0.4, delay: 0.1 }),
   ],
 };
 
@@ -71,12 +72,12 @@ const abilityBarrageImpact: Recipe = {
 const abilityStasis: Recipe = {
   dur: 2.2,
   layers: () => [
-    tone('sine', 1900, 0.7, 0.5, { fEnd: 300, sweep: 0.5, hold: 0.2 }),
-    ring(1400, GLASS, 0.9, 0.5),
-    ring(2100, GLASS, 0.7, 0.35, { delay: 0.1 }),
+    tone('sine', 1500, 0.7, 0.5, { fEnd: 300, sweep: 0.5, hold: 0.2, attack: 0.01 }),
+    ring(1200, GLASS, 0.9, 0.5, { attack: 0.01 }),
+    ring(1600, GLASS, 0.7, 0.35, { delay: 0.1 }),
     tone('sine', 110, 0.8, 0.5, { attack: 0.3, hold: 0.8 }),
     tone('triangle', midiToFreq(81), 0.5, 0.25, { vibHz: 6, vibDepth: 0.03, attack: 0.2, hold: 0.6 }),
-    noise('hp', 6500, 0.3, 0.25, { attack: 0.2 }),
+    noise('bp', 3000, 0.3, 0.15, { attack: 0.2, q: 0.7 }),
   ],
 };
 

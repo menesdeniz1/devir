@@ -62,7 +62,7 @@ export interface AudioEngine {
   resetMatch(): void;
   /** Çalan çağ müziğini söndürerek durdurur (ana menü vb.). */
   stopMusic(): void;
-  /** Bir çağın efektlerini önceden üretir. */
+  /** Bir çağın efektlerini önceden üretir (temel çeşit hemen, ek tını çeşitleri sonraki karelere yayılarak). */
   warmup(age: number): void;
   dispose(): void;
 }
@@ -94,6 +94,9 @@ export function createAudioEngine(options: AudioEngineOptions = {}): AudioEngine
   const limiter = new VoiceLimiter(MIX.maxPerSfx, MIX.maxTotal);
   const buffers = new Map<string, { buf: AudioBufferLike; dur: number }>();
   const lastStart = new Map<SfxId, number>();
+  const lastVariant = new Map<SfxId, number>();
+  /** Ek tını çeşitleri kareye yayılarak üretilir (çağ geçişinde tek seferde üç kat üretim takılması olmasın). */
+  const warmQueue: Array<{ sfx: SfxId; age: number; variant: number }> = [];
   const voices = new Map<number, ActiveVoice>();
 
   let graph: Graph | null = null;
@@ -164,15 +167,42 @@ export function createAudioEngine(options: AudioEngineOptions = {}): AudioEngine
     return { ctx, master, musicGain, musicGate, sfxGain, gameBus, uiBus, music };
   }
 
-  function getBuffer(g: Graph, sfx: SfxId, age: number): { buf: AudioBufferLike; dur: number } {
-    const key = `${sfx}|${age}`;
+  function getBuffer(g: Graph, sfx: SfxId, age: number, variant = 0): { buf: AudioBufferLike; dur: number } {
+    const key = `${sfx}|${age}|${variant}`;
     let entry = buffers.get(key);
     if (!entry) {
-      const data = renderSfx(sfx, age, SFX_SAMPLE_RATE);
+      const data = renderSfx(sfx, age, SFX_SAMPLE_RATE, variant);
       entry = { buf: toAudioBuffer(g.ctx, data, SFX_SAMPLE_RATE), dur: data.length / SFX_SAMPLE_RATE };
       buffers.set(key, entry);
     }
     return entry;
+  }
+
+  /**
+   * Çalınacak tampon: istenen çeşit hazır değilse ve aynı efektin temel çeşidi (0) önceden üretilmişse, şimdilik temel
+   * çeşit çalar ve istenen çeşit kuyruğa alınır. Hiçbiri yoksa istenen çeşit hemen üretilir (eski davranış).
+   */
+  function playableBuffer(g: Graph, sfx: SfxId, age: number, variant: number): { buf: AudioBufferLike; dur: number } {
+    if (variant > 0 && !buffers.has(`${sfx}|${age}|${variant}`)) {
+      const base = buffers.get(`${sfx}|${age}|0`);
+      if (base) {
+        queueWarm(sfx, age, variant);
+        return base;
+      }
+    }
+    return getBuffer(g, sfx, age, variant);
+  }
+
+  function queueWarm(sfx: SfxId, age: number, variant: number): void {
+    if (buffers.has(`${sfx}|${age}|${variant}`)) return;
+    if (warmQueue.some((w) => w.sfx === sfx && w.age === age && w.variant === variant)) return;
+    warmQueue.push({ sfx, age, variant });
+  }
+
+  /** Kuyruktan en çok bir tampon üretir (kare başına). */
+  function warmNext(g: Graph): void {
+    const next = warmQueue.shift();
+    if (next) safe(() => void getBuffer(g, next.sfx, next.age, next.variant));
   }
 
   function stopVoice(id: number, fadeSec: number): void {
@@ -188,6 +218,15 @@ export function createAudioEngine(options: AudioEngineOptions = {}): AudioEngine
     });
   }
 
+  /** Çeşit seçimi: rastgele, ama aynı efektin bir önceki çeşidi art arda gelmez. */
+  function pickVariant(sfx: SfxId, count: number): number {
+    if (count <= 1) return 0;
+    let v = Math.min(count - 1, Math.floor(random() * count));
+    if (v === lastVariant.get(sfx)) v = (v + 1) % count;
+    lastVariant.set(sfx, v);
+    return v;
+  }
+
   function play(g: Graph, req: SfxRequest, game: boolean): void {
     const settings = SFX_SETTINGS[req.sfx];
     const now = g.ctx.currentTime;
@@ -195,10 +234,13 @@ export function createAudioEngine(options: AudioEngineOptions = {}): AudioEngine
     if (last !== undefined && now - last < settings.minGapSec * gapScale) return;
 
     const age = clampAge(req.age);
-    const { buf, dur } = getBuffer(g, req.sfx, age);
-    const jitter = 1 + (random() * 2 - 1) * MIX.rateJitter;
-    const rate = req.rate * jitter;
-    const result = limiter.acquire(req.sfx, settings.priority, now, dur / rate);
+    const { buf, dur } = playableBuffer(g, req.sfx, age, pickVariant(req.sfx, settings.variants));
+    const rate = req.rate * (1 + (random() * 2 - 1) * MIX.rateJitter);
+    const levelJitter = Math.pow(10, ((random() * 2 - 1) * MIX.gainJitterDb) / 20);
+    // Aynı efektten o an çalan kopyalar: yeni kopya kısılır (yığılma sertleşmesin).
+    const sameActive = limiter.countFor(req.sfx, now);
+    const duck = 1 / (1 + MIX.sameVoiceDuck * Math.min(sameActive, settings.maxVoices - 1));
+    const result = limiter.acquire(req.sfx, settings.priority, now, dur / rate, settings.maxVoices);
     for (const id of result.evicted) stopVoice(id, MIX.evictFadeSec);
     if (result.id === null) return;
     const id = result.id;
@@ -209,7 +251,7 @@ export function createAudioEngine(options: AudioEngineOptions = {}): AudioEngine
       src.buffer = buf;
       src.playbackRate.value = rate;
       const gain = g.ctx.createGain();
-      gain.gain.value = settings.gain * req.gain;
+      gain.gain.value = settings.gain * req.gain * levelJitter * duck;
       src.connect(gain);
       gain.connect(game ? g.gameBus : g.uiBus);
       voices.set(id, { src, gain, game });
@@ -322,8 +364,10 @@ export function createAudioEngine(options: AudioEngineOptions = {}): AudioEngine
     },
 
     handleEvents(events, context) {
-      if (!graph || disposed || paused || events.length === 0) return;
+      if (!graph || disposed || paused) return;
       const g = graph;
+      warmNext(g);
+      if (events.length === 0) return;
       let requests: SfxRequest[] = [];
       safe(() => {
         requests = mapper.map(events, context);
@@ -356,7 +400,10 @@ export function createAudioEngine(options: AudioEngineOptions = {}): AudioEngine
       if (!graph || disposed) return;
       const g = graph;
       const a = clampAge(age);
-      for (const sfx of WARMUP_SFX) safe(() => void getBuffer(g, sfx, a));
+      for (const sfx of WARMUP_SFX) {
+        safe(() => void getBuffer(g, sfx, a, 0));
+        for (let v = 1; v < SFX_SETTINGS[sfx].variants; v++) queueWarm(sfx, a, v);
+      }
     },
 
     dispose() {
@@ -369,6 +416,7 @@ export function createAudioEngine(options: AudioEngineOptions = {}): AudioEngine
       voices.clear();
       limiter.clear();
       buffers.clear();
+      warmQueue.length = 0;
       safe(() => void g.ctx.close().catch(() => undefined));
       graph = null;
     },

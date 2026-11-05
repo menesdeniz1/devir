@@ -18,19 +18,29 @@ export const MIX = {
   /** Kendi birliklerinin/yapılarının sesleri tam, rakibinki ≈3 dB kısık (20·log10(0,7) = −3,1 dB). */
   ownGain: 1,
   enemyGain: 0.7,
-  /** Aynı karede n tane birleşen olayın kazancı: 1 + coalesceGain * ln(n), en çok coalesceMax. */
-  coalesceGain: 0.25,
-  coalesceMax: 1.8,
+  /** Aynı karede n tane birleşen olayın kazancı: 1 + coalesceGain * ln(n), en çok coalesceMax (büyük savaşta yığılmayı sınırlar). */
+  coalesceGain: 0.2,
+  coalesceMax: 1.4,
   /** Her çalışta çalma hızına eklenen rastgele sapma (±). */
   rateJitter: 0.05,
+  /** Her çalışta düzeye eklenen rastgele sapma (±dB): sık seslerin "makineli" tekrarını kırar. */
+  gainJitterDb: 1.5,
+  /** Sık efektlerin (bkz. SFX_BASE.variants) çalış başına seçilen tını çeşidi sayısı. */
+  frequentVariants: 3,
+  /**
+   * Aynı efektin üst üste binmesinde kısma: yeni sesin kazancı 1 / (1 + sameVoiceDuck × o an çalan aynı efekt sayısı).
+   * Kalabalık savaşta aynı vuruşun yığılıp sertleşmesini önler.
+   */
+  sameVoiceDuck: 0.25,
   /** Rol başına çalma hızı: ağır birlikler daha kalın, menziller daha ince. */
   roleRate: { front: 1, ranged: 1.12, heavy: 0.8 } satisfies Record<Role, number>,
   /** Üs hasarı gürlüğü: hasar/baseHitFullDamage ile ölçeklenir, alt sınır baseHitMinGain. */
   baseHitMinGain: 0.55,
   baseHitFullDamage: 60,
-  /** Eşzamanlı ses sınırı (TDD §8). */
+  /** Eşzamanlı ses sınırı (TDD §8). Sık savaş efektleri (SFX_BASE.frequent) için daha düşük sınır. */
   maxPerSfx: 4,
-  maxTotal: 24,
+  maxPerFrequentSfx: 3,
+  maxTotal: 16,
   /** Duraklatma/ses değişimi yumuşatma süresi (sn). */
   rampSec: 0.03,
   /** Maç sonu müzik kısma: müzik kazancı bu oranda çarpılır. */
@@ -56,12 +66,45 @@ export const MUSIC = {
   restartPadSec: 0.05,
   /**
    * Çağ başına müzik düzeyi düzeltmesi (doğrusal kazanç, çağ 1..5): çevrimdışı ölçümle, varsayılan ses düzeylerinde
-   * döngü entegre gürlüğü (LUFS) tipik savaş efektinin ≈10,5 LU altına gelecek biçimde ayarlanır.
+   * döngü entegre gürlüğü (LUFS) tipik savaş efektinin ≈9,5 LU altına gelecek biçimde ayarlanır (yumuşak tını
+   * geçişinde efektler müziğe göre ≈1 dB geri çekildi; önceki hedef ≈10,5 LU).
    */
-  levelTrim: [0.206, 0.202, 0.207, 0.137, 0.2],
+  levelTrim: [0.231, 0.224, 0.223, 0.155, 0.222],
   /** Döngü süresi sınırları (sn) — test garantisi. */
   minLoopSec: 60,
   maxLoopSec: 90,
+} as const;
+
+/**
+ * Yumuşak tını kuralları (GDD §15, ilk oyun testi geri bildirimi: "hafif itici"). Sentez araç kutusu (dsp.ts),
+ * efekt dengeleyici ve efekt veriyolu süzgeci bunları kullanır; testler (tests/audio-timbre.test.ts) ölçer.
+ */
+export const SOFTEN = {
+  /** Katman yükselmesi: varsayılan ve en kısa (sn). 2 ms'lik anlık başlangıç tıklama gibi duyuluyordu. */
+  attackSec: 0.007,
+  minAttackSec: 0.005,
+  /** Tampon başı yumuşak açılış (sn). */
+  fadeInSec: 0.003,
+  /** Testere/kare/darbe dalgaları perdeyi izleyen alçak geçirenden geçer: kesim = f × harmonics, [min, max] Hz. */
+  toneLpHarmonics: 4,
+  toneLpMinHz: 900,
+  toneLpMaxHz: 3800,
+  /** Gürültü katmanları: üst sınır alçak geçiren (Hz), yüksek geçiren kesimi üst sınırı (Hz), en büyük Q (rezonans yok). */
+  noiseCeilHz: 7000,
+  noiseHpMaxHz: 3200,
+  maxQ: 1,
+  /** Çınlayan katman: kısmi genliği 1 / (1 + (f / ringRollHz)²) ile söner, ringMaxHz üstü kısmi atılır (doğal sönüm). */
+  ringRollHz: 3000,
+  ringMaxHz: 7000,
+  /** Efekt veriyolu (her efekte üretimde uygulanır): yumuşak yüksek raf kısması + üst alçak geçiren. */
+  busShelfHz: 3500,
+  /** −2 dB: asıl tizlik nedeni (bant dengeleyicinin eklediği hışırtı) giderildi; raf yalnız ince ayar, vuruşların çıtırtısı kalsın. */
+  busShelfDb: -2,
+  busLpHz: 10000,
+  /** Efekt tepe güvencesi: tepe sınırının bu kadar (dB) altına yumuşak sınırlama; ileri bakış ve bırakma (sn). */
+  limiterMarginDb: 0.5,
+  limiterLookSec: 0.002,
+  limiterReleaseSec: 0.05,
 } as const;
 
 // ---- Düzey hedefleri (LUFS, ITU-R BS.1770-4 K-ağırlıklı; çıkışta, ana çıkış ve kendi-taraf kazancı dahil, kanal ses düzeyi 100) ----
@@ -108,13 +151,12 @@ export const BALANCE = {
   maxUiLow: 0.4,
   /** Dengeleyici: tek bant payı bunu aşarsa devreye girer (maxBandShare altında pay bırakır). */
   trigger: 0.78,
-  /** Dengeleyici: payı bunun altındaki bantlara dolgu eklenir. */
-  minShare: 0.08,
-  /** Eklenen dolgunun ana enerjiye oranı. */
+  /** Dengeleyici: eklenen dolgunun ana enerjiye en büyük oranı (yalnızca baskın bandı eşiğe indirecek kadarı eklenir). */
   fillShare: 0.12,
   lowHz: 150,
-  midHz: 1000,
-  highHz: 5500,
+  midHz: 900,
+  /** Orta bant dolgusunun üst sınırı (Hz): dolgu tiz banda taşmaz. */
+  midCeilHz: 2500,
   envAttackSec: 0.003,
   envReleaseSec: 0.04,
 } as const;
@@ -169,6 +211,10 @@ export interface SfxSettings {
   priority: number;
   /** Aynı efektin iki başlangıcı arasındaki en kısa süre (sn); makineli yağmuru önler. */
   minGapSec: number;
+  /** Tını çeşidi sayısı (çalış başına biri seçilir; 1 = tek tampon). */
+  variants: number;
+  /** Aynı efektin eşzamanlı ses sınırı. */
+  maxVoices: number;
 }
 
 interface SfxBase {
@@ -176,21 +222,23 @@ interface SfxBase {
   minGapSec: number;
   /** Kategori hedefine göre efekte özgü ince ayar (dB). */
   trimDb?: number;
+  /** Sık çalan savaş efekti: birkaç tını çeşidi ve daha düşük eşzamanlı ses sınırı. */
+  frequent?: boolean;
 }
 
 const BATTLE_GAP = 0.04;
 
 const SFX_BASE: Record<SfxId, SfxBase> = {
-  meleeHit: { priority: 1, minGapSec: BATTLE_GAP },
-  shootRanged: { priority: 1, minGapSec: BATTLE_GAP },
-  shootHeavy: { priority: 2, minGapSec: BATTLE_GAP },
-  impact: { priority: 1, minGapSec: BATTLE_GAP, trimDb: -0.5 },
-  explosion: { priority: 3, minGapSec: 0.06 },
-  unitDeath: { priority: 2, minGapSec: 0.05 },
-  unitSpawn: { priority: 1, minGapSec: 0.05 },
-  baseHit: { priority: 5, minGapSec: 0.1 },
-  towerFast: { priority: 2, minGapSec: BATTLE_GAP },
-  towerHeavy: { priority: 3, minGapSec: BATTLE_GAP },
+  meleeHit: { priority: 1, minGapSec: BATTLE_GAP, frequent: true },
+  shootRanged: { priority: 1, minGapSec: BATTLE_GAP, frequent: true },
+  shootHeavy: { priority: 2, minGapSec: BATTLE_GAP, frequent: true },
+  impact: { priority: 1, minGapSec: BATTLE_GAP, trimDb: -0.5, frequent: true },
+  explosion: { priority: 3, minGapSec: 0.06, frequent: true },
+  unitDeath: { priority: 2, minGapSec: 0.05, frequent: true },
+  unitSpawn: { priority: 1, minGapSec: 0.05, frequent: true },
+  baseHit: { priority: 5, minGapSec: 0.1, frequent: true },
+  towerFast: { priority: 2, minGapSec: BATTLE_GAP, frequent: true },
+  towerHeavy: { priority: 3, minGapSec: BATTLE_GAP, frequent: true },
   towerBuilt: { priority: 6, minGapSec: 0 },
   towerSold: { priority: 6, minGapSec: 0 },
   slotUnlocked: { priority: 6, minGapSec: 0 },
@@ -216,6 +264,15 @@ export const SFX_SETTINGS: Record<SfxId, SfxSettings> = Object.fromEntries(
   (Object.keys(SFX_BASE) as SfxId[]).map((id) => {
     const base = SFX_BASE[id];
     const target = SFX_LEVEL.targets[SFX_CATEGORY[id]] + (base.trimDb ?? 0);
-    return [id, { gain: levelGain(target), priority: base.priority, minGapSec: base.minGapSec }];
+    return [
+      id,
+      {
+        gain: levelGain(target),
+        priority: base.priority,
+        minGapSec: base.minGapSec,
+        variants: base.frequent ? MIX.frequentVariants : 1,
+        maxVoices: base.frequent ? MIX.maxPerFrequentSfx : MIX.maxPerSfx,
+      },
+    ];
   }),
 ) as Record<SfxId, SfxSettings>;
