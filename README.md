@@ -45,6 +45,8 @@ Denge araçları ve diğer komutlar için [CLAUDE.md](CLAUDE.md); tasarım ve mi
 2. `dist/` klasörünün **içeriğini** zip'le (zip'in kökünde `index.html` olmalı).
 3. itch.io'da yeni proje → Kind of project: **HTML** → zip'i yükle → "This file will be played in the browser".
    Önerilen gömme boyutu 1280×720, "Fullscreen button" açık. Alternatif: `butler push dist <kullanıcı>/devir:html5`.
+4. Sayfa metni, ayarların tamamı, kapak (630×500) ve ekran görüntüleri `store/` klasöründedir:
+   [`store/itch-sayfasi.md`](store/itch-sayfasi.md).
 
 Aynı `dist/` klasörü GitHub Pages veya Cloudflare Pages gibi herhangi bir statik barındırmada da çalışır.
 Desteklenen tarayıcılar: Chrome, Edge, Firefox (son iki ana sürüm), Safari 17+; WebGL2 gerekir.
