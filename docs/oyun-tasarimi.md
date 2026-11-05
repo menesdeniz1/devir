@@ -54,15 +54,9 @@ Her birlik her adımda şu durumlardan birindedir:
 
 ### Rol çarpanları
 
-Birlik rollerinin çarpanları ve mermi hızları `src/data/combat.ts`'tedir (tek kaynak). Simülasyon bunları
-yüklerken tür başına tamsayı hasar tablosuna çevirir. Kule satırları Aşama 4'te veriye taşınır; o zamana kadar
-başlangıç değerleri:
-
-| Saldıran ↓ / Hedef → | Ön hat | Menzilli | Ağır | Üs |
-|---|---|---|---|---|
-| Kule — hızlı (A) | 1,0 | 1,2 | 0,7 | — |
-| Kule — ağır (B) | 0,9 | 1,3 | 1,2 | — |
-| Yetenek | 1,0 | 1,0 | 1,0 | — (PRD Y-03) |
+Birlik rollerinin çarpanları ve mermi hızları `src/data/combat.ts`'te, kule türlerininki `src/data/towers.ts`'te
+(tek kaynak). Simülasyon bunları yüklerken tür başına tamsayı hasar tablosuna çevirir. Yeteneklerin çarpanı
+tüm rollere 1,0'dır ve üsse etki etmez (PRD Y-03); veriye Aşama 5'te girer.
 
 Amaçlanan karşılık döngüsü:
 
@@ -138,18 +132,14 @@ Kadro adları ve görsel kavramları özgündür; türün bilinen oyunlarındaki
 
 ## 6. Savunma
 
-- Yuva 1 açık; **yuva 2: 200 altın, yuva 3: 500 altın** (sırayla açılır, iade yok).
+- Yuva 1 açık; diğer ikisi sırayla, altınla açılır; açma ücreti iade edilmez.
 - Kuruluma yalnızca güncel çağın iki kulesi açıktır (PRD Ç-06). Kule kendi çağının değerlerini korur.
 - Satış ve iade kuralları: PRD E-05 ve D-05.
-- Menzil üssün ön yüzünden koridora doğru ölçülür. Hızlı kule (A) menzili 270, ağır kuşatma menzili 300:
-  aynı çağın ağır birliği üssü A kulesinin menzili dışından döver (PRD B-03). B kulesi kısa menzillidir.
-
-| Tür | Maliyet (İlkel) | Hasar | Aralık (sn) | Menzil | Özellik |
-|---|---|---|---|---|---|
-| A — hızlı, tek hedef | 120 | 16 | 0,6 | 270 | — |
-| B — ağır, alan | 160 | 40 | 2,0 | 200 | Alan yarıçapı 60 |
-
-Ölçekleme: maliyet × 1,75^(n−1) (en yakın 5'e, tam ortada yukarı), hasar × 2^(n−1); menzil ve aralık sabit (kule kimliğine göre ±%10 oynayabilir).
+- Menzil üssün ön yüzünden koridora doğru ölçülür. Tasarım niyeti: hızlı kule (A) ağır birliklerden biraz kısa
+  menzillidir, böylece aynı çağın ağır birliği üssü A kulesinin menzili dışından döver (PRD B-03). Ağır kule (B)
+  kısa menzilli alan hasarı verir ve kümelenen menzillileri cezalandırır.
+- Kule değerleri, yuva ücretleri, satış oranı ve kule mermisi hızı `src/data/towers.ts`'tedir (tek kaynak).
+  Ölçekleme birliklerle aynıdır: maliyet × 1,75^(n−1), hasar × 2^(n−1); menzil ve aralık sabit.
 
 | Çağ | A (hızlı) | B (ağır, alan) |
 |---|---|---|

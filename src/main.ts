@@ -42,7 +42,7 @@ async function boot(): Promise<void> {
   const uiLayer = el('div', 'ui-layer', root);
   const hud = mountHud(uiLayer, session);
   const overlays = mountOverlays(uiLayer, session);
-  mountKeyboard(session);
+  mountKeyboard(session, document, { dismiss: hud.dismissMenu });
 
   let debugUpdate: (() => void) | null = null;
   if (import.meta.env.DEV && new URLSearchParams(globalThis.location.search).has('debug')) {

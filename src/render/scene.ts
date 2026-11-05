@@ -1,6 +1,7 @@
 import { Container, Graphics } from 'pixi.js';
 import { BaseRig } from '../art/baseRig';
 import { StoneRig } from '../art/stoneArt';
+import { prewarmTowerArt } from '../art/towerRig';
 import { artAge, prewarmUnitArt } from '../art/unitArt';
 import { STONE } from '../data/stone';
 import { WORLD } from '../data/world';
@@ -204,6 +205,7 @@ export interface BaseView {
 export function createBaseView(side: SideId): BaseView {
   // Birlik atlası da sahne kurulurken pişirilsin (ilk doğumda takılma olmasın).
   prewarmUnitArt();
+  prewarmTowerArt(1);
   const rig = new BaseRig(side);
   const container = new Container();
   container.addChild(rig.root);
@@ -237,10 +239,36 @@ export function triggerBaseFlash(view: BaseView): void {
  */
 export function setBaseAge(view: BaseView, age: number, animate = true): void {
   const a = artAge(age);
+  // Yeni maçta yuvalar da animasyonsuz (kurulum/satış efekti oynamadan) yeni duruma geçer.
+  if (!animate) view.rig.snapTowers();
   if (a === view.rig.currentAge) return;
   prewarmUnitArt(a);
+  prewarmTowerArt(a);
   // Yeni maçta (yeniden oyna) çağ geri döner; o zaman yeniden inşa animasyonu oynatılmaz.
   view.rig.setAge(a, animate);
+}
+
+// ---- Aşama 4 sözleşmesi (lead): kuleler. Renderer çağırır; art sahibi uygular. ----
+
+/**
+ * Yuvayı çizer: kilitli yuva işareti (unlocked=false), boş yuva (towerType=null) veya kurulu kule (TowerDef.id).
+ * Renderer her kare çağırabilir; değişmediyse bir şey yapmaz. Animasyonlar updateBaseFlash içinde ilerler.
+ * Değişim algılanır: kurulumda belirme, satışta sökülme, kilit açılınca kapağın fırlaması.
+ */
+export function setTowerSlot(view: BaseView, slot: number, towerType: string | null, unlocked: boolean): void {
+  view.rig.setTowerSlot(slot, towerType, unlocked);
+}
+
+/** Kulenin atış animasyonunu tetikler ('towerFired' olayında). */
+export function triggerTowerFire(view: BaseView, slot: number): void {
+  view.rig.fireTower(slot);
+}
+
+/** Kule mermisinin sahne koordinatındaki çıkış noktası (mermi görseli buradan başlar). */
+export function towerLaunchPoint(view: BaseView, slot: number): { x: number; y: number } {
+  const p = view.rig.towerLaunch(slot);
+  const c = view.container;
+  return { x: c.x + c.scale.x * p.x, y: c.y + c.scale.y * p.y };
 }
 
 /** Koridorun ortasındaki Sınır Taşı görünümü. Kapsayıcı dünya koordinatındadır (arka plan ile birlikler arası katman). */

@@ -1,6 +1,6 @@
 import type { Session } from '../game/session';
 import { ageUp, cancelLastWaiting, produceUnit } from './actions';
-import { KEY_AGE_UP, KEY_CANCEL_LAST, KEYS_TOGGLE_PAUSE, UNIT_SHORTCUT_CODES } from './constants';
+import { KEY_AGE_UP, KEY_CANCEL_LAST, KEY_CLOSE_MENU, KEYS_TOGGLE_PAUSE, UNIT_SHORTCUT_CODES } from './constants';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -9,7 +9,12 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 /** Kısayollar fiziksel tuşa (KeyboardEvent.code) bağlıdır. Döndürülen işlev dinleyiciyi kaldırır. */
-export function mountKeyboard(session: Session, target: Pick<Document, 'addEventListener' | 'removeEventListener'> = document): () => void {
+export function mountKeyboard(
+  session: Session,
+  target: Pick<Document, 'addEventListener' | 'removeEventListener'> = document,
+  /** Esc'e öncelikli açık bir menü varsa: `dismiss` onu kapatır ve true döner (o zaman duraklatma yapılmaz). */
+  menu: { dismiss(): boolean } | null = null,
+): () => void {
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target)) return;
     const code = event.code;
@@ -32,6 +37,7 @@ export function mountKeyboard(session: Session, target: Pick<Document, 'addEvent
     }
     if ((KEYS_TOGGLE_PAUSE as readonly string[]).includes(code)) {
       event.preventDefault();
+      if (code === KEY_CLOSE_MENU && !event.repeat && menu?.dismiss() === true) return;
       if (!event.repeat && !session.ended) session.togglePause();
     }
   };

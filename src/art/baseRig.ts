@@ -4,6 +4,7 @@ import { clamp01, easeInQuad, easeOutCubic } from './anim';
 import { buildAtlas, mustTexture } from './atlas';
 import { GLOW_CORE, type ArtAge, type ArtSide } from './palette';
 import { PRIMITIVE_BASE_FX, primitiveBaseParts, type BaseFx } from './primitiveBase';
+import { SLOT_ANCHORS, TowerSlot } from './towerRig';
 
 /**
  * Üs iskeleti: çağa göre giydirilmiş sabit doku + alev/ışık + duman/zerre + vuruş silueti.
@@ -74,6 +75,8 @@ export class BaseRig {
   private readonly flame: Sprite;
   private readonly glow: Sprite;
   private readonly wave = new Graphics();
+  /** Kule yuvaları (index = yuva). Üst yuvalar arkada çizilir. */
+  private readonly slots: TowerSlot[] = [];
   private age: ArtAge;
   private fx: BaseFx;
   private clockMs = 0;
@@ -101,7 +104,11 @@ export class BaseRig {
     this.wave.ellipse(0, 0, WAVE.rx, WAVE.ry).stroke({ width: WAVE.width, color: GLOW_CORE });
     this.wave.position.set(WAVE.x, WAVE.y);
     this.wave.visible = false;
-    this.root.addChild(this.old, this.base, this.flame, this.glow, this.flash, this.wave);
+    const slotLayer = new Container();
+    for (let i = 0; i < SLOT_ANCHORS[age].length; i++) this.slots.push(new TowerSlot(side, i, age));
+    for (let i = this.slots.length - 1; i >= 0; i--) slotLayer.addChild(this.slots[i]!.root);
+    // Kuleler üs siluetinin (vuruş/inşa parlaması) üstünde: çağ geçişinde görünür kalırlar.
+    this.root.addChild(this.old, this.base, this.flame, this.glow, this.flash, slotLayer, this.wave);
     this.placeFx();
   }
 
@@ -122,6 +129,7 @@ export class BaseRig {
     this.flame.texture = tex('flame');
     for (const p of this.puffs) p.sprite.texture = tex('smoke');
     this.placeFx();
+    for (const s of this.slots) s.setBaseAge(age, animate);
     if (animate) {
       this.old.texture = prevTex;
       this.rebuildMs = 0;
@@ -138,6 +146,7 @@ export class BaseRig {
       if (this.rebuildMs >= REBUILD.totalMs) this.rebuildMs = Infinity;
     }
     this.poseRebuild();
+    for (const s of this.slots) s.update(animMs);
     const t = this.clockMs;
     const fxOn = !(this.rebuildMs < REBUILD.fxBackMs);
     const fx = this.fx;
@@ -162,6 +171,30 @@ export class BaseRig {
       p.sprite.scale.set((0.45 + k * 1.1) * fx.puffScale);
       p.sprite.alpha = clamp01(k * 6) * (1 - k) * 0.85;
     }
+  }
+
+  /** Yuva sayısı (bağlama noktaları). */
+  get slotCount(): number {
+    return this.slots.length;
+  }
+
+  /** Yuvayı çizer: kilitli, boş ya da kurulu kule (kimlik). Değişmediyse bir şey yapmaz. */
+  setTowerSlot(slot: number, towerType: string | null, unlocked: boolean): void {
+    this.slots[slot]?.set(towerType, unlocked);
+  }
+
+  fireTower(slot: number): void {
+    this.slots[slot]?.fire();
+  }
+
+  /** Kule mermi çıkışı (kök yerel). */
+  towerLaunch(slot: number): { x: number; y: number } {
+    return (this.slots[slot] ?? this.slots[0]!).launchPoint();
+  }
+
+  /** Yeni maç: yuvaların sonraki durumu animasyonsuz uygulanır. */
+  snapTowers(): void {
+    for (const s of this.slots) s.snap();
   }
 
   private lookup(age: ArtAge): (name: string) => Texture {

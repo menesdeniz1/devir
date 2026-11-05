@@ -1,6 +1,7 @@
 import { AGES } from '../data/ages';
 import { COMBAT } from '../data/combat';
-import type { AgeDef, Role, TargetClass, UnitDef } from '../data/types';
+import { DEFENSE, TOWERS } from '../data/towers';
+import type { AgeDef, PierceDef, Role, SplashDef, TargetClass, TowerDef, UnitDef } from '../data/types';
 import { UNITS } from '../data/units';
 import { WORLD } from '../data/world';
 
@@ -63,6 +64,59 @@ function compileUnit(def: UnitDef): CompiledUnit {
   };
 }
 
+/**
+ * Bir vuruşun (birlik saldırısı ya da kule atışı) hasar hesabı için gereken ortak biçim.
+ * CompiledUnit ve CompiledTower bunu karşılar; combat.strike yalnızca bunu okur.
+ */
+export interface StrikeSource {
+  readonly damageVs: Readonly<Record<TargetClass, number>>;
+  readonly splashDamageVs: Readonly<Record<Role, number>> | null;
+  readonly def: { readonly splash?: SplashDef; readonly pierce?: PierceDef };
+}
+
+/** Kule türünün tick cinsinden hazırlanmış hâli (birlik için CompiledUnit'in karşılığı). */
+export interface CompiledTower extends StrikeSource {
+  readonly def: TowerDef;
+  readonly attackIntervalTicks: number;
+  /** Hedef sınıfına göre tamsayı hasar tablosu (kule çarpanı uygulanmış). 'base' sütunu 0'dır: kuleler üsse saldırmaz. */
+  readonly damageVs: Readonly<Record<TargetClass, number>>;
+  /** Mermi adımı (birim/tick). */
+  readonly projectileStep: number;
+}
+
+function compileTower(def: TowerDef): CompiledTower {
+  const multipliers = DEFENSE.multipliers[def.kind];
+  const damageVs = { base: 0 } as Record<TargetClass, number>;
+  for (const cls of UNIT_CLASSES) damageVs[cls] = roundDamage(def.damage * multipliers[cls]);
+  let splashDamageVs: Record<Role, number> | null = null;
+  if (def.splash !== undefined) {
+    splashDamageVs = {} as Record<Role, number>;
+    for (const cls of UNIT_CLASSES) splashDamageVs[cls] = roundDamage(damageVs[cls] * def.splash.falloff);
+  }
+  return {
+    def,
+    attackIntervalTicks: secToTicks(def.attackIntervalSec),
+    damageVs,
+    splashDamageVs,
+    projectileStep: DEFENSE.projectileSpeed / WORLD.tickRate,
+  };
+}
+
+const TOWER_LOOKUP: ReadonlyMap<string, CompiledTower> = new Map(TOWERS.map((def) => [def.id, compileTower(def)]));
+
+export function getTower(id: string): CompiledTower | undefined {
+  return TOWER_LOOKUP.get(id);
+}
+
+/** Durumda geçen kule kimliği veride yoksa hata verir (bozuk kayıt). */
+export function mustGetTower(id: string): CompiledTower {
+  const tower = TOWER_LOOKUP.get(id);
+  if (tower === undefined) {
+    throw new Error(`Bilinmeyen kule türü: ${id}`);
+  }
+  return tower;
+}
+
 const UNIT_LOOKUP: ReadonlyMap<string, CompiledUnit> = new Map(UNITS.map((def) => [def.id, compileUnit(def)]));
 
 export function getUnit(id: string): CompiledUnit | undefined {
@@ -76,6 +130,16 @@ export function mustGetUnit(id: string): CompiledUnit {
     throw new Error(`Bilinmeyen birlik türü: ${id}`);
   }
   return unit;
+}
+
+/** Kule satışında iade edilen altın: ödenen × oran, aşağı yuvarlanır (PRD E-05; 645 → 322). */
+export function sellRefund(paid: number): number {
+  return Math.floor(paid * DEFENSE.sellRefundRatio + EPS);
+}
+
+/** Mermi/vuruş kaynağının hesap tablosu: birlik ya da kule (kimlikler birbirinden ayrıdır). */
+export function mustGetStrikeSource(kind: 'unit' | 'tower', type: string): StrikeSource {
+  return kind === 'tower' ? mustGetTower(type) : mustGetUnit(type);
 }
 
 export function getAge(age: number): AgeDef | undefined {

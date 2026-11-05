@@ -15,6 +15,11 @@ export function enemyBaseFaceX(side: SideId): number {
   return side === 0 ? WORLD.worldWidth - WORLD.baseWidth : WORLD.baseWidth;
 }
 
+/** `side` tarafının kendi üssünün ön yüzünün x değeri (kule menzili ve kule mermisinin çıkışı buradan ölçülür). */
+export function ownBaseFaceX(side: SideId): number {
+  return side === 0 ? WORLD.baseWidth : WORLD.worldWidth - WORLD.baseWidth;
+}
+
 /** İki birlik arasında birbirine bakan kenarlar arası mesafe (negatif olabilir). */
 export function gapBetween(a: UnitState, aWidth: number, b: UnitState, bWidth: number): number {
   return dirOf(a.side) * (b.x - a.x) - (aWidth + bWidth) / 2;

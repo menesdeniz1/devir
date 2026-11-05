@@ -1,5 +1,5 @@
 import { Container, Graphics } from 'pixi.js';
-import { mustGetUnit } from '../sim/compile';
+import { getTower, getUnit, mustGetTower, mustGetUnit } from '../sim/compile';
 import type { ProjectileState, SideId, SimEvent } from '../sim/types';
 import { arcHeightFor, arcLift, effectProgress, fadeAlpha, flightProgress } from './projectileMath';
 
@@ -15,6 +15,12 @@ const COLOR_ROCK = 0x8d8d99;
 const COLOR_ROCK_LIGHT = 0xc4c4d0;
 const COLOR_DUST = 0xe9d9b4;
 const COLOR_RING = 0xfff3c4;
+/** Kule cıvatası (hızlı kule): mızraktan kısa ve ince. */
+const BOLT_LENGTH_PX = 22;
+const BOLT_SHAFT_WIDTH = 2;
+const BOLT_TIP_LENGTH = 7;
+const BOLT_TIP_HALF_WIDTH = 3;
+const COLOR_BOLT = 0xd9d4e8;
 const SPEAR_LENGTH_PX = 34;
 const SPEAR_SHAFT_WIDTH = 3;
 const SPEAR_TIP_LENGTH = 9;
@@ -40,7 +46,18 @@ const RING_LINE_WIDTH = 4;
 /** Aynı anda en çok etki sayısı (performans sınırı). */
 const MAX_EFFECTS = 80;
 
-type ProjectileKind = 'spear' | 'rock';
+type ProjectileKind = 'spear' | 'rock' | 'bolt';
+
+/** Merminin görünüm türü: birlikte role, kulede kule türüne göre (hızlı: cıvata, ağır: kaya). */
+function kindOf(projectile: ProjectileState): ProjectileKind {
+  if (projectile.sourceKind === 'tower') return mustGetTower(projectile.sourceType).def.kind === 'heavy' ? 'rock' : 'bolt';
+  return mustGetUnit(projectile.sourceType).role === 'heavy' ? 'rock' : 'spear';
+}
+
+/** Kaynağın alan hasarı (birlik ya da kule); yoksa undefined. */
+function splashOf(sourceType: string) {
+  return (getUnit(sourceType) ?? getTower(sourceType))?.def.splash;
+}
 
 /** Atan birliğin silah çıkış noktası (sahne koordinatı). */
 export interface LaunchPoint {
@@ -64,8 +81,9 @@ class ProjectileView {
     this.startX = projectile.x;
     this.launchOffsetX = launch === undefined ? 0 : launch.x - projectile.x;
     this.launchOffsetY = launch === undefined ? 0 : launch.y - (GROUND_Y - LAUNCH_HEIGHT_PX);
-    this.kind = mustGetUnit(projectile.sourceType).role === 'heavy' ? 'rock' : 'spear';
+    this.kind = kindOf(projectile);
     if (this.kind === 'spear') this.drawSpear();
+    else if (this.kind === 'bolt') this.drawBolt();
     else this.drawRock();
     this.container.addChild(this.shape);
   }
@@ -77,6 +95,17 @@ class ProjectileView {
     g.moveTo(-half, 0).lineTo(half - SPEAR_TIP_LENGTH, 0).stroke({ width: SPEAR_SHAFT_WIDTH + OUTLINE_WIDTH * 2, color: COLOR_OUTLINE });
     g.moveTo(-half, 0).lineTo(half - SPEAR_TIP_LENGTH, 0).stroke({ width: SPEAR_SHAFT_WIDTH, color: COLOR_SHAFT });
     g.poly([half - SPEAR_TIP_LENGTH, -SPEAR_TIP_HALF_WIDTH, half, 0, half - SPEAR_TIP_LENGTH, SPEAR_TIP_HALF_WIDTH])
+      .fill(COLOR_TIP)
+      .stroke({ width: OUTLINE_WIDTH, color: COLOR_OUTLINE });
+    this.container.scale.x = this.dir;
+  }
+
+  private drawBolt(): void {
+    const g = this.shape;
+    const half = BOLT_LENGTH_PX / 2;
+    g.moveTo(-half, 0).lineTo(half - BOLT_TIP_LENGTH, 0).stroke({ width: BOLT_SHAFT_WIDTH + OUTLINE_WIDTH * 2, color: COLOR_OUTLINE });
+    g.moveTo(-half, 0).lineTo(half - BOLT_TIP_LENGTH, 0).stroke({ width: BOLT_SHAFT_WIDTH, color: COLOR_BOLT });
+    g.poly([half - BOLT_TIP_LENGTH, -BOLT_TIP_HALF_WIDTH, half, 0, half - BOLT_TIP_LENGTH, BOLT_TIP_HALF_WIDTH])
       .fill(COLOR_TIP)
       .stroke({ width: OUTLINE_WIDTH, color: COLOR_OUTLINE });
     this.container.scale.x = this.dir;
@@ -136,7 +165,7 @@ export class ProjectileLayer {
       const sourceType = this.sourceTypes.get(event.id);
       this.sourceTypes.delete(event.id);
       this.addDust(event.x, event.side);
-      const splash = sourceType === undefined ? undefined : mustGetUnit(sourceType).def.splash;
+      const splash = sourceType === undefined ? undefined : splashOf(sourceType);
       if (splash !== undefined) this.addRing(event.x, splash.radius);
     }
   }
@@ -147,14 +176,14 @@ export class ProjectileLayer {
     previousX: (id: number) => number | undefined,
     alpha: number,
     animMs: number,
-    launchPointOf?: (sourceId: number) => LaunchPoint | undefined,
+    launchPointOf?: (projectile: ProjectileState) => LaunchPoint | undefined,
   ): void {
     const alive = new Set<number>();
     for (const p of projectiles) {
       alive.add(p.id);
       let view = this.views.get(p.id);
       if (view === undefined) {
-        view = new ProjectileView(p, launchPointOf?.(p.sourceId));
+        view = new ProjectileView(p, launchPointOf?.(p));
         this.views.set(p.id, view);
         this.container.addChild(view.container);
       }

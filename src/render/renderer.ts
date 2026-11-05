@@ -8,7 +8,10 @@ import {
   createBaseView,
   createStoneView,
   setBaseAge,
+  setTowerSlot,
+  towerLaunchPoint,
   triggerBaseFlash,
+  triggerTowerFire,
   updateBaseFlash,
   updateStoneView,
   type BaseView,
@@ -81,6 +84,9 @@ export async function createRenderer(host: HTMLElement, session: Session): Promi
       // Yeni maç: üsler ve taş yeni durumdan çizilir; taşın görsel durumu da baştan başlar.
       setBaseAge(bases[0], session.state.sides[0].age, false);
       setBaseAge(bases[1], session.state.sides[1].age, false);
+      for (const side of [0, 1] as const) {
+        session.state.sides[side].slots.forEach((slot, i) => setTowerSlot(bases[side], i, slot.tower?.type ?? null, slot.unlocked));
+      }
       updateStoneView(stone, session.state.stone, 0);
       return;
     }
@@ -88,6 +94,7 @@ export async function createRenderer(host: HTMLElement, session: Session): Promi
     for (const e of event.events) {
       projectiles.handleEvent(e);
       if (e.type === 'attack') views.get(e.attackerId)?.startAttack();
+      else if (e.type === 'towerFired') triggerTowerFire(bases[e.side], e.slot);
       else if (e.type === 'baseDamaged') triggerBaseFlash(bases[e.side]);
       else if (e.type === 'unitDied') views.get(e.id)?.startDying();
     }
@@ -128,10 +135,13 @@ export async function createRenderer(host: HTMLElement, session: Session): Promi
         (id) => session.previousProjectileX(id),
         alpha,
         animMs,
-        (sourceId) => views.get(sourceId)?.launchPoint(),
+        (p) => (p.sourceKind === 'tower' ? towerLaunchPoint(bases[p.side], p.sourceId) : views.get(p.sourceId)?.launchPoint()),
       );
       setBaseAge(bases[0], state.sides[0].age);
       setBaseAge(bases[1], state.sides[1].age);
+      for (const side of [0, 1] as const) {
+        state.sides[side].slots.forEach((slot, i) => setTowerSlot(bases[side], i, slot.tower?.type ?? null, slot.unlocked));
+      }
       updateStoneView(stone, state.stone, animMs);
       updateBaseFlash(bases[0], animMs);
       updateBaseFlash(bases[1], animMs);

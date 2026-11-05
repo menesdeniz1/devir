@@ -2,8 +2,8 @@ import { WORLD } from '../data/world';
 import { applyCommand } from './commands';
 import { strike, type PendingDamage } from './combat';
 import { STONE } from '../data/stone';
-import { EPS, mustGetAge, mustGetUnit } from './compile';
-import { dirOf, enemyBaseFaceX, facingEdgeX, otherSide } from './geometry';
+import { EPS, mustGetAge, mustGetTower, mustGetUnit } from './compile';
+import { dirOf, enemyBaseFaceX, facingEdgeX, otherSide, ownBaseFaceX } from './geometry';
 import { selectTargets, type Target } from './targeting';
 import type { Command, GameState, Outcome, ProjectileState, SideId, SimEvent, UnitState } from './types';
 import { isWellFormedCommand } from './validate';
@@ -24,6 +24,7 @@ export function step(state: GameState, commands: readonly Command[]): SimEvent[]
   const pending: PendingDamage[] = [];
   attacks(state, targets, pending, events);
   advanceProjectiles(state, pending, events);
+  towerAttacks(state, events);
   resolveDamage(state, pending, events);
   updateStone(state, events);
   resolveOutcome(state, events);
@@ -185,7 +186,7 @@ function attacks(state: GameState, targets: readonly Target[], pending: PendingD
     const impactX = victim === 'base' ? enemyBaseFaceX(u.side) : facingEdgeX(victim, mustGetUnit(victim.type).def.width, u.side);
     if (def.projectileStep === null) {
       // Yakın dövüş: hasar anında bekleyen hasara girer (tamsayı tablo).
-      const result = strike(state, u.side, u.type, victim, impactX, pending);
+      const result = strike(state, u.side, 'unit', u.type, victim, impactX, pending);
       events.push({ type: 'attack', side: u.side, attackerId: u.id, target, damage: result.mainDamage });
       return;
     }
@@ -196,6 +197,7 @@ function attacks(state: GameState, targets: readonly Target[], pending: PendingD
     const projectile: ProjectileState = {
       id,
       side: u.side,
+      sourceKind: 'unit',
       sourceType: u.type,
       sourceId: u.id,
       targetId: victim === 'base' ? null : victim.id,
@@ -227,7 +229,7 @@ function advanceProjectiles(state: GameState, pending: PendingDamage[], events: 
   const byId = indexById(state.units);
   const flying: ProjectileState[] = [];
   for (const p of state.projectiles) {
-    const source = mustGetUnit(p.sourceType);
+    const stepLength = p.sourceKind === 'tower' ? mustGetTower(p.sourceType).projectileStep : (mustGetUnit(p.sourceType).projectileStep ?? 0);
     const dir = dirOf(p.side);
     let victim: UnitState | 'base' | null;
     if (p.targetId === null) {
@@ -242,17 +244,70 @@ function advanceProjectiles(state: GameState, pending: PendingDamage[], events: 
         p.targetX = facingEdgeX(found, mustGetUnit(found.type).def.width, p.side);
       }
     }
-    const stepLength = source.projectileStep ?? 0;
     if (dir * (p.targetX - p.x) > stepLength) {
       p.x += dir * stepLength;
       flying.push(p);
       continue;
     }
     p.x = p.targetX;
-    const result = strike(state, p.side, p.sourceType, victim, p.targetX, pending);
+    const result = strike(state, p.side, p.sourceKind, p.sourceType, victim, p.targetX, pending);
     events.push({ type: 'projectileImpact', side: p.side, id: p.id, x: p.targetX, hits: result.unitsHit, hitBase: result.hitBase });
   }
   state.projectiles = flying;
+}
+
+/**
+ * Kuleler (TDD §3 adım 9): her yuvadaki kulenin sayacı 1 azalır (0'ın altına inmez). Sayaç 0 ise ve üs ön yüzüne
+ * bakan kenar mesafesi menzil içinde olan en yakın düşman birliği varsa (eşitlikte dizi sırası) mermi atar.
+ * Kuleler üsse saldırmaz ve hedef alınamaz; hasar mermi çarpınca (adım 10) uygulanır.
+ */
+function towerAttacks(state: GameState, events: SimEvent[]): void {
+  for (const side of [0, 1] as const) {
+    const slots = state.sides[side].slots;
+    for (let slot = 0; slot < slots.length; slot++) {
+      const tower = slots[slot]!.tower;
+      if (tower === null) continue;
+      if (tower.cooldown > 0) tower.cooldown -= 1;
+      if (tower.cooldown > 0) continue;
+      const def = mustGetTower(tower.type);
+      const target = nearestTowerTarget(state, side, def.def.range);
+      if (target === null) continue;
+      tower.cooldown = def.attackIntervalTicks;
+      const id = state.nextId;
+      state.nextId += 1;
+      state.projectiles.push({
+        id,
+        side,
+        sourceKind: 'tower',
+        sourceType: tower.type,
+        sourceId: slot,
+        targetId: target.id,
+        x: ownBaseFaceX(side),
+        targetX: facingEdgeX(target, mustGetUnit(target.type).def.width, side),
+        targetLost: false,
+      });
+      events.push({ type: 'towerFired', side, slot, towerType: tower.type, target: target.id });
+      events.push({ type: 'projectileFired', side, id, sourceType: tower.type, target: target.id });
+    }
+  }
+}
+
+/** Kendi üs ön yüzüne bakan kenar mesafesi `range` içinde olan en yakın düşman birliği; yoksa null. */
+function nearestTowerTarget(state: GameState, side: SideId, range: number): UnitState | null {
+  const enemy = otherSide(side);
+  const dir = dirOf(side);
+  const face = ownBaseFaceX(side);
+  let best: UnitState | null = null;
+  let bestGap = Infinity;
+  for (const e of state.units) {
+    if (e.side !== enemy) continue;
+    const gap = dir * (facingEdgeX(e, mustGetUnit(e.type).def.width, side) - face);
+    if (gap <= range && gap < bestGap) {
+      best = e;
+      bestGap = gap;
+    }
+  }
+  return best;
 }
 
 // ---- 10. Hasarın eşzamanlı uygulanması ---------------------------------------

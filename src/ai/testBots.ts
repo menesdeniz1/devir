@@ -1,14 +1,16 @@
 /**
  * Test ve CLI araçları için botlar. Oynanış içeriği değildir; sayılar denge değil, test yoğunluğu ayarıdır.
  */
+import { DEFENSE } from '../data/towers';
 import { ECONOMY } from '../data/world';
-import type { Role } from '../data/types';
-import { getAge, unitOfRole } from '../sim/compile';
+import type { Role, TowerKind } from '../data/types';
+import { getAge, getTower, sellRefund, unitOfRole } from '../sim/compile';
 import { planAgeUp } from './ageUpPlan';
 import { mixSeed, rngFromSeed, rngInt, rngNext, type RngState } from '../sim/rng';
 import type { Command, JsonValue, SideId } from '../sim/types';
 import type { Controller } from './controller';
 import type { Observation } from './observation';
+import { towerOfKind } from './towerPlan';
 
 /** Rastgele botun her tick'te bir şey yapma olasılığı. */
 const RANDOM_ACT_CHANCE = 0.04;
@@ -18,6 +20,14 @@ const RANDOM_QUEUE_SHARE = 0.7;
 const RANDOM_AGE_UP_SHARE = 0.5;
 /** Siparişlerde geçersiz/kullanılamaz kimlik deneme olasılığı (ret yollarını sınamak için). */
 const RANDOM_BAD_ID_CHANCE = 0.1;
+/** Rastgele botun her tick'te kule komutu deneme olasılığı (yuva açma, kurma, satma; ret yollarını da dener). */
+const RANDOM_TOWER_CHANCE = 0.02;
+/** Kule komutlarında eylem payları: açma, kurma; kalanı satma. */
+const RANDOM_UNLOCK_SHARE = 0.25;
+const RANDOM_BUILD_SHARE = 0.5;
+/** Kurma denemesinde güncel çağın dışından (başka çağın ya da bilinmeyen) kimlik seçme olasılığı. */
+const RANDOM_BAD_TOWER_CHANCE = 0.2;
+const BAD_TOWER_IDS: readonly string[] = ['no_such_tower', 'future_tower_fast', 'primitive_tower_heavy'];
 const BAD_UNIT_ID = 'no_such_unit';
 
 interface RandomMemory {
@@ -62,10 +72,25 @@ export function createRandomBot(configSeed: number, side: SideId): Controller {
           commands.push({ type: 'cancelOrder', side: obs.side, index: rngInt(rng, obs.self.queue.length + 1) });
         }
       }
+      if (rngNext(rng) < RANDOM_TOWER_CHANCE) commands.push(randomTowerCommand(rng, obs));
       const next: RandomMemory = { rng };
       return { commands, memory: next as unknown as JsonValue };
     },
   };
+}
+
+/** Rastgele kule komutu: yuva indeksi geçerli aralığın bir ötesini de dener; kimlik bazen kullanılamaz ya da bilinmez. */
+function randomTowerCommand(rng: RngState, obs: Observation): Command {
+  const slot = rngInt(rng, obs.self.slots.length + 1);
+  const roll = rngNext(rng);
+  if (roll < RANDOM_UNLOCK_SHARE) return { type: 'unlockSlot', side: obs.side, slot };
+  if (roll < RANDOM_UNLOCK_SHARE + RANDOM_BUILD_SHARE) {
+    const ids = getAge(obs.self.age)?.towerIds ?? [];
+    const bad = ids.length === 0 || rngNext(rng) < RANDOM_BAD_TOWER_CHANCE;
+    const pool = bad ? BAD_TOWER_IDS : ids;
+    return { type: 'buildTower', side: obs.side, slot, towerId: pool[rngInt(rng, pool.length)]! };
+  }
+  return { type: 'sellTower', side: obs.side, slot };
 }
 
 /** Yığan botun kuyruğa dizdiği karışım (test yoğunluğu ayarı; denge değil). Uzunluğu kuyruk sınırını aşmaz. */
@@ -121,6 +146,62 @@ export function createMonoBot(role: Role): Controller {
           commands.push({ type: 'queueUnit', side: obs.side, unitId: unit.def.id });
           gold -= unit.def.cost;
           queued += 1;
+        }
+      }
+      return { commands, memory: null };
+    },
+  };
+}
+
+/** Savunmacı botun birlik üretmeden önce elinde tuttuğu altın rezervi (test yoğunluğu ayarı; denge değil). */
+export const DEFENDER_GOLD_RESERVE = 300;
+/** Savunmacı botun kuyrukta tuttuğu en çok sipariş (gecikmeli, küçük saldırı). */
+const DEFENDER_TARGET_QUEUE = 1;
+/** Savunmacı botun birlik sırası (üretilen toplam sayıya göre döngüsel; test ayarı). */
+const DEFENDER_ROLES: readonly Role[] = ['front', 'ranged', 'front', 'heavy'];
+/** Yuva sırasına göre kule türü (çift yuva hızlı, tek yuva ağır). */
+const DEFENDER_TOWER_KINDS: readonly TowerKind[] = ['fast', 'heavy'];
+
+/**
+ * "Savunmacı" bot (GDD §10 "Yalnız savunma yok"): önce yuvaları açıp güncel çağın kuleleriyle doldurur; çağ atlayınca
+ * eski çağın kulelerini satıp yenisini kurar; çağ atlar. Birlik yalnızca üç yuva da güncel çağ kulesiyle doluyken ve
+ * altın rezervin üstündeyken üretilir. Çağ biriktirirken (save) hiçbir şey harcamaz. Belleği yoktur.
+ */
+export function createDefenderBot(): Controller {
+  return {
+    id: 'defender',
+    decide(obs: Observation) {
+      const commands: Command[] = [];
+      const plan = planAgeUp(obs.self);
+      if (plan === 'ageUp') return { commands: [{ type: 'ageUp', side: obs.side }], memory: null };
+      if (plan === 'save') return { commands, memory: null };
+      const ageDef = getAge(obs.self.age);
+      if (ageDef === undefined) return { commands, memory: null };
+      let gold = obs.self.gold;
+      let allCurrent = true;
+      for (let i = 0; i < obs.self.slots.length; i++) {
+        const slot = obs.self.slots[i]!;
+        if (slot.tower !== null && ageDef.towerIds.includes(slot.tower.type)) continue;
+        // Eski çağın kulesi satılırsa iadesi sayılır; yenisi karşılanamıyorsa satış da yapılmaz.
+        const refund = slot.tower === null ? 0 : sellRefund(slot.tower.paid);
+        const towerId = towerOfKind(ageDef.towerIds, DEFENDER_TOWER_KINDS[i % DEFENDER_TOWER_KINDS.length]!);
+        const tower = towerId === undefined ? undefined : getTower(towerId);
+        const unlockCost = slot.unlocked ? 0 : (DEFENSE.slotUnlockCosts[i] ?? 0);
+        if (tower === undefined || gold + refund < unlockCost + tower.def.cost) {
+          allCurrent = false;
+          break;
+        }
+        if (slot.tower !== null) commands.push({ type: 'sellTower', side: obs.side, slot: i });
+        if (!slot.unlocked) commands.push({ type: 'unlockSlot', side: obs.side, slot: i });
+        commands.push({ type: 'buildTower', side: obs.side, slot: i, towerId: tower.def.id });
+        gold += refund - unlockCost - tower.def.cost;
+      }
+      // Birlik yalnız yuvalar bu karardan ÖNCE zaten güncel kulelerle doluyken üretilir (bu kararda kule komutu yoksa).
+      if (allCurrent && commands.length === 0 && obs.self.queue.length < DEFENDER_TARGET_QUEUE) {
+        const produced = Object.values(obs.self.stats.produced).reduce((a, b) => a + b, 0);
+        const unit = unitOfRole(obs.self.age, DEFENDER_ROLES[produced % DEFENDER_ROLES.length]!);
+        if (unit !== undefined && gold >= DEFENDER_GOLD_RESERVE + unit.def.cost) {
+          commands.push({ type: 'queueUnit', side: obs.side, unitId: unit.def.id });
         }
       }
       return { commands, memory: null };

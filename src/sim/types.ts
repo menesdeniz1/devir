@@ -43,7 +43,23 @@ export interface SideState {
   baseHp: number;
   baseMaxHp: number;
   queue: QueueOrder[];
+  /** Üç savunma yuvası (PRD D-01). index 0 başlangıçta açıktır; yuvalar sırayla açılır. */
+  slots: TowerSlotState[];
   stats: SideStats;
+}
+
+export interface TowerState {
+  /** TowerDef.id — kurulduğu çağın kulesi; çağ geçişinde değişmez (PRD Ç-06). */
+  type: string;
+  /** Ödenen fiyat; satışta iade bundan hesaplanır. */
+  paid: number;
+  /** Bir sonraki atışa kalan tick; 0 ise atabilir. */
+  cooldown: number;
+}
+
+export interface TowerSlotState {
+  unlocked: boolean;
+  tower: TowerState | null;
 }
 
 export type UnitMode = 'walk' | 'attack' | 'wait';
@@ -72,8 +88,11 @@ export interface ProjectileState {
   id: number;
   /** Atan taraf. */
   side: SideId;
-  /** Atan birliğin türü (UnitDef.id); hasar ve istatistik buradan hesaplanır. Atan birlik ölmüş olabilir. */
+  /** Atan birlik mi kule mi. */
+  sourceKind: 'unit' | 'tower';
+  /** Atanın türü (UnitDef.id veya TowerDef.id); hasar ve istatistik buradan hesaplanır. Atan ölmüş/satılmış olabilir. */
   sourceType: string;
+  /** Birlik için birlik kimliği; kule için yuva indeksi (0..2). */
   sourceId: number;
   /** Hedef birlik kimliği; null ise hedef rakip üstür. */
   targetId: number | null;
@@ -101,8 +120,11 @@ export type JsonValue = null | boolean | number | string | JsonValue[] | { [key:
 
 export interface MatchConfig {
   seed: number;
-  /** Rakip denetleyicisi. Aşama 1: 'basic-bot'. Aşama 6'da zorluk seviyeleri eklenir. */
-  opponent: 'basic-bot' | 'none';
+  /**
+   * Rakip (taraf 1) denetleyicisi. 'easy' | 'normal' | 'hard': Aşama 6 yapay zekâsı (GDD §9).
+   * 'basic-bot': Aşama 1–5 sabit bileşimli bot (test aracı). 'none': denetleyicisiz.
+   */
+  opponent: 'easy' | 'normal' | 'hard' | 'basic-bot' | 'none';
 }
 
 export interface GameState {
@@ -128,7 +150,13 @@ export type Command =
   /** index ≥ 1 olmalı (index 0 üretimdedir). */
   | { type: 'cancelOrder'; side: SideId; index: number }
   /** Sonraki çağa geçiş (PRD Ç-01…Ç-08). Ücret anında düşer; can yüzdesi korunur. */
-  | { type: 'ageUp'; side: SideId };
+  | { type: 'ageUp'; side: SideId }
+  /** Kilitli yuvayı açar (yalnız sıradaki kilitli yuva). Ücret iade edilmez. */
+  | { type: 'unlockSlot'; side: SideId; slot: number }
+  /** Açık ve boş yuvaya güncel çağın kulesini kurar. */
+  | { type: 'buildTower'; side: SideId; slot: number; towerId: string }
+  /** Yuvadaki kuleyi satar; ödenen fiyatın sellRefundRatio'su (aşağı yuvarlanmış) iade edilir, yuva boşalır. */
+  | { type: 'sellTower'; side: SideId; slot: number };
 
 export type RejectReason =
   /** Bozuk komut: taraf 0/1 değil, bilinmeyen tür ya da eksik/yanlış tipli alan. */
@@ -143,7 +171,22 @@ export type RejectReason =
   /** Sonraki çağın deneyim eşiğine ulaşılmadı. */
   | 'notEnoughXp'
   /** Son çağdasın. */
-  | 'maxAge';
+  | 'maxAge'
+  /** Yuva indeksi geçersiz (0..2 değil). */
+  | 'noSuchSlot'
+  /** Yuva kilitli (kurulum için). */
+  | 'slotLocked'
+  /** Yuva zaten açık (açma için). */
+  | 'slotAlreadyUnlocked'
+  /** Önceki yuva hâlâ kilitli; yuvalar sırayla açılır. */
+  | 'previousSlotLocked'
+  /** Yuvada zaten kule var (kurulum için; önce sat). */
+  | 'slotOccupied'
+  /** Yuva boş (satış için). */
+  | 'slotEmpty'
+  | 'unknownTower'
+  /** Kule güncel çağın kulelerinden değil. */
+  | 'towerNotAvailable';
 
 export type Validation =
   | { ok: true }
@@ -173,6 +216,11 @@ export type SimEvent =
   | { type: 'unitDied'; side: SideId; id: number; unitType: string; bountyGold: number; bountyXp: number }
   | { type: 'income'; side: SideId; amount: number }
   | { type: 'agedUp'; side: SideId; age: number; paid: number; baseHp: number; baseMaxHp: number }
+  | { type: 'slotUnlocked'; side: SideId; slot: number; paid: number }
+  | { type: 'towerBuilt'; side: SideId; slot: number; towerType: string; paid: number }
+  | { type: 'towerSold'; side: SideId; slot: number; towerType: string; refund: number }
+  /** Kule atışı (mermi 'projectileFired' ile ayrıca bildirilir). */
+  | { type: 'towerFired'; side: SideId; slot: number; towerType: string; target: number }
   | { type: 'stoneCaptured'; side: SideId }
   | { type: 'stoneLost'; side: SideId }
   | { type: 'matchEnded'; outcome: Outcome };

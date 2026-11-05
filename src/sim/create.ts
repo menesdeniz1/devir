@@ -1,3 +1,4 @@
+import { TOWERS } from '../data/towers';
 import { UNITS } from '../data/units';
 import { ECONOMY } from '../data/world';
 import { mustGetAge } from './compile';
@@ -10,10 +11,13 @@ function zeroCounts(): Record<string, number> {
 }
 
 function createStats(): SideStats {
+  // Öldürme istatistiği birlik ve kule türlerini birlikte sayar.
+  const kills = zeroCounts();
+  for (const tower of TOWERS) kills[tower.id] = 0;
   return {
     produced: zeroCounts(),
     lost: zeroCounts(),
-    kills: zeroCounts(),
+    kills,
     goldEarned: 0,
     goldSpent: 0,
     goldRefunded: 0,
@@ -31,6 +35,11 @@ function createSide(): SideState {
     baseHp: baseMaxHp,
     baseMaxHp,
     queue: [],
+    slots: [
+      { unlocked: true, tower: null },
+      { unlocked: false, tower: null },
+      { unlocked: false, tower: null },
+    ],
     stats: createStats(),
   };
 }

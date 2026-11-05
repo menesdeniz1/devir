@@ -65,6 +65,72 @@ export interface UnitDef {
   multiplierOverrides?: Partial<Record<TargetClass, number>>;
 }
 
+/** Kule türü (GDD §6): A = hızlı tek hedef, B = ağır alan hasarlı. */
+export type TowerKind = 'fast' | 'heavy';
+
+export interface TowerDef {
+  /** Kalıcı kimlik. Görünen ad i18n'dedir: `tower.<id>`. */
+  id: string;
+  /** 1..5 */
+  age: number;
+  kind: TowerKind;
+  cost: number;
+  damage: number;
+  attackIntervalSec: number;
+  /** Üssün ön yüzünden koridora doğru ölçülen menzil. */
+  range: number;
+  splash?: SplashDef;
+}
+
+export interface DefenseDef {
+  /** Yuva açma ücretleri; index = yuva. Yuva 0 başlangıçta açıktır (ücret 0). Yuvalar sırayla açılır. */
+  slotUnlockCosts: number[];
+  /** Kule satışında ödenen fiyatın iade oranı; iade aşağı yuvarlanır (PRD E-05). */
+  sellRefundRatio: number;
+  /** Kule türü → birlik rolü → hasar çarpanı (GDD §3). */
+  multipliers: Record<TowerKind, Record<Role, number>>;
+  /** Kule mermisi hızı (birim/sn). */
+  projectileSpeed: number;
+}
+
+/**
+ * Özel yetenek (GDD §7). Bir merkez noktası seçilir; alan = merkez ± width/2, savaş alanına kırpılır.
+ * Yalnız düşman birliklerini etkiler; üsse ve dost birliklere etki etmez (PRD Y-03).
+ * Hasarlar tamsayıdır. Süreli alan hasarı saniyede bir (her tickRate tick'te) uygulanır.
+ */
+export interface AbilityDef {
+  /** Kalıcı kimlik. Görünen ad i18n'dedir: `ability.<id>`. */
+  id: string;
+  /** 1..5 */
+  age: number;
+  width: number;
+  cooldownSec: number;
+  /** Vuruş anında alandaki düşmanlara hasar (delaySec varsa gecikme sonunda). */
+  impactDamage?: number;
+  /** Gecikmeli vuruş: alan önceden gösterilir, bu süre sonunda vurur. */
+  delaySec?: number;
+  /** Vuruşta alandaki düşmanlara uygulanan durum etkisi. */
+  status?: AbilityStatusDef;
+  /** Süreli alan: süre boyunca içindeki düşmanlara etki eder. */
+  zone?: AbilityZoneDef;
+}
+
+export interface AbilityStatusDef {
+  /** stun: hareket ve saldırı yok. freeze: stun + alınan hasar artışı. */
+  kind: 'stun' | 'freeze';
+  durationSec: number;
+  /** freeze için alınan hasar artışı (%); hasar tamsayıya yuvarlanır. */
+  damageTakenPct?: number;
+}
+
+export interface AbilityZoneDef {
+  durationSec: number;
+  /** Saniyede bir uygulanan hasar (tamsayı). */
+  damagePerSec?: number;
+  /** Alandaki düşmanların hız azalması (%). */
+  slowPct?: number;
+}
+
 export interface StoneDef {
   /** Bölgenin dünya koordinatı aralığı (GDD §8). */
   zoneStart: number;
@@ -88,6 +154,10 @@ export interface AgeDef {
   stoneXpPerSec: number;
   /** Bu çağda sipariş verilebilen birlikler. */
   unitIds: string[];
+  /** Bu çağda kurulabilen kuleler (PRD Ç-06: yalnız güncel çağınkiler). */
+  towerIds: string[];
+  /** Bu çağın özel yeteneği (AbilityDef.id). */
+  abilityId: string;
 }
 
 export interface EconomyDef {
@@ -103,4 +173,83 @@ export interface BasicBotDef {
   targetQueueLength: number;
   /** Sipariş sırası; döngüsel tekrarlanır. Aşama 6'da gözleme dayalı karşılık seçimiyle değiştirilir. */
   composition: Role[];
+  /** Kule kullanımı: üs ön yüzüne bu mesafede düşman birliği varken boş yuvaya kule kurar; en çok maxSlots yuva kullanır. */
+  tower: { threatDistance: number; maxSlots: number };
+}
+
+// ---- Yapay zekâ zorluk profilleri (GDD §9) ----------------------------------
+
+export type AiDifficulty = 'easy' | 'normal' | 'hard';
+
+/**
+ * Kule kullanım politikası (GDD §9 tablosu):
+ * - 'lowHp': yalnız üs canı `hpTrigger` oranının altındayken kurar (Kolay).
+ * - 'pressure': üsse yakın düşman varken ya da üs can kaybederken kurar (Normal).
+ * - 'anticipate': kendi yarısında düşman gücü kendi gücünü aşınca da kurar (Zor).
+ */
+export type AiTowerPolicy = 'lowHp' | 'pressure' | 'anticipate';
+
+export interface AiProfileDef {
+  /** Karar aralığı (sn). */
+  decisionIntervalSec: number;
+  /** Her siparişte doğru karşılığı (gözleme dayalı bileşim) seçme olasılığı; başarısızsa rastgele rol. */
+  counterAccuracy: number;
+  /** Çağ koşulları oluştuktan sonra biriktirmeye başlamadan önceki gecikme aralığı (sn, [en az, en çok]). */
+  ageUpDelaySec: [number, number];
+  /** true ise tehdit yüksekken çağ için biriktirmez (üretime devam eder). */
+  ageThreatCheck: boolean;
+  /**
+   * Hesaplı çağ rezervi: deneyim sonraki eşiğin `xpFraction` oranına ulaşınca çağ ücretinin `goldFraction` oranı
+   * kadar altın, birlik harcamasından korunur (eşik geçince ani üretim boşluğunu kısaltır). null: yok.
+   */
+  agePreReserve: { xpFraction: number; goldFraction: number } | null;
+  tower: {
+    policy: AiTowerPolicy;
+    /** Kullanılabilecek en çok yuva sayısı (sırayla). */
+    maxSlots: number;
+    /** 'lowHp' politikasında tetik: üs canı oranı bunun altına inince. */
+    hpTrigger: number;
+    /** true: düşman bileşimine göre A/B seçer; false: her zaman hızlı (A). */
+    chooseKind: boolean;
+    /** true: eski çağın kulesini satıp güncel çağınkini kurar. */
+    renew: boolean;
+  };
+  /** Kuyrukta tutulan sipariş sayısı: [olağan, ileri itmede]. */
+  queueTarget: [number, number];
+  /** Karar anında hiç sipariş vermeme olasılığı (Kolay: "altın boşta bekler"). */
+  idleChance: number;
+  /** Rol başına temel ordu payı (maliyet ağırlıklı; toplamı 1). Karşılık payıyla harmanlanır. */
+  baseMix: Record<Role, number>;
+  /** İstenen bileşimde karşılık payının ağırlığı (0..1); kalanı temel paydır. */
+  counterWeight: number;
+  /** true: menzilli/ağır siparişinden önce ön hat örtüsünü sağlar (`AI_TUNING.frontRatio`; GDD §10 aynalı takas). */
+  formation: boolean;
+  /** Sınır Taşı: 0 yok sayar, 1 taş kaybedilince ve güç uygunken iter, 2 tarafsızken de aktif hedefler. */
+  stoneWeight: 0 | 1 | 2;
+}
+
+/** Zorluklardan bağımsız yapay zekâ ayarları (ölçüm ve eşikler). */
+export interface AiTuningDef {
+  /** Birlik gücü = maliyet × can oranı × agePowerFactor^(çağ−1) (çağın değeri, GDD §4). */
+  agePowerFactor: number;
+  /** Üssün "yakını": düşman birliğin üs ön yüzüne bakan kenarı bu mesafedeyse (birim). */
+  nearBaseDistance: number;
+  /** Tehdit yüksek: yakındaki düşman gücü, yakındaki kendi gücünün bu katını aşarsa. */
+  highThreatRatio: number;
+  /** Üs canı eğilimi penceresi (sn); pencere başına kaybedilen can oranı ölçülür. */
+  trendWindowSec: number;
+  /** Pencerede bu orandan fazla can kaybı "baskı" sayılır. */
+  trendPressure: number;
+  /** 'anticipate': kendi yarısındaki düşman gücü kendi gücünün bu katını aşınca baskı öngörülür. */
+  anticipateRatio: number;
+  /** Kule türü seçimi: düşmanın menzilli + ağır payı bu oranı aşarsa ağır kule (B). */
+  heavyTowerShare: number;
+  /** Yenilemede yeni kule ücretinin üstünde elde kalması gereken altın. */
+  renewSpare: number;
+  /** İleri itme: güç oranı (kendi / düşman) bunun üstündeyse. */
+  pushRatio: number;
+  /** Ön hat örtüsü: sahadaki + kuyruktaki ön hat sayısı, menzilli + ağır sayısının bu katından az olmamalı. */
+  frontRatio: number;
+  /** Düşman kulesi başına ağır rol ağırlığına eklenen pay. */
+  heavyPerEnemyTower: number;
 }

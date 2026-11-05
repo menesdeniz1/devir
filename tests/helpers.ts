@@ -1,6 +1,6 @@
 import { createBasicBot } from '../src/ai/basicBot';
 import type { Controller } from '../src/ai/controller';
-import { createRandomBot, createStackerBot } from '../src/ai/testBots';
+import { createDefenderBot, createRandomBot, createStackerBot } from '../src/ai/testBots';
 import { STONE } from '../src/data/stone';
 import { UNITS } from '../src/data/units';
 import { WORLD } from '../src/data/world';
@@ -41,8 +41,10 @@ export function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-export type BotKind = 'random-random' | 'random-basic' | 'stacker-random' | 'stacker-basic';
+export type BotKind = 'random-random' | 'random-basic' | 'stacker-random' | 'stacker-basic' | 'defender-random' | 'defender-basic' | 'stacker-defender';
 export const BOT_KINDS: readonly BotKind[] = ['random-random', 'random-basic', 'stacker-random', 'stacker-basic'];
+/** Kule kullanan botlu eşleşmeler (Aşama 4 testleri). */
+export const TOWER_BOT_KINDS: readonly BotKind[] = ['defender-random', 'defender-basic', 'stacker-defender'];
 
 /** Denetleyiciler yalnızca config.seed'den kurulur (kaydet-yükle sonrası aynı yoldan yeniden kurulabilmeleri için). */
 export function makeControllers(kind: BotKind, configSeed: number): [Controller, Controller] {
@@ -55,6 +57,12 @@ export function makeControllers(kind: BotKind, configSeed: number): [Controller,
       return [createStackerBot(), createRandomBot(configSeed, 1)];
     case 'stacker-basic':
       return [createStackerBot(), createBasicBot()];
+    case 'defender-random':
+      return [createDefenderBot(), createRandomBot(configSeed, 1)];
+    case 'defender-basic':
+      return [createDefenderBot(), createBasicBot()];
+    case 'stacker-defender':
+      return [createStackerBot(), createDefenderBot()];
   }
 }
 

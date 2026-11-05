@@ -1,4 +1,5 @@
-import { mustGetAge, mustGetUnit } from './compile';
+import { DEFENSE } from '../data/towers';
+import { mustGetAge, mustGetTower, mustGetUnit, sellRefund } from './compile';
 import type { Command, GameState, SimEvent } from './types';
 import { validate } from './validate';
 
@@ -32,6 +33,35 @@ export function applyCommand(state: GameState, cmd: Command, events: SimEvent[])
       side.baseMaxHp = next.baseMaxHp;
       side.stats.ageUpTicks.push(state.tick);
       events.push({ type: 'agedUp', side: cmd.side, age: next.age, paid: next.ageUpCost, baseHp: side.baseHp, baseMaxHp: side.baseMaxHp });
+      break;
+    }
+    case 'unlockSlot': {
+      // Yuva ücreti iade edilmez (PRD E-05).
+      const cost = DEFENSE.slotUnlockCosts[cmd.slot] ?? 0;
+      side.gold -= cost;
+      side.stats.goldSpent += cost;
+      side.slots[cmd.slot]!.unlocked = true;
+      events.push({ type: 'slotUnlocked', side: cmd.side, slot: cmd.slot, paid: cost });
+      break;
+    }
+    case 'buildTower': {
+      const cost = mustGetTower(cmd.towerId).def.cost;
+      side.gold -= cost;
+      side.stats.goldSpent += cost;
+      side.slots[cmd.slot]!.tower = { type: cmd.towerId, paid: cost, cooldown: 0 };
+      events.push({ type: 'towerBuilt', side: cmd.side, slot: cmd.slot, towerType: cmd.towerId, paid: cost });
+      break;
+    }
+    case 'sellTower': {
+      // İade = floor(ödenen × oran); havadaki mermiler sürer (PRD E-05, D-05).
+      const slot = side.slots[cmd.slot]!;
+      const tower = slot.tower;
+      if (tower === null) return; // validate bunu zaten dışlar
+      const refund = sellRefund(tower.paid);
+      slot.tower = null;
+      side.gold += refund;
+      side.stats.goldRefunded += refund;
+      events.push({ type: 'towerSold', side: cmd.side, slot: cmd.slot, towerType: tower.type, refund });
       break;
     }
     case 'cancelOrder': {

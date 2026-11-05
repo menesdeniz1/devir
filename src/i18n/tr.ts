@@ -16,6 +16,14 @@ const reject: Record<UiRejectReason, string> = {
   noSuchOrder: 'Böyle bir sipariş yok',
   notEnoughXp: 'Deneyim yetersiz ({xp}/{required})',
   maxAge: 'Son çağa ulaşıldı',
+  noSuchSlot: 'Böyle bir yuva yok',
+  slotLocked: 'Yuva kilitli',
+  slotAlreadyUnlocked: 'Yuva zaten açık',
+  previousSlotLocked: 'Önce önceki yuvayı aç',
+  slotOccupied: 'Yuvada zaten kule var',
+  slotEmpty: 'Yuva boş',
+  unknownTower: 'Bilinmeyen kule',
+  towerNotAvailable: 'Bu çağda kurulamaz',
   paused: 'Oyun duraklatıldı',
 };
 
@@ -39,6 +47,28 @@ export const tr = {
     future_ranged: 'Ray Tüfekçisi',
     future_heavy: 'Yürüyen Kale',
   } as Record<string, string>,
+  tower: {
+    primitive_tower_fast: 'Sapan Direği',
+    primitive_tower_heavy: 'Kaya Oluğu',
+    ancient_tower_fast: 'Ok Burcu',
+    ancient_tower_heavy: 'Kızgın Kum Kazanı',
+    medieval_tower_fast: 'Arbalet Mazgalı',
+    medieval_tower_heavy: 'Kaynar Yağ Oluğu',
+    industrial_tower_fast: 'Makineli Yuva',
+    industrial_tower_heavy: 'Havan Mevzisi',
+    future_tower_fast: 'Darbe Lazeri',
+    future_tower_heavy: 'Plazma Havanı',
+  } as Record<string, string>,
+  towerFallback: 'Kule',
+  /** Kule türü açıklamaları (GDD §6). */
+  towerKind: {
+    fast: 'Hızlı, tek hedef',
+    heavy: 'Ağır, alan hasarı',
+  },
+  towerStats: {
+    line: 'Hasar {damage} · Aralık {interval} sn · Menzil {range}',
+    splash: 'Alan hasarı (yarıçap {radius})',
+  },
   /** Çağ adları (1..5). */
   age: {
     1: 'İlkel Çağ',
@@ -132,6 +162,32 @@ export const tr = {
     noticeStoneLost: 'Sınır Taşı elden çıktı',
     noticeStoneCapturedFoe: "Rakip Sınır Taşı'nı aldı",
   },
+  defense: {
+    group: 'Savunma yuvaları',
+    slotLabel: 'Yuva {n}',
+    locked: 'Yuva aç — {cost} altın',
+    lockedAria: 'Yuva {n} kilitli. Aç: {cost} altın',
+    lockedAriaBlocked: 'Yuva {n} kilitli. Aç: {cost} altın. Kullanılamıyor: {reason}',
+    lockedTip: 'Yuva {n}: kilitli — tıkla: aç, {cost} altın (iade edilmez)',
+    empty: 'Boş yuva',
+    emptyHint: 'Kule kur',
+    emptyAria: 'Yuva {n} boş. Kule kurmak için aç',
+    emptyTip: 'Yuva {n}: boş — tıkla: kule kur',
+    built: '{name}',
+    builtAria: 'Yuva {n}: {name}{old}. Satmak için aç',
+    builtTip: 'Yuva {n}: {name} — tıkla: sat',
+    oldAge: 'Eski çağ',
+    oldAgeAria: ', eski çağ kulesi',
+    menuBuild: 'Kule kur — yuva {n}',
+    menuSell: 'Yuva {n}: {name}',
+    sell: 'Sat (+{refund} altın)',
+    sellAria: 'Sat: {name}, {refund} altın iade',
+    sellTip: '{name} sat — ödenen {paid} altının yarısı (aşağı yuvarlanır) iade edilir',
+    buildOption: '{name}',
+    buildCost: '{cost} altın',
+    buildAria: 'Kur: {name}, {cost} altın, {kind}',
+    buildAriaBlocked: 'Kur: {name}, {cost} altın, {kind}. Kullanılamıyor: {reason}',
+  },
   pause: {
     title: 'Duraklatıldı',
     resume: 'Devam et',
@@ -185,6 +241,10 @@ export function ageNameTo(age: number): string {
 
 export function ageName(age: number): string {
   return tr.age[age] ?? tr.ageFallback;
+}
+
+export function towerName(towerId: string): string {
+  return tr.tower[towerId] ?? tr.towerFallback;
 }
 
 export function unitName(unitId: string): string {

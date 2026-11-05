@@ -1,4 +1,4 @@
-import { EPS, mustGetUnit } from './compile';
+import { EPS, mustGetStrikeSource, mustGetUnit } from './compile';
 import { dirOf, otherSide } from './geometry';
 import type { GameState, SideId, UnitState } from './types';
 
@@ -25,17 +25,20 @@ export interface StrikeResult {
  * ana hedef, delme (ana hedefin arkasındaki en yakın `count` düşman) ve alan hasarı (çarpma noktasına `radius`
  * içindeki diğer düşmanlar, falloff'lu). Her birlik bir vuruştan en fazla bir kez hasar alır; üs alan hasarından etkilenmez.
  *
+ * Kule atışları da aynı yoldan geçer (sourceKind 'tower'); kule üsse saldırmaz, bu yüzden hedef 'base' olmaz.
+ *
  * `target`: canlı hedef birlik, 'base' (rakip üs) ya da null (hedef ölmüş; yalnız alan hasarı patlar).
  */
 export function strike(
   state: GameState,
   side: SideId,
+  sourceKind: 'unit' | 'tower',
   sourceType: string,
   target: UnitState | 'base' | null,
   impactX: number,
   pending: PendingDamage[],
 ): StrikeResult {
-  const source = mustGetUnit(sourceType);
+  const source = mustGetStrikeSource(sourceKind, sourceType);
   const enemySide = otherSide(side);
   const dir = dirOf(side);
   const hitIds = new Set<number>();

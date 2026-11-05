@@ -12,12 +12,12 @@ import { flameDraw, smokeDraw, type BaseFx } from './primitiveBase';
  * Gelecek kubbe, anten ve enerji şeridi.
  */
 
-const MARBLE: Tone = { base: 0xeee4cd, shade: 0xcbbd9c };
-const STONE_GREY: Tone = { base: 0xaeaca6, shade: 0x86847f };
-const BRICK: Tone = { base: 0xb4553a, shade: 0x87392a };
+export const MARBLE: Tone = { base: 0xeee4cd, shade: 0xcbbd9c };
+export const STONE_GREY: Tone = { base: 0xaeaca6, shade: 0x86847f };
+export const BRICK: Tone = { base: 0xb4553a, shade: 0x87392a };
 const WARM_LIGHT: Tone = { base: 0xffd77a, shade: 0xf0a646 };
 const SOOT: Tone = { base: 0x9a948f, shade: 0x77716c };
-const HULL: Tone = { base: 0x3d4870, shade: 0x2a3354 };
+export const HULL: Tone = { base: 0x3d4870, shade: 0x2a3354 };
 
 function ground(c: Ctx, tone: Tone): void {
   shape(c, soft([-10, 6, 172, 6, 166, -6, 120, -11, 40, -12, -4, -6], 6), tone, { line: 0, shadeOffset: [0, -4] });

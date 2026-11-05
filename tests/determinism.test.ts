@@ -232,7 +232,7 @@ describe('K-13 (erken): gizli bilgi', () => {
       expect(obs.units.length).toBeGreaterThan(0);
       expect(obs.units.some((u) => u.side === 0)).toBe(true);
       expect(obs.units.some((u) => u.side === 1)).toBe(true);
-      expect(Object.keys(obs.enemy).sort()).toEqual(['age', 'baseHp', 'baseMaxHp']);
+      expect(Object.keys(obs.enemy).sort()).toEqual(['age', 'baseHp', 'baseMaxHp', 'slots']);
       const unitKeys = ['hp', 'id', 'side', 'type', 'x'];
       for (const u of obs.units) expect(Object.keys(u).sort()).toEqual(unitKeys);
       // Gözlem birliği alanları gerçek birlik nesnesinin alanlarının yalnızca bir alt kümesidir;

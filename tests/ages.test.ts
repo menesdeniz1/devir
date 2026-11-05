@@ -308,7 +308,16 @@ describe('K-13: gözlem', () => {
     expect(obs.stone).toEqual({ counter: 42, owner: null });
     obs.stone.counter = -1;
     expect(s.stone.counter).toBe(42);
-    expect(obs.enemy).toEqual({ age: 3, baseHp: s.sides[1].baseHp, baseMaxHp: s.sides[1].baseMaxHp });
+    expect(obs.enemy).toEqual({
+      age: 3,
+      baseHp: s.sides[1].baseHp,
+      baseMaxHp: s.sides[1].baseMaxHp,
+      slots: [
+        { unlocked: true, towerType: null },
+        { unlocked: false, towerType: null },
+        { unlocked: false, towerType: null },
+      ],
+    });
     const json = JSON.stringify(obs);
     expect(json).not.toContain('4242');
     expect(json).not.toContain('5557');

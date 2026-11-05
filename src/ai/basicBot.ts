@@ -1,8 +1,12 @@
 import { BASIC_BOT } from '../data/ai';
-import { secToTicks, unitOfRole } from '../sim/compile';
+import { DEFENSE } from '../data/towers';
+import type { TowerKind } from '../data/types';
+import { getAge, getTower, mustGetUnit, secToTicks, unitOfRole } from '../sim/compile';
+import { WORLD } from '../data/world';
 import { planAgeUp } from './ageUpPlan';
 import type { Command, JsonValue } from '../sim/types';
 import type { Controller } from './controller';
+import { towerOfKind } from './towerPlan';
 import type { Observation } from './observation';
 
 interface BasicBotMemory {
@@ -23,6 +27,47 @@ function readMemory(memory: JsonValue): BasicBotMemory {
     result.saving = memory['saving'] === true;
   }
   return result;
+}
+
+/** Sıradaki kule türleri: ilk kurulan hızlı, sonraki ağır (yuva sırasına göre tekrarlanır). */
+const TOWER_KIND_ORDER: readonly TowerKind[] = ['fast', 'heavy'];
+
+/** Üs ön yüzüne bakan kenar mesafesi eşikten yakın bir düşman birliği var mı? */
+function threatened(obs: Observation): boolean {
+  const face = obs.side === 0 ? WORLD.baseWidth : WORLD.worldWidth - WORLD.baseWidth;
+  return obs.units.some((u) => {
+    if (u.side === obs.side) return false;
+    const half = mustGetUnit(u.type).def.width / 2;
+    const edge = obs.side === 0 ? u.x - half : u.x + half;
+    const gap = obs.side === 0 ? edge - face : face - edge;
+    return gap <= BASIC_BOT.tower.threatDistance;
+  });
+}
+
+/**
+ * Tehdit varken ilk boş yuvaya (en çok BASIC_BOT.tower.maxSlots yuva) güncel çağın kulesini kurar; yuva kilitliyse
+ * (önceki açıkken) önce açar. Karar başına en çok bir kule. Altın yetmezse hiçbir şey yapmaz (yuva-açma tek başına yapılmaz).
+ */
+function planBasicTowers(obs: Observation): { commands: Command[]; spent: number } {
+  const none = { commands: [] as Command[], spent: 0 };
+  if (!threatened(obs)) return none;
+  const ageDef = getAge(obs.self.age);
+  if (ageDef === undefined) return none;
+  const limit = Math.min(BASIC_BOT.tower.maxSlots, obs.self.slots.length);
+  for (let i = 0; i < limit; i++) {
+    const slot = obs.self.slots[i]!;
+    if (slot.tower !== null) continue;
+    const towerId = towerOfKind(ageDef.towerIds, TOWER_KIND_ORDER[i % TOWER_KIND_ORDER.length]!);
+    const tower = towerId === undefined ? undefined : getTower(towerId);
+    if (tower === undefined) return none;
+    const unlockCost = slot.unlocked ? 0 : (DEFENSE.slotUnlockCosts[i] ?? 0);
+    if (obs.self.gold < unlockCost + tower.def.cost) return none;
+    const commands: Command[] = [];
+    if (!slot.unlocked) commands.push({ type: 'unlockSlot', side: obs.side, slot: i });
+    commands.push({ type: 'buildTower', side: obs.side, slot: i, towerId: tower.def.id });
+    return { commands, spent: unlockCost + tower.def.cost };
+  }
+  return none;
 }
 
 /**
@@ -53,9 +98,12 @@ export function createBasicBot(): Controller {
       if (tick < mem.nextDecisionTick) {
         return { commands, memory: { nextDecisionTick: mem.nextDecisionTick, sequenceIndex: mem.sequenceIndex, saving: false } };
       }
+      // Kule: eşikteki tehdit varken boş yuvaya güncel çağın kulesi (çağ biriktirme öncelikli: yukarıda döndü).
+      const towers = planBasicTowers(obs);
+      commands.push(...towers.commands);
       const sequence = BASIC_BOT.composition;
       let index = mem.sequenceIndex;
-      let gold = obs.self.gold;
+      let gold = obs.self.gold - towers.spent;
       let queued = obs.self.queue.length;
       while (sequence.length > 0 && queued < BASIC_BOT.targetQueueLength) {
         const role = sequence[index % sequence.length]!;

@@ -1,9 +1,14 @@
+import { DEFENSE } from '../data/towers';
 import { ECONOMY } from '../data/world';
-import { getAge, getUnit } from './compile';
+import { getAge, getTower, getUnit } from './compile';
 import type { Command, GameState, SideId, Validation } from './types';
 
 export function isSideId(value: unknown): value is SideId {
   return value === 0 || value === 1;
+}
+
+function isSlotIndex(slot: number, count: number): boolean {
+  return Number.isInteger(slot) && slot >= 0 && slot < count;
 }
 
 /** Komutun biçimi (taraf, tür ve tür alanlarının tipleri) geçerli mi? Hiçbir girdide istisna fırlatmaz. */
@@ -18,6 +23,11 @@ export function isWellFormedCommand(raw: unknown): raw is Command {
       return typeof c['index'] === 'number';
     case 'ageUp':
       return true;
+    case 'unlockSlot':
+    case 'sellTower':
+      return typeof c['slot'] === 'number';
+    case 'buildTower':
+      return typeof c['slot'] === 'number' && typeof c['towerId'] === 'string';
     default:
       return false;
   }
@@ -57,6 +67,33 @@ export function validate(state: GameState, cmd: Command): Validation {
       if (next === undefined) return { ok: false, reason: 'maxAge' };
       if (side.xp < next.xpThreshold) return { ok: false, reason: 'notEnoughXp', xp: side.xp, xpRequired: next.xpThreshold };
       if (side.gold < next.ageUpCost) return { ok: false, reason: 'notEnoughGold', missingGold: next.ageUpCost - side.gold };
+      return { ok: true };
+    }
+    case 'unlockSlot': {
+      // Sıra: noSuchSlot → slotAlreadyUnlocked → previousSlotLocked → notEnoughGold (PRD D-01).
+      if (!isSlotIndex(cmd.slot, side.slots.length)) return { ok: false, reason: 'noSuchSlot' };
+      if (side.slots[cmd.slot]!.unlocked) return { ok: false, reason: 'slotAlreadyUnlocked' };
+      if (cmd.slot > 0 && !side.slots[cmd.slot - 1]!.unlocked) return { ok: false, reason: 'previousSlotLocked' };
+      const cost = DEFENSE.slotUnlockCosts[cmd.slot] ?? 0;
+      if (side.gold < cost) return { ok: false, reason: 'notEnoughGold', missingGold: cost - side.gold };
+      return { ok: true };
+    }
+    case 'buildTower': {
+      // Sıra: noSuchSlot → unknownTower → towerNotAvailable → slotLocked → slotOccupied → notEnoughGold.
+      if (!isSlotIndex(cmd.slot, side.slots.length)) return { ok: false, reason: 'noSuchSlot' };
+      const tower = getTower(cmd.towerId);
+      if (tower === undefined) return { ok: false, reason: 'unknownTower' };
+      const age = getAge(side.age);
+      if (age === undefined || !age.towerIds.includes(cmd.towerId)) return { ok: false, reason: 'towerNotAvailable' };
+      const slot = side.slots[cmd.slot]!;
+      if (!slot.unlocked) return { ok: false, reason: 'slotLocked' };
+      if (slot.tower !== null) return { ok: false, reason: 'slotOccupied' };
+      if (side.gold < tower.def.cost) return { ok: false, reason: 'notEnoughGold', missingGold: tower.def.cost - side.gold };
+      return { ok: true };
+    }
+    case 'sellTower': {
+      if (!isSlotIndex(cmd.slot, side.slots.length)) return { ok: false, reason: 'noSuchSlot' };
+      if (side.slots[cmd.slot]!.tower === null) return { ok: false, reason: 'slotEmpty' };
       return { ok: true };
     }
     case 'cancelOrder': {

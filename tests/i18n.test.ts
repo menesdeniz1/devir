@@ -21,12 +21,20 @@ const ALL_SIM_REASONS: Record<RejectReason, true> = {
   noSuchOrder: true,
   notEnoughXp: true,
   maxAge: true,
+  noSuchSlot: true,
+  slotLocked: true,
+  slotAlreadyUnlocked: true,
+  previousSlotLocked: true,
+  slotOccupied: true,
+  slotEmpty: true,
+  unknownTower: true,
+  towerNotAvailable: true,
 };
 const ALL_REASONS = [...(Object.keys(ALL_SIM_REASONS) as RejectReason[]), 'paused'] as UiRejectReason[];
 
 describe('K-16: kullanılamayan her işlem nedenini gösterir', () => {
   it('K-16: sim içindeki her RejectReason ve paused için tr.ts içinde boş olmayan metin vardır', () => {
-    expect(ALL_REASONS.length).toBe(11);
+    expect(ALL_REASONS.length).toBe(19);
     for (const reason of ALL_REASONS) {
       const text = rejectText(reason, 35);
       expect(text.trim().length, reason).toBeGreaterThan(0);

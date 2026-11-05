@@ -1,6 +1,6 @@
 import { createBasicBot } from '../src/ai/basicBot';
 import type { Controller } from '../src/ai/controller';
-import { createMonoBot, createRandomBot, createStackerBot } from '../src/ai/testBots';
+import { createDefenderBot, createMonoBot, createRandomBot, createStackerBot } from '../src/ai/testBots';
 import type { Role } from '../src/data/types';
 import { runBattle, repeatUnit, type BattleResult } from '../src/match/matchup';
 import { UNITS } from '../src/data/units';
@@ -76,7 +76,7 @@ function printSummary(state: GameState, stoneTicks?: StoneTicks): void {
   console.log(`Son karma: ${stateHash(state)}`);
 }
 
-const BOT_NAMES = ['stacker', 'basic', 'random', 'mono-front', 'mono-ranged', 'mono-heavy', 'idle'] as const;
+const BOT_NAMES = ['stacker', 'basic', 'random', 'defender', 'mono-front', 'mono-ranged', 'mono-heavy', 'idle'] as const;
 
 function makeBot(name: string, configSeed: number, side: SideId): Controller | null {
   switch (name) {
@@ -86,6 +86,8 @@ function makeBot(name: string, configSeed: number, side: SideId): Controller | n
       return createBasicBot();
     case 'random':
       return createRandomBot(configSeed, side);
+    case 'defender':
+      return createDefenderBot();
     case 'mono-front':
       return createMonoBot('front');
     case 'mono-ranged':
@@ -137,6 +139,10 @@ const KINDS: readonly Kind[] = [
   ['mono-heavy', 'idle'],
   ['mono-heavy', 'mono-ranged'],
   ['mono-front', 'mono-heavy'],
+  ['defender', 'random'],
+  ['defender', 'basic'],
+  ['stacker', 'defender'],
+  ['defender', 'idle'],
   ['basic', 'basic'],
   ['stacker', 'stacker'],
   ['mono-front', 'mono-ranged'],
@@ -228,6 +234,62 @@ function runSoak(opts: Record<string, string>): number {
   return violations > 0 ? 1 : 0;
 }
 
+// ---- tournament: iki botun dönüşümlü taraflarla eşleşmesi ----------------------
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = values.slice().sort((x, y) => x - y);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
+function percent(count: number, total: number): string {
+  return total === 0 ? '0.0%' : `${((count / total) * 100).toFixed(1)}%`;
+}
+
+/** İki botu N maç oynatır; çift numaralı maçlarda A taraf 0, tek numaralılarda taraf 1'dedir (GDD §10). */
+function runTournament(opts: Record<string, string>): number {
+  const nameA = opts['a'] ?? 'defender';
+  const nameB = opts['b'] ?? 'basic';
+  const games = numOpt(opts, 'games', 200);
+  const baseSeed = numOpt(opts, 'seed', 1);
+  const maxTicks = Math.round(numOpt(opts, 'max-minutes', 20) * 60 * WORLD.tickRate);
+  let winsA = 0;
+  let winsB = 0;
+  let draws = 0;
+  let timeouts = 0;
+  let winsAAsSide0 = 0;
+  const finishedTicks: number[] = [];
+  const started = Date.now();
+
+  for (let g = 0; g < games; g++) {
+    const seed = baseSeed + g;
+    const aSide: SideId = g % 2 === 0 ? 0 : 1;
+    const state = createMatch({ seed, opponent: nameA === 'basic' || nameB === 'basic' ? 'basic-bot' : 'none' });
+    const botA = makeBot(nameA, state.config.seed, aSide);
+    const botB = makeBot(nameB, state.config.seed, aSide === 0 ? 1 : 0);
+    const controllers: [Controller | null, Controller | null] = aSide === 0 ? [botA, botB] : [botB, botA];
+    while (state.outcome === null && state.tick < maxTicks) stepMatch(state, [], controllers);
+    if (state.outcome === null) {
+      timeouts += 1;
+      continue;
+    }
+    finishedTicks.push(state.tick);
+    if (state.outcome.kind === 'draw') draws += 1;
+    else if (state.outcome.winner === aSide) {
+      winsA += 1;
+      if (aSide === 0) winsAAsSide0 += 1;
+    } else winsB += 1;
+  }
+
+  console.log(`Turnuva: A=${nameA} vs B=${nameB}, ${games} maç, taraflar dönüşümlü, tohum ${baseSeed}…${baseSeed + games - 1}, üst süre ${(maxTicks / WORLD.tickRate / 60).toFixed(0)} dk`);
+  console.log(`A kazandı: ${winsA} (${percent(winsA, games)}), B kazandı: ${winsB} (${percent(winsB, games)}), beraberlik: ${draws} (${percent(draws, games)}), zaman aşımı: ${timeouts} (${percent(timeouts, games)})`);
+  console.log(`A'nın taraf 0'daki galibiyeti: ${winsAAsSide0}/${Math.ceil(games / 2)}, taraf 1'deki: ${winsA - winsAAsSide0}/${Math.floor(games / 2)}`);
+  console.log(`Biten maçların medyan süresi: ${finishedTicks.length === 0 ? '-' : formatTime(median(finishedTicks))} (${finishedTicks.length} maç)`);
+  console.log(`Gerçek süre: ${((Date.now() - started) / 1000).toFixed(1)} sn`);
+  return 0;
+}
+
 // ---- matchup: karşılık matrisi ---------------------------------------------------
 
 const ROLE_UNIT: Record<Role, string> = { front: 'primitive_front', ranged: 'primitive_ranged', heavy: 'primitive_heavy' };
@@ -307,9 +369,12 @@ function main(): number {
       return runSoak(opts);
     case 'matchup':
       return runMatchup();
+    case 'tournament':
+      return runTournament(opts);
     default:
       console.log('Kullanım: npm run sim -- match --seed 1 [--max-minutes 60] [--a stacker] [--b basic]  (botlar: ' + BOT_NAMES.join(' | ') + ')');
       console.log('          npm run sim -- soak --games 500 [--seed 1] [--max-minutes 20]');
+      console.log('          npm run sim -- tournament --a defender --b random --games 200 [--seed 1] [--max-minutes 20]');
       console.log('          npm run sim -- matchup   (karşılık matrisi ve karma-vs-tek rol sonuçları)');
       return command === 'help' ? 0 : 1;
   }

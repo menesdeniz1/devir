@@ -7,6 +7,8 @@ export const UNIT_SHORTCUT_LABELS = ['1', '2', '3'] as const;
 
 export const KEY_CANCEL_LAST = 'Backspace';
 export const KEY_AGE_UP = 'KeyE';
+/** Açık kule menüsünü kapatır (menü yokken Esc duraklatır). */
+export const KEY_CLOSE_MENU = 'Escape';
 
 /** Çağ ve Sınır Taşı bildiriminin ekranda kalma süresi (ms). */
 export const NOTICE_MS = 3000;

@@ -2,17 +2,33 @@ import { STONE } from '../data/stone';
 import { ECONOMY, WORLD } from '../data/world';
 import { PLAYER_SIDE } from '../game/constants';
 import type { Session } from '../game/session';
-import { ageName, ageNameTo, fmt, rejectText, tr, unitName } from '../i18n/tr';
+import { ageName, ageNameTo, fmt, rejectText, towerName, tr, unitName } from '../i18n/tr';
 import { getAge, getUnit } from '../sim/compile';
 import type { SideId } from '../sim/types';
 import { ageUp, ageUpCommand, availableUnitIds, cancelCommand, cancelOrderAt, produceUnit, queueCommand } from './actions';
 import { NOTICE_MS, UNIT_SHORTCUT_LABELS } from './constants';
 import { attrWriter, boolWriter, el, formatClock, styleWriter, textWriter } from './dom';
+import { getTower } from '../sim/compile';
+import {
+  availableTowerIds,
+  buildTower,
+  buildTowerCommand,
+  sellTower,
+  sellTowerCommand,
+  slotView,
+  towerKindText,
+  towerTooltip,
+  unlockSlot,
+  unlockSlotCommand,
+  type SlotView,
+} from './towers';
 import { roleMarkOf, roleNameOf, unitTooltip } from './unitInfo';
 
 export interface Hud {
   /** Her karede çağrılır; yalnızca değişen değerler DOM'a yazılır. frameMs: bildirim süresi için gerçek kare süresi. */
   update(frameMs?: number): void;
+  /** Açık kule menüsünü kapatır; kapatılacak menü varsa true (Esc önce menüyü kapatır, duraklatmaz). */
+  dismissMenu(): boolean;
   destroy(): void;
 }
 
@@ -171,6 +187,7 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
   };
   const unsubscribe = session.subscribe((event) => {
     if (event.type === 'reset') {
+      closeMenu();
       noticeLeft = 0;
       notice.hidden = true;
       return;
@@ -254,6 +271,243 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
       setRole: (v) => role(v),
       mark: textWriter(mark),
     });
+  }
+
+  // ---- Alt panel: savunma yuvaları (kilitli / boş / dolu; tıklayınca kur–sat menüsü) ----
+  const defenseBox = el('div', 'hud-defense', bottom);
+  defenseBox.setAttribute('role', 'group');
+  defenseBox.setAttribute('aria-label', tr.defense.group);
+  interface SlotCell {
+    button: HTMLButtonElement;
+    setKind: (v: string | null) => void;
+    setName: (v: string) => void;
+    setSub: (v: string) => void;
+    setReason: (v: string) => void;
+    setDisabled: (v: boolean) => void;
+    setTitle: (v: string | null) => void;
+    setAria: (v: string | null) => void;
+  }
+  const slotCells: SlotCell[] = [];
+  const slotMenu = el('div', 'slot-menu', root);
+  slotMenu.hidden = true;
+  slotMenu.setAttribute('role', 'group');
+  let openSlot: number | null = null;
+  let openKind: SlotView['kind'] | null = null;
+  interface MenuOption {
+    check: () => ReturnType<Session['check']>;
+    setDisabled: (v: boolean) => void;
+    setReason: (v: string) => void;
+    setTitle: (v: string | null) => void;
+    setAria: (v: string | null) => void;
+    towerId: string | null;
+  }
+  let menuOptions: MenuOption[] = [];
+
+  function closeMenu(): boolean {
+    const wasOpen = openSlot !== null;
+    openSlot = null;
+    openKind = null;
+    menuOptions = [];
+    slotMenu.hidden = true;
+    slotMenu.replaceChildren();
+    return wasOpen;
+  }
+
+  function placeMenu(slot: number): void {
+    const cell = slotCells[slot];
+    if (cell === undefined) return;
+    const rootRect = root.getBoundingClientRect();
+    const cellRect = cell.button.getBoundingClientRect();
+    const panelRect = bottom.getBoundingClientRect();
+    const width = slotMenu.offsetWidth;
+    const left = Math.max(0, Math.min(cellRect.left - rootRect.left, rootRect.width - width));
+    slotMenu.style.left = `${left}px`;
+    slotMenu.style.bottom = `${rootRect.bottom - panelRect.top}px`;
+  }
+
+  function addOption(
+    cls: string,
+    lines: { name: string; cost?: string; sub?: string },
+    onClick: () => void,
+    check: () => ReturnType<Session['check']>,
+    towerId: string | null,
+  ): void {
+    const button = el('button', `btn slot-menu__option ${cls}`, slotMenu);
+    button.type = 'button';
+    const nameEl = el('span', 'btn__name', button);
+    nameEl.textContent = lines.name;
+    if (lines.cost !== undefined) {
+      const costEl = el('span', 'btn__cost', button);
+      costEl.textContent = lines.cost;
+    }
+    if (lines.sub !== undefined) {
+      const subEl = el('span', 'slot-menu__sub', button);
+      subEl.textContent = lines.sub;
+    }
+    const reason = el('span', 'unit-cell__reason slot-menu__reason', slotMenu);
+    reason.setAttribute('aria-hidden', 'true');
+    button.addEventListener('click', onClick);
+    menuOptions.push({
+      check,
+      setDisabled: boolWriter((v) => {
+        button.disabled = v;
+      }),
+      setReason: textWriter(reason),
+      setTitle: attrWriter(button, 'title'),
+      setAria: attrWriter(button, 'aria-label'),
+      towerId,
+    });
+  }
+
+  function openMenu(slot: number): void {
+    const view = slotView(session, slot);
+    if (view === null || view.kind === 'locked') return;
+    closeMenu();
+    openSlot = slot;
+    openKind = view.kind;
+    const n = slot + 1;
+    const title = el('div', 'slot-menu__title', slotMenu);
+    if (view.kind === 'empty') {
+      title.textContent = fmt(tr.defense.menuBuild, { n });
+      for (const towerId of availableTowerIds(session)) {
+        const def = getTower(towerId)?.def;
+        addOption(
+          'slot-menu__build',
+          { name: towerName(towerId), cost: fmt(tr.defense.buildCost, { cost: def?.cost ?? 0 }), sub: towerKindText(towerId) },
+          () => {
+            const result = buildTower(session, slot, towerId);
+            if (result.ok) closeMenu();
+          },
+          () => session.check(buildTowerCommand(slot, towerId)),
+          towerId,
+        );
+      }
+    } else {
+      title.textContent = fmt(tr.defense.menuSell, { n, name: towerName(view.towerId) });
+      addOption(
+        'slot-menu__sell',
+        { name: fmt(tr.defense.sell, { refund: view.refund }) },
+        () => {
+          const result = sellTower(session, slot);
+          if (result.ok) closeMenu();
+        },
+        () => session.check(sellTowerCommand(slot)),
+        null,
+      );
+    }
+    slotMenu.hidden = false;
+    placeMenu(slot);
+  }
+
+  for (let i = 0; i < session.state.sides[PLAYER_SIDE].slots.length; i++) {
+    const cell = el('div', 'unit-cell slot-cell', defenseBox);
+    const button = el('button', 'btn slot-btn', cell);
+    button.type = 'button';
+    const label = el('span', 'slot-btn__label', button);
+    label.textContent = fmt(tr.defense.slotLabel, { n: i + 1 });
+    const nameEl = el('span', 'btn__name', button);
+    const subEl = el('span', 'slot-btn__sub', button);
+    const reason = el('span', 'unit-cell__reason', cell);
+    reason.setAttribute('aria-hidden', 'true');
+    button.addEventListener('click', () => {
+      const view = slotView(session, i);
+      if (view === null) return;
+      if (view.kind === 'locked') {
+        unlockSlot(session, i);
+        return;
+      }
+      if (openSlot === i) closeMenu();
+      else openMenu(i);
+    });
+    slotCells.push({
+      button,
+      setKind: attrWriter(button, 'data-kind'),
+      setName: textWriter(nameEl),
+      setSub: textWriter(subEl),
+      setReason: textWriter(reason),
+      setDisabled: boolWriter((v) => {
+        button.disabled = v;
+      }),
+      setTitle: attrWriter(button, 'title'),
+      setAria: attrWriter(button, 'aria-label'),
+    });
+  }
+
+  // Menü dışına tıklamak menüyü kapatır (yuva düğmeleri kendi tıklamasını işler).
+  const onPointerDown = (event: Event): void => {
+    if (openSlot === null) return;
+    const target = event.target;
+    if (target instanceof Node && (slotMenu.contains(target) || defenseBox.contains(target))) return;
+    closeMenu();
+  };
+  document.addEventListener('pointerdown', onPointerDown);
+
+  function updateDefense(): void {
+    const interactive = !session.paused && !session.ended;
+    const closedReason = session.ended ? rejectText('matchOver') : rejectText('paused');
+    if (!interactive && openSlot !== null) closeMenu();
+    slotCells.forEach((cell, i) => {
+      const n = i + 1;
+      const view = slotView(session, i);
+      if (view === null) return;
+      cell.setKind(view.kind);
+      if (view.kind === 'locked') {
+        const check = session.check(unlockSlotCommand(i));
+        cell.setName(fmt(tr.defense.locked, { cost: view.cost }));
+        cell.setSub('');
+        cell.setDisabled(!check.ok);
+        if (check.ok) {
+          cell.setReason('');
+          cell.setTitle(fmt(tr.defense.lockedTip, { n, cost: view.cost }));
+          cell.setAria(fmt(tr.defense.lockedAria, { n, cost: view.cost }));
+        } else {
+          const reason = rejectText(check.reason, check.missingGold);
+          cell.setReason(reason);
+          cell.setTitle(`${reason}\n${fmt(tr.defense.lockedTip, { n, cost: view.cost })}`);
+          cell.setAria(fmt(tr.defense.lockedAriaBlocked, { n, cost: view.cost, reason }));
+        }
+        return;
+      }
+      cell.setDisabled(!interactive);
+      cell.setReason(interactive ? '' : closedReason);
+      if (view.kind === 'empty') {
+        cell.setName(tr.defense.empty);
+        cell.setSub(tr.defense.emptyHint);
+        cell.setTitle(fmt(tr.defense.emptyTip, { n }));
+        cell.setAria(fmt(tr.defense.emptyAria, { n }));
+        return;
+      }
+      const name = towerName(view.towerId);
+      cell.setName(name);
+      cell.setSub(view.oldAge ? tr.defense.oldAge : towerKindText(view.towerId));
+      cell.setTitle(`${towerTooltip(view.towerId)}\n${fmt(tr.defense.builtTip, { n, name })}`);
+      cell.setAria(fmt(tr.defense.builtAria, { n, name, old: view.oldAge ? tr.defense.oldAgeAria : '' }));
+    });
+
+    if (openSlot !== null) {
+      const view = slotView(session, openSlot);
+      if (view === null || view.kind !== openKind) {
+        closeMenu();
+        return;
+      }
+      for (const option of menuOptions) {
+        const check = option.check();
+        option.setDisabled(!check.ok);
+        const reason = check.ok ? undefined : rejectText(check.reason, check.missingGold);
+        option.setReason(reason ?? '');
+        if (option.towerId !== null) {
+          const def = getTower(option.towerId)?.def;
+          const params = { name: towerName(option.towerId), cost: def?.cost ?? 0, kind: towerKindText(option.towerId), reason: reason ?? '' };
+          option.setTitle(towerTooltip(option.towerId, reason));
+          option.setAria(fmt(check.ok ? tr.defense.buildAria : tr.defense.buildAriaBlocked, params));
+        } else if (view.kind === 'built') {
+          const name = towerName(view.towerId);
+          const tip = fmt(tr.defense.sellTip, { name, paid: view.paid });
+          option.setTitle(reason === undefined ? tip : `${reason}\n${tip}`);
+          option.setAria(fmt(tr.defense.sellAria, { name, refund: view.refund }));
+        }
+      }
+    }
   }
 
   function updateStone(): void {
@@ -375,6 +629,8 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
       }
     });
 
+    updateDefense();
+
     // Kuyruk.
     slots.forEach((slot, i) => {
       const order = me.queue[i];
@@ -421,8 +677,11 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
   update();
   return {
     update,
+    dismissMenu: closeMenu,
     destroy(): void {
       unsubscribe();
+      document.removeEventListener('pointerdown', onPointerDown);
+      slotMenu.remove();
       notice.remove();
       top.remove();
       bottom.remove();

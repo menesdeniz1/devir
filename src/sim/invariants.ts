@@ -1,12 +1,32 @@
 import { STONE } from '../data/stone';
 import { WORLD, ECONOMY } from '../data/world';
-import { EPS, getAge, getUnit, mustGetUnit } from './compile';
+import { DEFENSE } from '../data/towers';
+import { EPS, getAge, getTower, getUnit, mustGetTower, mustGetUnit } from './compile';
 import type { GameState, SimEvent, UnitState } from './types';
 
 /** Her tick sonunda geçerli olması gereken değişmezler (TDD §10). İhlal metinlerini döndürür; boşsa sorun yok. */
 export interface InvariantOptions {
   /** Karşılık senaryoları üs canını yapay olarak yükseltir; azami üs canının çağla uyumu denetlenmez. */
   allowCustomBaseHp?: boolean;
+}
+
+/** Yuva değişmezleri: 3 yuva, yuva 0 açık, açık yuvalar önek, kule yalnız açık yuvada, sayaç 0..aralık, paid > 0. */
+function checkSlots(side: number, slots: GameState['sides'][0]['slots'], problems: string[]): void {
+  if (slots.length !== DEFENSE.slotUnlockCosts.length) problems.push(`taraf ${side}: yuva sayısı ${slots.length} ≠ ${DEFENSE.slotUnlockCosts.length}`);
+  if (slots[0]?.unlocked !== true) problems.push(`taraf ${side}: yuva 0 kilitli`);
+  slots.forEach((slot, i) => {
+    if (i > 0 && slot.unlocked && !slots[i - 1]!.unlocked) problems.push(`taraf ${side}: yuva ${i} açık ama önceki kilitli`);
+    const tower = slot.tower;
+    if (tower === null) return;
+    if (!slot.unlocked) problems.push(`taraf ${side}: kilitli yuva ${i}'de kule var`);
+    if (getTower(tower.type) === undefined) {
+      problems.push(`taraf ${side}: yuva ${i}: bilinmeyen kule türü ${tower.type}`);
+      return;
+    }
+    const interval = mustGetTower(tower.type).attackIntervalTicks;
+    if (!Number.isInteger(tower.cooldown) || !(tower.cooldown >= 0 && tower.cooldown <= interval)) problems.push(`taraf ${side}: yuva ${i} kule sayacı sınır dışı (${tower.cooldown}/${interval})`);
+    if (!Number.isInteger(tower.paid) || !(tower.paid > 0)) problems.push(`taraf ${side}: yuva ${i} kule ödemesi geçersiz (${tower.paid})`);
+  });
 }
 
 export function checkInvariants(state: GameState, options: InvariantOptions = {}): string[] {
@@ -28,6 +48,7 @@ export function checkInvariants(state: GameState, options: InvariantOptions = {}
     if (!Number.isInteger(s.age) || ageDef === undefined) problems.push(`taraf ${side}: çağ geçersiz (${s.age})`);
     else if (options.allowCustomBaseHp !== true && s.baseMaxHp !== ageDef.baseMaxHp) problems.push(`taraf ${side}: azami üs canı çağla uyumsuz (${s.baseMaxHp} ≠ ${ageDef.baseMaxHp})`);
     if (s.stats.ageUpTicks.length !== s.age - 1) problems.push(`taraf ${side}: çağ geçiş kaydı ${s.stats.ageUpTicks.length} ama çağ ${s.age}`);
+    checkSlots(side, s.slots, problems);
     if (s.baseHp <= 0 && state.outcome === null) problems.push(`taraf ${side}: üs canı ${s.baseHp} ama sonuç belirlenmemiş`);
   }
 
@@ -63,7 +84,7 @@ export function checkInvariants(state: GameState, options: InvariantOptions = {}
     if (seen.has(p.id) || projectileIds.has(p.id)) problems.push(`mermi kimliği tekrar ediyor: ${p.id}`);
     projectileIds.add(p.id);
     if (p.id >= state.nextId) problems.push(`mermi kimliği nextId'den büyük: ${p.id}`);
-    if (getUnit(p.sourceType) === undefined) problems.push(`mermi ${p.id}: bilinmeyen kaynak türü ${p.sourceType}`);
+    if (p.sourceKind === 'tower' ? getTower(p.sourceType) === undefined : getUnit(p.sourceType) === undefined) problems.push(`mermi ${p.id}: bilinmeyen kaynak türü ${p.sourceType}`);
     if (!Number.isFinite(p.x) || !Number.isFinite(p.targetX)) problems.push(`mermi ${p.id}: sayı sonlu değil`);
     if (!(p.x >= 0 && p.x <= WORLD.worldWidth)) problems.push(`mermi ${p.id}: koridor dışında (${p.x})`);
     if (p.targetId === null && p.targetLost) problems.push(`mermi ${p.id}: üs hedefli mermi 'hedef kayıp' olamaz`);
@@ -106,7 +127,12 @@ export function goldBalanceProblems(goldBefore: readonly [number, number], state
       case 'agedUp':
         expected[e.side] -= e.paid;
         break;
+      case 'slotUnlocked':
+      case 'towerBuilt':
+        expected[e.side] -= e.paid;
+        break;
       case 'orderCancelled':
+      case 'towerSold':
         expected[e.side] += e.refund;
         break;
       case 'income':
@@ -154,6 +180,7 @@ export class StallDetector {
         e.type === 'unitSpawned' ||
         e.type === 'unitDied' ||
         e.type === 'projectileFired' ||
+        e.type === 'towerFired' ||
         e.type === 'projectileImpact'
       ) {
         active = true;
