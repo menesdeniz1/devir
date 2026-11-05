@@ -48,7 +48,11 @@ Derinlik, çok sayıda düğmeden değil, bu kararların sonuçlarından doğar.
 - **G-01** Masaüstü tarayıcıda çalışır. Desteklenen tarayıcılar ve referans cihaz: TDD §12.
 - **G-02** Tek oyunculu; bilgisayar rakibine karşı.
 - **G-03** Fare ile eksiksiz oynanır; temel eylemlerin klavye kısayolu vardır (liste: GDD §11).
-- **G-04** Arayüz Türkçedir. **(N)** Tüm metinler tek bir metin tablosunda tutulur (ileride çeviriye hazır).
+- **G-04** Arayüz Türkçe ve İngilizcedir (karar 2026-11-06, sürüm 1.1.0; itch.io'nun kitlesi büyük ölçüde
+  İngilizce). Dil Ayarlar'dan seçilir ve saklanır; seçim yokken ilk açılışta tarayıcı dili Türkçeyse Türkçe,
+  değilse İngilizce açılır. Dil değişince sayfa yeniden yüklenir; süren maç önce kaydedilir ve "Devam et" ile
+  sürer, öğretici sırasında dil seçicisi kilitlidir. **(N)** Metinler dil başına tek bir metin tablosundadır;
+  iki tablo aynı anahtarları taşır (tür denetimiyle zorunlu).
 - **G-05** Normal zorlukta hedef maç süresi 10–15 dakikadır.
 - **G-06** Hesap açmadan oynanır; sunucu gerekmez.
 - **G-07 (N)** Koridorun tamamı tek ekranda görünür; kamera kaydırma yoktur.

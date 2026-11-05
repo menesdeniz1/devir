@@ -65,7 +65,9 @@ devir/
     art/                 kodla çizilen birlik/kule/üs/yetenek parçaları, atlaslar, iskeletler, vitrin (gallery)
     audio/               mikser, sentez efektleri, müzik sıralayıcı
     ui/                  ekranlar (menü, kurulum, HUD, duraklatma, sonuç, ayarlar, öğretici katmanı)
-    i18n/tr.ts           tüm Türkçe metinler
+    i18n/tr.ts           Türkçe metin tablosu (kaynak; anahtar yapısı buradan türetilir)
+    i18n/en.ts           İngilizce metin tablosu (aynı anahtarlar)
+    i18n/index.ts        etkin dilin seçimi ve tablo erişimi
     main.ts
   tools/sim-cli.ts       headless maç, turnuva ve denge raporu
   e2e/                   Playwright testleri (Aşama 7+)
@@ -187,7 +189,10 @@ varken 30 sn oyun süresi boyunca hiçbir birlik konum değiştirmez ve hiç has
 
 - DOM katmanı tuvalin üstündedir. Ekranlar `mount/unmount` olan küçük modüllerdir. HUD her karede değil,
   değer değiştiğinde DOM'a yazar.
-- Tüm metinler `src/i18n/tr.ts`'tedir; kod içinde Türkçe metin yazılmaz.
+- Tüm metinler `src/i18n/` metin tablolarındadır (`tr.ts`, `en.ts`); kod içinde görünen metin yazılmaz. Etkin
+  dil açılışta, arayüz kurulmadan önce bir kez seçilir (kayıtlı ayar, yoksa `navigator.language`); dil
+  değişince sayfa yeniden yüklenir (canlı geçiş yok: kurulmuş DOM metinleri yeniden yazılmaz). Tarayıcı
+  algılaması uygulama katmanında yapılır; `game` katmanı DOM/`navigator` kullanmaz, dili parametre olarak alır.
 - Düğmeler gerçek `<button>` öğeleridir; odak görünür, `aria-label` ve araç ipucu vardır.
 - Kısayollar `KeyboardEvent.code` (fiziksel tuş) ile dinlenir. Etiketler Keyboard Map API varsa kullanıcının
   düzenine göre, yoksa Türkçe Q klavye varsayımıyla gösterilir.

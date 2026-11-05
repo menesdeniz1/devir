@@ -1,6 +1,7 @@
 import { Application, Container, Graphics } from 'pixi.js';
 import { prewarmFxArt } from '../art/projectileArt';
 import { artAge, prewarmUnitArt } from '../art/unitArt';
+import { getAge } from '../sim/compile';
 import { WORLD } from '../data/world';
 import type { Session, SessionEvent } from '../game/session';
 import { battlefieldBounds } from '../sim/geometry';
@@ -22,6 +23,7 @@ import {
   type BaseView,
 } from './scene';
 import { ProjectileLayer } from './projectileView';
+import { StoneFloat } from './stoneFloat';
 import { UnitView } from './unitView';
 
 /** Hedefleme önizlemesi: sahne her karede bu işlevi sorar; alan (dünya x0..x1) ya da null (önizleme yok). */
@@ -94,6 +96,7 @@ export async function createRenderer(host: HTMLElement, session: Session, option
   preview.visible = false;
   let previewKey = '';
   const stone = createStoneView();
+  const stoneFloat = new StoneFloat();
   // Arka plan oyuncunun çağını izler (GDD §14); çağ değişince yumuşak geçiş.
   const background = new BackgroundView(artAge(session.state.sides[0].age));
   const shake = new ScreenShake();
@@ -110,6 +113,7 @@ export async function createRenderer(host: HTMLElement, session: Session, option
     units,
     projectiles.container,
     abilityFx.container,
+    stoneFloat.container,
     preview,
   );
   app.stage.addChild(world);
@@ -142,6 +146,7 @@ export async function createRenderer(host: HTMLElement, session: Session, option
       clearViews();
       projectiles.clear();
       abilityFx.clear();
+      stoneFloat.clear();
       shake.reset();
       background.setAge(artAge(session.state.sides[0].age), false);
       // Yeni maç: üsler ve taş yeni durumdan çizilir; taşın görsel durumu da baştan başlar.
@@ -170,6 +175,10 @@ export async function createRenderer(host: HTMLElement, session: Session, option
         if (e.side === 0) shake.trigger('light');
       }
       else if (e.type === 'unitDied') views.get(e.id)?.startDying();
+      // Taşın sahibi saniyelik gelirini aldı: taşın payı taşın üstünden yükselir.
+      else if (e.type === 'income' && session.state.stone.owner === e.side) {
+        stoneFloat.pop(e.side, getAge(session.state.sides[e.side].age)?.stoneGoldPerSec ?? 0);
+      }
     }
   });
 
@@ -259,6 +268,7 @@ export async function createRenderer(host: HTMLElement, session: Session, option
       }
       updateStoneView(stone, state.stone, animMs);
       abilityFx.sync(state.zones, state.strikes, animMs);
+      stoneFloat.update(animMs);
       updatePreview(options.preview?.() ?? null);
       updateBaseFlash(bases[0], animMs);
       updateBaseFlash(bases[1], animMs);
@@ -269,7 +279,7 @@ export async function createRenderer(host: HTMLElement, session: Session, option
       app.render();
       stats.units = views.size;
       stats.projectiles = projectiles.projectileViewCount;
-      stats.effects = projectiles.effectCount + abilityFx.effectCount;
+      stats.effects = projectiles.effectCount + abilityFx.effectCount + stoneFloat.count;
       stats.renderMs = performance.now() - t0;
     },
     get unitViewCount(): number {
@@ -286,6 +296,7 @@ export async function createRenderer(host: HTMLElement, session: Session, option
       clearViews();
       projectiles.destroy();
       abilityFx.destroy();
+      stoneFloat.destroy();
       background.destroy();
       preview.destroy();
       app.destroy(true, { children: true });

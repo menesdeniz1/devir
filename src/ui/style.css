@@ -112,7 +112,8 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
 .hud-stone[data-owner="enemy"] .hud-stone__fill { background: linear-gradient(90deg, var(--c-enemy), var(--c-enemy-hi)); }
 .hud-stone[data-owner="player"] .hud-stone__value { color: var(--c-player-hi); }
 .hud-stone[data-owner="enemy"] .hud-stone__value { color: var(--c-enemy); }
-.hud-stone__value { min-width: 11ch; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* En uzun metne ("Rakip · +11 altın, +14 XP/sn") yer ayrılır: sahip değişince üst şerit zıplamaz. */
+.hud-stone__value { min-width: 25ch; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* Bildirim */
 .hud-notice {

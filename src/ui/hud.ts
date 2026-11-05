@@ -267,7 +267,8 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
       } else if (e.type === 'agedUp') {
         showNotice(fmt(e.side === PLAYER_SIDE ? tr.hud.ageUpNotice : tr.hud.ageUpNoticeFoe, { dative: ageNameTo(e.age) }));
       } else if (e.type === 'stoneCaptured') {
-        showNotice(e.side === PLAYER_SIDE ? tr.hud.noticeStoneCaptured : tr.hud.noticeStoneCapturedFoe);
+        const bonus = stoneBonus(PLAYER_SIDE);
+        showNotice(e.side === PLAYER_SIDE ? fmt(tr.hud.noticeStoneCaptured, { gold: bonus.gold, xp: bonus.xp }) : tr.hud.noticeStoneCapturedFoe);
       } else if (e.type === 'stoneLost' && e.side === PLAYER_SIDE) {
         showNotice(tr.hud.noticeStoneLost);
       } else if (e.type === 'abilityCast' && e.side !== PLAYER_SIDE) {
@@ -605,12 +606,20 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     }
   }
 
+  /** Tarafın şu anki çağında Sınır Taşı'ndan saniyede kazandığı ek altın ve deneyim (ages.ts). */
+  function stoneBonus(side: SideId): { gold: number; xp: number } {
+    const age = getAge(session.state.sides[side].age);
+    return { gold: age?.stoneGoldPerSec ?? 0, xp: age?.stoneXpPerSec ?? 0 };
+  }
+
   function updateStone(): void {
     const stone = session.state.stone;
     const ownerName = (side: SideId): string => (side === PLAYER_SIDE ? tr.hud.you : tr.hud.enemy);
     let text: string;
     if (stone.owner !== null) {
-      text = fmt(tr.hud.stoneOwned, { owner: ownerName(stone.owner) });
+      // Sahibin kazancı görünür olsun: taşın ne işe yaradığı göstergede okunur (insan oyun testi geri bildirimi).
+      const bonus = stoneBonus(stone.owner);
+      text = fmt(tr.hud.stoneOwned, { owner: ownerName(stone.owner), gold: bonus.gold, xp: bonus.xp });
     } else if (stone.counter === 0) {
       text = tr.hud.stoneNeutral;
     } else {
@@ -721,7 +730,14 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
 
     // Altın.
     writeGold(String(me.gold));
-    writeIncome(fmt(tr.hud.incomePerSec, { n: getAge(me.age)?.incomePerSec ?? 0 }));
+    // Gelir satırı taşın payını da içerir (simülasyondaki ekonomiyle aynı: taban gelir + sahibe taş altını).
+    const baseIncome = getAge(me.age)?.incomePerSec ?? 0;
+    if (state.stone.owner === PLAYER_SIDE) {
+      const stoneGold = stoneBonus(PLAYER_SIDE).gold;
+      writeIncome(fmt(tr.hud.incomeWithStone, { n: baseIncome + stoneGold, stone: stoneGold }));
+    } else {
+      writeIncome(fmt(tr.hud.incomePerSec, { n: baseIncome }));
+    }
 
     // Deneyim ve çağ atlama.
     updateAge();

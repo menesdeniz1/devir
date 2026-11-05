@@ -152,6 +152,8 @@ export const tr = {
     time: 'Süre',
     gold: 'Altın',
     incomePerSec: '+{n}/sn',
+    /** Sınır Taşı sendeyken gelir satırı: toplam gelir ve taşın payı. */
+    incomeWithStone: '+{n}/sn · taş +{stone}',
     pause: 'Duraklat',
     pauseAria: 'Oyunu duraklat',
     unitTitle: '{name} — {cost} altın [{key}]',
@@ -181,13 +183,17 @@ export const tr = {
     ageUpNoticeFoe: 'Rakip {dative} geçti',
     stone: 'Sınır Taşı',
     stoneNeutral: 'Tarafsız',
-    stoneOwned: '{owner}',
+    /** Sahibin taştan saniyede kazandığı ek altın ve deneyim (sahibin çağına göre). */
+    stoneOwned: '{owner} · +{gold} altın, +{xp} XP/sn',
     stoneLeaning: 'Tarafsız ({owner} %{pct})',
     stoneAria: 'Sınır Taşı: {state}',
-    stoneTip: 'Koridorun ortasındaki taşı tek başına tutan taraf ele geçirir; sahibi saniyede ek altın ve deneyim kazanır.',
-    noticeStoneCaptured: 'Sınır Taşı senin',
-    noticeStoneLost: 'Sınır Taşı elden çıktı',
-    noticeStoneCapturedFoe: "Rakip Sınır Taşı'nı aldı",
+    stoneTip:
+      'Taşın yanında yalnız senin birliklerin varken sayaç senin yönüne dolar; dolunca taş senin olur ve saniyede ek altın ile deneyim kazanırsın. İki taraf da oradaysa sayaç durur; yalnız rakip kalırsa geri döner ve taş elden çıkar.',
+    noticeStoneCaptured: 'Sınır Taşı senin: saniyede +{gold} altın, +{xp} deneyim',
+    noticeStoneLost: 'Sınır Taşı elden çıktı: ek gelir durdu',
+    noticeStoneCapturedFoe: "Rakip Sınır Taşı'nı aldı: ek altın ve deneyim artık onun",
+    /** Taşın üstünde her saniye yükselen kazanç işareti. */
+    stoneFloat: '+{gold} altın',
   },
   abilityUi: {
     group: 'Özel yetenek',
@@ -382,7 +388,7 @@ export const tr = {
       },
       captureStone: {
         title: 'Sınır Taşı’nı ele geç',
-        text: 'Koridorun ortasındaki taşı tek başına tutan taraf ele geçirir ve ek altın ile deneyim kazanır. Birlik üretip taşın bulunduğu bölgeye gönder.',
+        text: 'Koridorun ortasındaki taşın yanında yalnız senin birliklerin kalırsa taş senin olur: her saniye ek altın ve deneyim kazanırsın (altın satırında “taş +N” görünür). Birlik üretip taşa gönder.',
       },
       destroyBase: {
         title: 'Rakip üssü yık',
