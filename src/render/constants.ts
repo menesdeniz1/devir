@@ -62,3 +62,19 @@ export const BASE_FLASH_MS = 160;
 export const BASE_FLASH_ALPHA = 0.55;
 /** Kare süresi üst sınırı (animasyon saati için, ms). */
 export const MAX_ANIM_FRAME_MS = 100;
+
+// ---- Birlik durum görselleri (GDD §7 durum etkileri; yalnız görünüm) ----
+/** Sersemlik yıldızları: sayı, yörünge yarıçapları, tur süresi, başın üstündeki boşluk. */
+export const STUN_STARS = 3;
+export const STUN_STAR_SCALE = 1.35;
+export const STUN_ORBIT_RX = 13;
+export const STUN_ORBIT_RY = 4.5;
+export const STUN_PERIOD_MS = 900;
+export const STUN_LIFT_PX = 10;
+/** Donma: birliğin buz/enerji tonu (çarpma), kristal büyüme süresi, parıltı döngüsü. */
+export const FREEZE_TINT = 0xd4c8ff;
+export const FREEZE_GROW_MS = 180;
+export const FREEZE_GLINT_MS = 1100;
+export const FREEZE_GLINT_COLOR = 0xf3e8ff;
+/** Kristal kümesinin ölçeği: birliğin ayak izine göre (ön hat ≈ 1). */
+export const FREEZE_CRYSTAL_FOOTPRINT = 18;

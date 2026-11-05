@@ -1,6 +1,7 @@
 import { DEFENSE } from '../data/towers';
 import { ECONOMY } from '../data/world';
-import { getAge, getTower, getUnit } from './compile';
+import { abilityOfAge, getAge, getTower, getUnit } from './compile';
+import { abilityArea } from './geometry';
 import type { Command, GameState, SideId, Validation } from './types';
 
 export function isSideId(value: unknown): value is SideId {
@@ -28,6 +29,8 @@ export function isWellFormedCommand(raw: unknown): raw is Command {
       return typeof c['slot'] === 'number';
     case 'buildTower':
       return typeof c['slot'] === 'number' && typeof c['towerId'] === 'string';
+    case 'castAbility':
+      return typeof c['x'] === 'number';
     default:
       return false;
   }
@@ -39,6 +42,11 @@ export function isWellFormedCommand(raw: unknown): raw is Command {
  */
 export function validate(state: GameState, cmd: Command): Validation {
   if (!isWellFormedCommand(cmd)) return { ok: false, reason: 'invalidCommand' };
+  // Yetenek: x sonlu değilse ya da alan savaş alanıyla kesişmiyorsa bozuk komuttur (sonuçtan bağımsız; PRD Y-02).
+  if (cmd.type === 'castAbility') {
+    const ability = abilityOfAge(state.sides[cmd.side].age);
+    if (ability === undefined || abilityArea(cmd.x, ability.def.width) === null) return { ok: false, reason: 'invalidCommand' };
+  }
   if (state.outcome !== null) {
     return { ok: false, reason: 'matchOver' };
   }
@@ -94,6 +102,11 @@ export function validate(state: GameState, cmd: Command): Validation {
     case 'sellTower': {
       if (!isSlotIndex(cmd.slot, side.slots.length)) return { ok: false, reason: 'noSuchSlot' };
       if (side.slots[cmd.slot]!.tower === null) return { ok: false, reason: 'slotEmpty' };
+      return { ok: true };
+    }
+    case 'castAbility': {
+      // Sıra: invalidCommand → matchOver (yukarıda) → abilityCooldown (PRD Y-04, Y-07).
+      if (side.abilityCooldown > 0) return { ok: false, reason: 'abilityCooldown', cooldownTicks: side.abilityCooldown };
       return { ok: true };
     }
     case 'cancelOrder': {

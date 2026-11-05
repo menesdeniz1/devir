@@ -1,7 +1,9 @@
+import { ABILITY_RULES } from '../data/abilities';
 import { STONE } from '../data/stone';
 import { WORLD, ECONOMY } from '../data/world';
 import { DEFENSE } from '../data/towers';
-import { EPS, getAge, getTower, getUnit, mustGetTower, mustGetUnit } from './compile';
+import { battlefieldBounds } from './geometry';
+import { EPS, abilityOfAge, getAbility, getAge, getTower, getUnit, mustGetTower, mustGetUnit, secToTicks } from './compile';
 import type { GameState, SimEvent, UnitState } from './types';
 
 /** Her tick sonunda geçerli olması gereken değişmezler (TDD §10). İhlal metinlerini döndürür; boşsa sorun yok. */
@@ -49,6 +51,11 @@ export function checkInvariants(state: GameState, options: InvariantOptions = {}
     else if (options.allowCustomBaseHp !== true && s.baseMaxHp !== ageDef.baseMaxHp) problems.push(`taraf ${side}: azami üs canı çağla uyumsuz (${s.baseMaxHp} ≠ ${ageDef.baseMaxHp})`);
     if (s.stats.ageUpTicks.length !== s.age - 1) problems.push(`taraf ${side}: çağ geçiş kaydı ${s.stats.ageUpTicks.length} ama çağ ${s.age}`);
     checkSlots(side, s.slots, problems);
+    // Yetenek beklemesi: tamsayı, 0..max(başlangıç beklemesi, güncel yeteneğin beklemesi).
+    const abilityMax = Math.max(secToTicks(ABILITY_RULES.initialCooldownSec), abilityOfAge(s.age)?.cooldownTicks ?? 0);
+    if (!Number.isInteger(s.abilityCooldown) || !(s.abilityCooldown >= 0 && s.abilityCooldown <= abilityMax)) {
+      problems.push(`taraf ${side}: yetenek beklemesi sınır dışı (${s.abilityCooldown}/${abilityMax})`);
+    }
     if (s.baseHp <= 0 && state.outcome === null) problems.push(`taraf ${side}: üs canı ${s.baseHp} ama sonuç belirlenmemiş`);
   }
 
@@ -70,6 +77,10 @@ export function checkInvariants(state: GameState, options: InvariantOptions = {}
     if (!(u.hp >= 0 && u.hp <= def.hp)) problems.push(`birlik ${u.id}: can sınır dışı (${u.hp}/${def.hp})`);
     const interval = mustGetUnit(u.type).attackIntervalTicks;
     if (!(u.cooldown >= 0 && u.cooldown <= interval)) problems.push(`birlik ${u.id}: bekleme sınır dışı (${u.cooldown}/${interval})`);
+    if (!Number.isInteger(u.stunTicks) || u.stunTicks < 0) problems.push(`birlik ${u.id}: sersemleme sayacı geçersiz (${u.stunTicks})`);
+    if (!Number.isInteger(u.vulnTicks) || u.vulnTicks < 0) problems.push(`birlik ${u.id}: savunmasızlık sayacı geçersiz (${u.vulnTicks})`);
+    if (!Number.isInteger(u.vulnPct) || u.vulnPct < 0) problems.push(`birlik ${u.id}: savunmasızlık yüzdesi geçersiz (${u.vulnPct})`);
+    if (u.vulnTicks === 0 && u.vulnPct !== 0) problems.push(`birlik ${u.id}: savunmasızlık bitti ama yüzde ${u.vulnPct}`);
     const half = def.width / 2;
     const limitFront = u.side === 0 ? WORLD.worldWidth - WORLD.baseWidth : WORLD.baseWidth;
     const frontX = u.side === 0 ? u.x + half : u.x - half;
@@ -89,6 +100,20 @@ export function checkInvariants(state: GameState, options: InvariantOptions = {}
     if (!(p.x >= 0 && p.x <= WORLD.worldWidth)) problems.push(`mermi ${p.id}: koridor dışında (${p.x})`);
     if (p.targetId === null && p.targetLost) problems.push(`mermi ${p.id}: üs hedefli mermi 'hedef kayıp' olamaz`);
   }
+
+  // Yetenek alanları ve bekleyen vuruşlar: kimlik tekil ve nextId'den küçük, alan savaş alanı içinde ve x0 ≤ x1, sayaç tamsayı.
+  const field = battlefieldBounds();
+  const fxIds = new Set<number>();
+  const checkArea = (kind: string, e: { id: number; abilityId: string; x0: number; x1: number; ticksLeft: number }, minTicks: number): void => {
+    if (fxIds.has(e.id) || seen.has(e.id) || projectileIds.has(e.id)) problems.push(`${kind} kimliği tekrar ediyor: ${e.id}`);
+    fxIds.add(e.id);
+    if (e.id >= state.nextId) problems.push(`${kind} kimliği nextId'den büyük: ${e.id}`);
+    if (getAbility(e.abilityId) === undefined) problems.push(`${kind} ${e.id}: bilinmeyen yetenek ${e.abilityId}`);
+    if (!(e.x0 <= e.x1) || !(e.x0 >= field.x0 - EPS) || !(e.x1 <= field.x1 + EPS)) problems.push(`${kind} ${e.id}: alan sınır dışı (${e.x0}..${e.x1})`);
+    if (!Number.isInteger(e.ticksLeft) || e.ticksLeft < minTicks) problems.push(`${kind} ${e.id}: sayaç geçersiz (${e.ticksLeft})`);
+  };
+  for (const zone of state.zones) checkArea('alan', zone, 1);
+  for (const strike of state.strikes) checkArea('vuruş', strike, 1);
 
   for (const side of [0, 1] as const) {
     const list = perSide[side].slice().sort((a, b) => a.x - b.x);
@@ -181,13 +206,17 @@ export class StallDetector {
         e.type === 'unitDied' ||
         e.type === 'projectileFired' ||
         e.type === 'towerFired' ||
-        e.type === 'projectileImpact'
+        e.type === 'projectileImpact' ||
+        e.type === 'abilityImpact'
       ) {
         active = true;
       }
     }
+    // Süreli etkiler (sersemleme, alan, bekleyen vuruş) sonludur; sürerken ilerleme beklenir (TDD §3).
+    if (state.zones.length > 0 || state.strikes.length > 0) active = true;
     const next = new Map<number, number>();
     for (const u of state.units) {
+      if (u.stunTicks > 0) active = true;
       const before = this.lastX.get(u.id);
       if (before === undefined || before !== u.x) active = true;
       next.set(u.id, u.x);

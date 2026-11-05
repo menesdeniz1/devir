@@ -1,7 +1,8 @@
+import { ABILITIES } from '../data/abilities';
 import { AGES } from '../data/ages';
 import { COMBAT } from '../data/combat';
 import { DEFENSE, TOWERS } from '../data/towers';
-import type { AgeDef, PierceDef, Role, SplashDef, TargetClass, TowerDef, UnitDef } from '../data/types';
+import type { AbilityDef, AgeDef, PierceDef, Role, SplashDef, TargetClass, TowerDef, UnitDef } from '../data/types';
 import { UNITS } from '../data/units';
 import { WORLD } from '../data/world';
 
@@ -175,4 +176,50 @@ export function unitOfRole(age: number, role: Role): CompiledUnit | undefined {
     if (unit !== undefined && unit.role === role) return unit;
   }
   return undefined;
+}
+
+/** Yetenek tanımının tick cinsinden hazırlanmış hâli. Salt okunurdur; duruma asla girmez. */
+export interface CompiledAbility {
+  readonly def: AbilityDef;
+  readonly cooldownTicks: number;
+  /** Vuruşun gecikmesi (tick); 0 ise vuruş kullanım adımında olur. */
+  readonly delayTicks: number;
+  /** Durum etkisi süresi (tick); durum etkisi yoksa 0. */
+  readonly statusTicks: number;
+  /** Süreli alanın ömrü (tick); alan yoksa 0. */
+  readonly zoneTicks: number;
+  /** Anlık/gecikmeli vuruşun etkisi var mı (hasar ya da durum)? Yoksa vuruş kaydı açılmaz. */
+  readonly hasStrike: boolean;
+}
+
+function compileAbility(def: AbilityDef): CompiledAbility {
+  return {
+    def,
+    cooldownTicks: secToTicks(def.cooldownSec),
+    delayTicks: def.delaySec === undefined ? 0 : secToTicks(def.delaySec),
+    statusTicks: def.status === undefined ? 0 : secToTicks(def.status.durationSec),
+    zoneTicks: def.zone === undefined ? 0 : secToTicks(def.zone.durationSec),
+    hasStrike: def.impactDamage !== undefined || def.status !== undefined,
+  };
+}
+
+const ABILITY_LOOKUP: ReadonlyMap<string, CompiledAbility> = new Map(ABILITIES.map((def) => [def.id, compileAbility(def)]));
+
+export function getAbility(id: string): CompiledAbility | undefined {
+  return ABILITY_LOOKUP.get(id);
+}
+
+/** Durumda geçen yetenek kimliği veride yoksa hata verir (bozuk kayıt). */
+export function mustGetAbility(id: string): CompiledAbility {
+  const ability = ABILITY_LOOKUP.get(id);
+  if (ability === undefined) {
+    throw new Error(`Bilinmeyen yetenek: ${id}`);
+  }
+  return ability;
+}
+
+/** Çağın özel yeteneği (PRD Y-01); çağ geçersizse undefined. */
+export function abilityOfAge(age: number): CompiledAbility | undefined {
+  const ageDef = getAge(age);
+  return ageDef === undefined ? undefined : getAbility(ageDef.abilityId);
 }

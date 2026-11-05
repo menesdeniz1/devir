@@ -1,5 +1,7 @@
 import { DEFENSE } from '../data/towers';
-import { mustGetAge, mustGetTower, mustGetUnit, sellRefund } from './compile';
+import { launchAbility } from './abilities';
+import { abilityOfAge, mustGetAbility, mustGetAge, mustGetTower, mustGetUnit, sellRefund } from './compile';
+import { abilityArea } from './geometry';
 import type { Command, GameState, SimEvent } from './types';
 import { validate } from './validate';
 
@@ -32,6 +34,8 @@ export function applyCommand(state: GameState, cmd: Command, events: SimEvent[])
       side.baseHp = side.baseHp > 0 ? Math.max(1, Math.round((side.baseHp * next.baseMaxHp) / oldMax)) : 0;
       side.baseMaxHp = next.baseMaxHp;
       side.stats.ageUpTicks.push(state.tick);
+      // Kalan yetenek beklemesi korunur ama yeni yeteneğin tam beklemesini aşamaz (PRD Y-05).
+      side.abilityCooldown = Math.min(side.abilityCooldown, mustGetAbility(next.abilityId).cooldownTicks);
       events.push({ type: 'agedUp', side: cmd.side, age: next.age, paid: next.ageUpCost, baseHp: side.baseHp, baseMaxHp: side.baseMaxHp });
       break;
     }
@@ -62,6 +66,16 @@ export function applyCommand(state: GameState, cmd: Command, events: SimEvent[])
       side.gold += refund;
       side.stats.goldRefunded += refund;
       events.push({ type: 'towerSold', side: cmd.side, slot: cmd.slot, towerType: tower.type, refund });
+      break;
+    }
+    case 'castAbility': {
+      // Yalnız kayıt yapılır; etkiler adım 5 (alan) ve adım 9 (vuruş) içinde işlenir. Bekleme tam değerle başlar (PRD Y-04).
+      const ability = abilityOfAge(side.age);
+      const area = ability === undefined ? null : abilityArea(cmd.x, ability.def.width);
+      if (ability === undefined || area === null) return; // validate bunu zaten dışlar
+      side.abilityCooldown = ability.cooldownTicks;
+      events.push({ type: 'abilityCast', side: cmd.side, abilityId: ability.def.id, x0: area.x0, x1: area.x1 });
+      launchAbility(state, cmd.side, ability, area.x0, area.x1);
       break;
     }
     case 'cancelOrder': {

@@ -29,3 +29,26 @@ export function gapBetween(a: UnitState, aWidth: number, b: UnitState, bWidth: n
 export function facingEdgeX(target: UnitState, targetWidth: number, attackerSide: SideId): number {
   return attackerSide === 0 ? target.x - targetWidth / 2 : target.x + targetWidth / 2;
 }
+
+/** Savaş alanı (üsler arası): [sol üs ön yüzü, sağ üs ön yüzü]. Yetenek alanları buraya kırpılır (PRD Y-02). */
+export function battlefieldBounds(): { x0: number; x1: number } {
+  return { x0: WORLD.baseWidth, x1: WORLD.worldWidth - WORLD.baseWidth };
+}
+
+/**
+ * Yetenek alanı: merkez ± genişliğin yarısı, savaş alanına kırpılır. Kırpılmış alan boşsa (merkez sonlu değil ya da
+ * alan savaş alanıyla kesişmiyor) null döner.
+ */
+export function abilityArea(x: number, width: number): { x0: number; x1: number } | null {
+  if (!Number.isFinite(x)) return null;
+  const field = battlefieldBounds();
+  const x0 = Math.max(field.x0, x - width / 2);
+  const x1 = Math.min(field.x1, x + width / 2);
+  return x0 < x1 ? { x0, x1 } : null;
+}
+
+/** Gövdesi [x0, x1] ile kesişen birlik mi (kenar teması dahil)? */
+export function bodyOverlaps(unit: UnitState, unitWidth: number, x0: number, x1: number): boolean {
+  const half = unitWidth / 2;
+  return unit.x + half >= x0 && unit.x - half <= x1;
+}

@@ -7,6 +7,8 @@ import { el } from './ui/dom';
 import { mountHud } from './ui/hud';
 import { mountKeyboard } from './ui/keyboard';
 import { mountOverlays } from './ui/overlays';
+import { createTargeting } from './ui/targeting';
+import { mountTargetingPointer } from './ui/targetingPointer';
 import './ui/style.css';
 
 function showFatal(root: HTMLElement, detail: string): void {
@@ -31,18 +33,21 @@ async function boot(): Promise<void> {
 
   const session = new Session({ visibility: document });
   const stage = el('div', 'stage', root);
+  const targeting = createTargeting(session);
   let renderer: Renderer;
   try {
-    renderer = await createRenderer(stage, session);
+    renderer = await createRenderer(stage, session, { preview: () => targeting.previewArea() });
   } catch (error) {
     showFatal(root, error instanceof Error ? error.message : String(error));
     return;
   }
 
   const uiLayer = el('div', 'ui-layer', root);
-  const hud = mountHud(uiLayer, session);
+  const hud = mountHud(uiLayer, session, targeting);
   const overlays = mountOverlays(uiLayer, session);
-  mountKeyboard(session, document, { dismiss: hud.dismissMenu });
+  // Esc önce hedeflemeyi, sonra açık kule menüsünü kapatır; ikisi de yoksa duraklatır.
+  mountKeyboard(session, document, { dismiss: () => targeting.cancel() || hud.dismissMenu() }, targeting);
+  mountTargetingPointer(stage, renderer, targeting);
 
   let debugUpdate: (() => void) | null = null;
   if (import.meta.env.DEV && new URLSearchParams(globalThis.location.search).has('debug')) {
@@ -52,6 +57,7 @@ async function boot(): Promise<void> {
 
   startFrameLoop(browserClock, (frameMs) => {
     session.advance(frameMs);
+    targeting.update();
     renderer.render(frameMs);
     hud.update(frameMs);
     overlays.update();

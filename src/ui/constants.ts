@@ -7,6 +7,8 @@ export const UNIT_SHORTCUT_LABELS = ['1', '2', '3'] as const;
 
 export const KEY_CANCEL_LAST = 'Backspace';
 export const KEY_AGE_UP = 'KeyE';
+/** Yetenek hedeflemesini açar; hedefleme açıkken imleç konumunda uygular (GDD §11). */
+export const KEY_ABILITY = 'KeyQ';
 /** Açık kule menüsünü kapatır (menü yokken Esc duraklatır). */
 export const KEY_CLOSE_MENU = 'Escape';
 

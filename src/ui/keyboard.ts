@@ -1,6 +1,7 @@
 import type { Session } from '../game/session';
 import { ageUp, cancelLastWaiting, produceUnit } from './actions';
-import { KEY_AGE_UP, KEY_CANCEL_LAST, KEY_CLOSE_MENU, KEYS_TOGGLE_PAUSE, UNIT_SHORTCUT_CODES } from './constants';
+import { KEY_ABILITY, KEY_AGE_UP, KEY_CANCEL_LAST, KEY_CLOSE_MENU, KEYS_TOGGLE_PAUSE, UNIT_SHORTCUT_CODES } from './constants';
+import type { Targeting } from './targeting';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -14,6 +15,8 @@ export function mountKeyboard(
   target: Pick<Document, 'addEventListener' | 'removeEventListener'> = document,
   /** Esc'e öncelikli açık bir menü varsa: `dismiss` onu kapatır ve true döner (o zaman duraklatma yapılmaz). */
   menu: { dismiss(): boolean } | null = null,
+  /** Q kısayolu için yetenek hedeflemesi (verilmezse Q işlenmez). */
+  targeting: Pick<Targeting, 'pressKey'> | null = null,
 ): () => void {
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target)) return;
@@ -28,6 +31,11 @@ export function mountKeyboard(
     if (code === KEY_AGE_UP) {
       event.preventDefault();
       if (!event.repeat) ageUp(session);
+      return;
+    }
+    if (code === KEY_ABILITY && targeting !== null) {
+      event.preventDefault();
+      if (!event.repeat) targeting.pressKey();
       return;
     }
     if (code === KEY_CANCEL_LAST) {

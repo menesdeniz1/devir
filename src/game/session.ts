@@ -12,7 +12,9 @@ import { createLoopConfig, FixedStepLoop } from './loop';
 export type { UiRejectReason } from '../i18n/tr';
 
 /** Komut denetiminin sonucu: simülasyonun `validate` sonucu ya da oturum katmanının 'paused' reddi (TDD §3). */
-export type Check = { ok: true } | { ok: false; reason: UiRejectReason; missingGold?: number; xp?: number; xpRequired?: number };
+export type Check =
+  | { ok: true }
+  | { ok: false; reason: UiRejectReason; missingGold?: number; xp?: number; xpRequired?: number; cooldownTicks?: number };
 
 /** Görünürlük olaylarını dinleyebilen kaynak (tarayıcıda `document`; testte sahte). */
 export interface VisibilitySource {
@@ -136,6 +138,7 @@ export class Session {
     if (result.missingGold !== undefined) rejected.missingGold = result.missingGold;
     if (result.xp !== undefined) rejected.xp = result.xp;
     if (result.xpRequired !== undefined) rejected.xpRequired = result.xpRequired;
+    if (result.cooldownTicks !== undefined) rejected.cooldownTicks = result.cooldownTicks;
     return rejected;
   }
 

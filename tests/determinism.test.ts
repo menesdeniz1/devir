@@ -58,7 +58,7 @@ describe('K-08: yeni maç temizdir', () => {
     a.sides[0].queue.push({ unitId: FRONT_ID, progressTicks: 3, paid: 50 });
     a.sides[0].stats.produced[FRONT_ID] = 5;
     a.sides[1].stats.kills[FRONT_ID] = 2;
-    a.units.push({ id: 99, side: 0, type: FRONT_ID, x: 1, hp: 1, cooldown: 0, mode: 'wait' });
+    a.units.push({ id: 99, side: 0, type: FRONT_ID, x: 1, hp: 1, cooldown: 0, mode: 'wait', stunTicks: 0, vulnTicks: 0, vulnPct: 0 });
     a.config.seed = 123;
     a.ai[1] = { nextDecisionTick: 5 };
 
@@ -182,7 +182,8 @@ describe('wantsDecision kancası', () => {
     const withHook = play(true);
     expect(withHook.hash).toBe(without.hash);
     expect(without.calls).toBe(4000);
-    expect(withHook.calls).toBeLessThan(without.calls / 10);
+    // Çağ biriktirme (saving) tick'lerinde bot her tick karar verir; bu yüzden eşik gevşektir.
+    expect(withHook.calls).toBeLessThan(without.calls / 5);
     expect(withHook.calls).toBeGreaterThan(0);
   });
 });
@@ -238,10 +239,10 @@ describe('K-13 (erken): gizli bilgi', () => {
       // Gözlem birliği alanları gerçek birlik nesnesinin alanlarının yalnızca bir alt kümesidir;
       // cooldown ve mode gibi iç alanlar sızmaz.
       const real = s.units[0]!;
-      expect(Object.keys(real).sort()).toEqual(['cooldown', 'hp', 'id', 'mode', 'side', 'type', 'x']);
+      expect(Object.keys(real).sort()).toEqual(['cooldown', 'hp', 'id', 'mode', 'side', 'stunTicks', 'type', 'vulnPct', 'vulnTicks', 'x']);
       expect(Object.keys(obs.units[0]!).every((k) => k in real)).toBe(true);
       // Gözlemin tamamında karşı tarafın altın/deneyim/kuyruk bilgisi yok.
-      expect(Object.keys(obs).sort()).toEqual(['enemy', 'self', 'side', 'stone', 'tick', 'units']);
+      expect(Object.keys(obs).sort()).toEqual(['enemy', 'self', 'side', 'stone', 'strikes', 'tick', 'units', 'zones']);
       const enemyJson = JSON.stringify(obs.enemy);
       for (const key of ['gold', 'xp', 'queue', 'stats']) expect(enemyJson).not.toContain(key);
     }

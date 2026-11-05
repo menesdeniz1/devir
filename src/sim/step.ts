@@ -1,4 +1,5 @@
 import { WORLD } from '../data/world';
+import { advanceAbilityEffects, detonateStrikes, type EffectFlags } from './abilities';
 import { applyCommand } from './commands';
 import { strike, type PendingDamage } from './combat';
 import { STONE } from '../data/stone';
@@ -19,13 +20,15 @@ export function step(state: GameState, commands: readonly Command[]): SimEvent[]
   applyCommands(state, commands, events);
   economy(state, events);
   production(state, events);
-  const targets = selectTargets(state);
-  movement(state, targets);
   const pending: PendingDamage[] = [];
-  attacks(state, targets, pending, events);
+  const effects = advanceAbilityEffects(state, pending, events);
+  const targets = selectTargets(state);
+  movement(state, targets, effects);
+  attacks(state, targets, effects, pending, events);
   advanceProjectiles(state, pending, events);
   towerAttacks(state, events);
-  resolveDamage(state, pending, events);
+  detonateStrikes(state, pending, events);
+  resolveDamage(state, pending, effects, events);
   updateStone(state, events);
   resolveOutcome(state, events);
   state.tick += 1;
@@ -109,7 +112,7 @@ function spawnUnit(state: GameState, side: SideId, unitId: string, events: SimEv
   const x = side === 0 ? WORLD.baseWidth + half : WORLD.worldWidth - WORLD.baseWidth - half;
   const id = state.nextId;
   state.nextId += 1;
-  state.units.push({ id, side, type: unitId, x, hp: unit.def.hp, cooldown: 0, mode: 'wait' });
+  state.units.push({ id, side, type: unitId, x, hp: unit.def.hp, cooldown: 0, mode: 'wait', stunTicks: 0, vulnTicks: 0, vulnPct: 0 });
   state.sides[side].stats.produced[unitId] = (state.sides[side].stats.produced[unitId] ?? 0) + 1;
   events.push({ type: 'unitSpawned', side, id, unitType: unitId });
 }
@@ -118,7 +121,7 @@ function spawnUnit(state: GameState, side: SideId, unitId: string, events: SimEv
 
 // ---- 7. Hareket --------------------------------------------------------------
 
-function movement(state: GameState, targets: readonly Target[]): void {
+function movement(state: GameState, targets: readonly Target[], effects: EffectFlags): void {
   // Karşı tarafın tick başındaki en ön kenarı (her taraf kendi ileri koordinatında), hareket başlamadan alınır.
   const enemyFrontForward: [number, number] = [Infinity, Infinity];
   for (const side of [0, 1] as const) {
@@ -132,7 +135,8 @@ function movement(state: GameState, targets: readonly Target[]): void {
     }
   }
 
-  const modes: ('walk' | 'attack' | 'wait')[] = state.units.map((_, i) => (targets[i] !== null ? 'attack' : 'wait'));
+  // Sersemlemiş birlik hareket etmez ve saldırmaz; hedef olmaya devam eder.
+  const modes: ('walk' | 'attack' | 'wait')[] = state.units.map((_, i) => (targets[i] !== null && !effects.stunned[i] ? 'attack' : 'wait'));
 
   for (const side of [0, 1] as const) {
     const dir = dirOf(side);
@@ -149,9 +153,11 @@ function movement(state: GameState, targets: readonly Target[]): void {
       const u = state.units[i]!;
       const def = mustGetUnit(u.type);
       const half = def.def.width / 2;
-      if (targets[i] === null) {
+      if (targets[i] === null && !effects.stunned[i]) {
         const front = dir * u.x + half;
-        let limit = front + def.speedPerTick;
+        // Alandaki yavaşlatma hız çarpanıdır; yavaşlatma yokken hız aynen kalır (kayan nokta kimliği korunur).
+        const slow = effects.slowPct[i]!;
+        let limit = front + (slow > 0 ? (def.speedPerTick * (100 - slow)) / 100 : def.speedPerTick);
         if (aheadRear !== null) limit = Math.min(limit, aheadRear - WORLD.friendlyGap);
         // "Boşluğun yarısı" sınırı: iki taraf aynı adımda iç içe geçmez.
         const enemyFront = enemyFrontForward[side];
@@ -173,9 +179,11 @@ function movement(state: GameState, targets: readonly Target[]): void {
 
 // ---- 8. Saldırılar -----------------------------------------------------------
 
-function attacks(state: GameState, targets: readonly Target[], pending: PendingDamage[], events: SimEvent[]): void {
+function attacks(state: GameState, targets: readonly Target[], effects: EffectFlags, pending: PendingDamage[], events: SimEvent[]): void {
   const byId = indexById(state.units);
   state.units.forEach((u, i) => {
+    // Sersemlemiş birliğin saldırı sayacı da durur (sersemleme bitince kaldığı yerden sürer).
+    if (effects.stunned[i] === true) return;
     if (u.cooldown > 0) u.cooldown -= 1;
     const target = targets[i] ?? null;
     if (target === null || u.cooldown > 0) return;
@@ -312,7 +320,7 @@ function nearestTowerTarget(state: GameState, side: SideId, range: number): Unit
 
 // ---- 10. Hasarın eşzamanlı uygulanması ---------------------------------------
 
-function resolveDamage(state: GameState, pending: readonly PendingDamage[], events: SimEvent[]): void {
+function resolveDamage(state: GameState, pending: readonly PendingDamage[], effects: EffectFlags, events: SimEvent[]): void {
   if (pending.length === 0) return;
   const byId = indexById(state.units);
   const fatalSeen = new Set<number>();
@@ -331,7 +339,9 @@ function resolveDamage(state: GameState, pending: readonly PendingDamage[], even
     }
     const victim = byId.get(p.target);
     if (victim === undefined) continue;
-    victim.hp -= p.damage;
+    // Savunmasız birlik (donmuş) %vulnPct fazla hasar alır; sonuç tamsayıya yuvarlanır (GDD §7).
+    const vulnPct = effects.vulnerable.get(victim.id);
+    victim.hp -= vulnPct === undefined ? p.damage : Math.round((p.damage * (100 + vulnPct)) / 100);
     if (victim.hp <= 0 && !fatalSeen.has(victim.id)) {
       fatalSeen.add(victim.id);
       const kills = state.sides[p.attackerSide].stats.kills;

@@ -5,6 +5,7 @@ import { DEFENSE } from '../data/towers';
 import { ECONOMY } from '../data/world';
 import type { Role, TowerKind } from '../data/types';
 import { getAge, getTower, sellRefund, unitOfRole } from '../sim/compile';
+import { battlefieldBounds } from '../sim/geometry';
 import { planAgeUp } from './ageUpPlan';
 import { mixSeed, rngFromSeed, rngInt, rngNext, type RngState } from '../sim/rng';
 import type { Command, JsonValue, SideId } from '../sim/types';
@@ -29,6 +30,10 @@ const RANDOM_BUILD_SHARE = 0.5;
 const RANDOM_BAD_TOWER_CHANCE = 0.2;
 const BAD_TOWER_IDS: readonly string[] = ['no_such_tower', 'future_tower_fast', 'primitive_tower_heavy'];
 const BAD_UNIT_ID = 'no_such_unit';
+/** Rastgele botun bekleme bittiyken her tick'te yetenek kullanma olasılığı (yeteneği sık sınamak için; denge değil). */
+const RANDOM_ABILITY_CHANCE = 0.03;
+/** Bekleme sürerken yetenek deneme olasılığı (abilityCooldown ret yolunu sınar). */
+const RANDOM_ABILITY_EARLY_CHANCE = 0.004;
 
 interface RandomMemory {
   rng: number[];
@@ -73,6 +78,12 @@ export function createRandomBot(configSeed: number, side: SideId): Controller {
         }
       }
       if (rngNext(rng) < RANDOM_TOWER_CHANCE) commands.push(randomTowerCommand(rng, obs));
+      // Yetenek: bekleme bittiyse rastgele bir noktaya (savaş alanı içinde); bekleme sürerken seyrek deneme (ret yolu).
+      const abilityChance = obs.self.abilityCooldown === 0 ? RANDOM_ABILITY_CHANCE : RANDOM_ABILITY_EARLY_CHANCE;
+      if (rngNext(rng) < abilityChance) {
+        const field = battlefieldBounds();
+        commands.push({ type: 'castAbility', side: obs.side, x: field.x0 + rngNext(rng) * (field.x1 - field.x0) });
+      }
       const next: RandomMemory = { rng };
       return { commands, memory: next as unknown as JsonValue };
     },

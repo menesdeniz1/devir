@@ -1,6 +1,7 @@
 import { createBasicBot } from '../src/ai/basicBot';
 import type { Controller } from '../src/ai/controller';
 import { createDefenderBot, createMonoBot, createRandomBot, createStackerBot } from '../src/ai/testBots';
+import { ABILITIES } from '../src/data/abilities';
 import type { Role } from '../src/data/types';
 import { runBattle, repeatUnit, type BattleResult } from '../src/match/matchup';
 import { UNITS } from '../src/data/units';
@@ -163,6 +164,9 @@ function runSoak(opts: Record<string, string>): number {
   let agedGames = 0;
   let maxAgeGames = 0;
   let stoneCaptures = 0;
+  let abilityRejects = 0;
+  let abilityKills = 0;
+  const abilityCasts: Record<string, number> = {};
   const perKind: Record<string, number> = {};
   const timeoutsByKind: Record<string, number> = {};
   const started = Date.now();
@@ -193,7 +197,11 @@ function runSoak(opts: Record<string, string>): number {
     while (state.outcome === null && state.tick < maxTicks) {
       const goldBefore: [number, number] = [state.sides[0].gold, state.sides[1].gold];
       const events = stepMatch(state, [], controllers);
-      for (const e of events) if (e.type === 'stoneCaptured') stoneCaptures += 1;
+      for (const e of events) {
+        if (e.type === 'stoneCaptured') stoneCaptures += 1;
+        else if (e.type === 'abilityCast') abilityCasts[e.abilityId] = (abilityCasts[e.abilityId] ?? 0) + 1;
+        else if (e.type === 'commandRejected' && e.command.type === 'castAbility') abilityRejects += 1;
+      }
       for (const p of checkInvariants(state)) report(p);
       for (const p of goldBalanceProblems(goldBefore, state, events)) report(p);
       if (stall.observe(state, events)) {
@@ -202,6 +210,7 @@ function runSoak(opts: Record<string, string>): number {
         break;
       }
     }
+    for (const side of state.sides) for (const id of ABILITIES.map((a) => a.id)) abilityKills += side.stats.kills[id] ?? 0;
     if (state.sides[0].age > 1 || state.sides[1].age > 1) agedGames += 1;
     if (state.sides[0].age === 5 || state.sides[1].age === 5) maxAgeGames += 1;
     if (state.outcome === null && !stalled) {
@@ -217,6 +226,10 @@ function runSoak(opts: Record<string, string>): number {
   console.log(`Soak: ${games} oyun (${Object.entries(perKind).map(([k, v]) => `${k}: ${v}`).join(', ')})`);
   console.log(`Galibiyet: ${wins}, beraberlik: ${draws}, zaman aşımı: ${timeouts}`);
   console.log(`Çağ atlanan oyun: ${agedGames}, 5. çağa ulaşılan oyun: ${maxAgeGames}, Sınır Taşı ele geçirme: ${stoneCaptures}`);
+  const totalCasts = Object.values(abilityCasts).reduce((a, b) => a + b, 0);
+  console.log(
+    `Yetenek kullanımı: ${totalCasts} (${ABILITIES.map((a) => `${a.id}: ${abilityCasts[a.id] ?? 0}`).join(', ')}), bekleme reddi: ${abilityRejects}, yetenekle öldürülen birlik: ${abilityKills}`,
+  );
   console.log('Zaman aşımı dökümü (türe göre):');
   for (const kindDef of KINDS) {
     const kind = kindName(kindDef);

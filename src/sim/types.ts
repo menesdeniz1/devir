@@ -45,6 +45,8 @@ export interface SideState {
   queue: QueueOrder[];
   /** Üç savunma yuvası (PRD D-01). index 0 başlangıçta açıktır; yuvalar sırayla açılır. */
   slots: TowerSlotState[];
+  /** Güncel çağ yeteneğinin kalan beklemesi (tick). Maç başında ABILITY_RULES.initialCooldownSec. */
+  abilityCooldown: number;
   stats: SideStats;
 }
 
@@ -77,6 +79,32 @@ export interface UnitState {
   cooldown: number;
   /** Son adımda ne yaptığı (çizim ve test kolaylığı için; simülasyon kararlarında kullanılmaz). */
   mode: UnitMode;
+  /** Sersemletme/donma: > 0 iken birlik hareket etmez ve saldırmaz (sayacı da azalmaz). Tick. */
+  stunTicks: number;
+  /** Savunmasızlık: > 0 iken aldığı hasar (100 + vulnPct)% olur, tamsayıya yuvarlanır. Tick. */
+  vulnTicks: number;
+  vulnPct: number;
+}
+
+/** Süreli yetenek alanı (GDD §7). Alan hasarı her tickRate tick'te bir uygulanır; yavaşlatma alandayken geçerlidir. */
+export interface AbilityZoneState {
+  id: number;
+  /** Yeteneği kullanan taraf; yalnız karşı tarafın birlikleri etkilenir. */
+  side: SideId;
+  abilityId: string;
+  x0: number;
+  x1: number;
+  ticksLeft: number;
+}
+
+/** Gecikmeli yetenek vuruşu (ör. Baraj Ateşi); ticksLeft 0 olunca alandaki düşmanlara vurur. */
+export interface PendingStrikeState {
+  id: number;
+  side: SideId;
+  abilityId: string;
+  x0: number;
+  x1: number;
+  ticksLeft: number;
 }
 
 /**
@@ -138,6 +166,9 @@ export interface GameState {
   units: UnitState[];
   /** Sabit sırayla (oluşturulma sırası) tutulur. */
   projectiles: ProjectileState[];
+  /** Etkin yetenek alanları ve bekleyen gecikmeli vuruşlar (oluşturulma sırasıyla). */
+  zones: AbilityZoneState[];
+  strikes: PendingStrikeState[];
   stone: StoneState;
   /** Taraf başına yapay zekâ belleği; denetlenmeyen taraf için null. */
   ai: [JsonValue, JsonValue];
@@ -156,7 +187,9 @@ export type Command =
   /** Açık ve boş yuvaya güncel çağın kulesini kurar. */
   | { type: 'buildTower'; side: SideId; slot: number; towerId: string }
   /** Yuvadaki kuleyi satar; ödenen fiyatın sellRefundRatio'su (aşağı yuvarlanmış) iade edilir, yuva boşalır. */
-  | { type: 'sellTower'; side: SideId; slot: number };
+  | { type: 'sellTower'; side: SideId; slot: number }
+  /** Güncel çağ yeteneğini x merkezli alana kullanır; alan savaş alanına kırpılır (PRD Y-02). */
+  | { type: 'castAbility'; side: SideId; x: number };
 
 export type RejectReason =
   /** Bozuk komut: taraf 0/1 değil, bilinmeyen tür ya da eksik/yanlış tipli alan. */
@@ -186,7 +219,9 @@ export type RejectReason =
   | 'slotEmpty'
   | 'unknownTower'
   /** Kule güncel çağın kulelerinden değil. */
-  | 'towerNotAvailable';
+  | 'towerNotAvailable'
+  /** Yetenek beklemede (Validation.cooldownTicks kalan süre). */
+  | 'abilityCooldown';
 
 export type Validation =
   | { ok: true }
@@ -198,6 +233,8 @@ export type Validation =
       /** notEnoughXp için mevcut ve gereken toplam deneyim */
       xp?: number;
       xpRequired?: number;
+      /** abilityCooldown için kalan tick */
+      cooldownTicks?: number;
     };
 
 // ---- Olaylar (duruma yazılmaz; çizim, ses, arayüz ve testler dinler) --------
@@ -221,6 +258,11 @@ export type SimEvent =
   | { type: 'towerSold'; side: SideId; slot: number; towerType: string; refund: number }
   /** Kule atışı (mermi 'projectileFired' ile ayrıca bildirilir). */
   | { type: 'towerFired'; side: SideId; slot: number; towerType: string; target: number }
+  /** Yetenek kullanıldı (alan kırpılmış x0..x1). Anlık vuruşlu yeteneklerde 'abilityImpact' aynı adımda gelir. */
+  | { type: 'abilityCast'; side: SideId; abilityId: string; x0: number; x1: number }
+  /** Yeteneğin vuruşu (anlık, gecikmeli veya alanın her saniyelik hasarı); hits: etkilenen düşman birlik sayısı. */
+  | { type: 'abilityImpact'; side: SideId; abilityId: string; x0: number; x1: number; hits: number }
+  | { type: 'zoneExpired'; side: SideId; id: number; abilityId: string }
   | { type: 'stoneCaptured'; side: SideId }
   | { type: 'stoneLost'; side: SideId }
   | { type: 'matchEnded'; outcome: Outcome };

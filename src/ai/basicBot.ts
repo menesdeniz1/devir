@@ -1,7 +1,8 @@
 import { BASIC_BOT } from '../data/ai';
 import { DEFENSE } from '../data/towers';
 import type { TowerKind } from '../data/types';
-import { getAge, getTower, mustGetUnit, secToTicks, unitOfRole } from '../sim/compile';
+import { abilityOfAge, getAge, getTower, mustGetUnit, secToTicks, unitOfRole } from '../sim/compile';
+import { battlefieldBounds } from '../sim/geometry';
 import { WORLD } from '../data/world';
 import { planAgeUp } from './ageUpPlan';
 import type { Command, JsonValue } from '../sim/types';
@@ -42,6 +43,36 @@ function threatened(obs: Observation): boolean {
     const gap = obs.side === 0 ? edge - face : face - edge;
     return gap <= BASIC_BOT.tower.threatDistance;
   });
+}
+
+/** Yeteneği kullanmak için alanda aranan en az düşman birliği sayısı (basit bot kuralı; test yoğunluğu ayarı, denge değil). */
+export const BASIC_BOT_ABILITY_MIN_ENEMIES = 3;
+
+/**
+ * Basit yetenek kuralı: bekleme bittiyse ve bir alan genişliğine en az BASIC_BOT_ABILITY_MIN_ENEMIES düşman birliği
+ * sığıyorsa, en kalabalık kümenin ortasına kullanır (eşitlikte üsse en yakın küme). Yalnızca gözlemi kullanır.
+ */
+function planAbility(obs: Observation): Command | null {
+  if (obs.self.abilityCooldown > 0) return null;
+  const ability = abilityOfAge(obs.self.age);
+  if (ability === undefined) return null;
+  const dir = obs.side === 0 ? 1 : -1;
+  // Üsse en yakından uzağa; eşitlikte kimlik sırası.
+  const enemies = obs.units
+    .filter((u) => u.side !== obs.side)
+    .sort((a, b) => dir * a.x - dir * b.x || a.id - b.id);
+  let bestCount = 0;
+  let bestCenter = 0;
+  for (const anchor of enemies) {
+    const covered = enemies.filter((e) => Math.abs(e.x - anchor.x) <= ability.def.width / 2);
+    if (covered.length <= bestCount) continue;
+    const xs = covered.map((e) => e.x);
+    bestCount = covered.length;
+    bestCenter = (Math.min(...xs) + Math.max(...xs)) / 2;
+  }
+  if (bestCount < BASIC_BOT_ABILITY_MIN_ENEMIES) return null;
+  const field = battlefieldBounds();
+  return { type: 'castAbility', side: obs.side, x: Math.min(field.x1, Math.max(field.x0, bestCenter)) };
 }
 
 /**
@@ -101,6 +132,8 @@ export function createBasicBot(): Controller {
       // Kule: eşikteki tehdit varken boş yuvaya güncel çağın kulesi (çağ biriktirme öncelikli: yukarıda döndü).
       const towers = planBasicTowers(obs);
       commands.push(...towers.commands);
+      const cast = planAbility(obs);
+      if (cast !== null) commands.push(cast);
       const sequence = BASIC_BOT.composition;
       let index = mem.sequenceIndex;
       let gold = obs.self.gold - towers.spent;

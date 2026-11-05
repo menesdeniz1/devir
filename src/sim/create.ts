@@ -1,7 +1,8 @@
+import { ABILITIES, ABILITY_RULES } from '../data/abilities';
 import { TOWERS } from '../data/towers';
 import { UNITS } from '../data/units';
 import { ECONOMY } from '../data/world';
-import { mustGetAge } from './compile';
+import { mustGetAge, secToTicks } from './compile';
 import type { GameState, MatchConfig, SideState, SideStats } from './types';
 
 function zeroCounts(): Record<string, number> {
@@ -11,9 +12,10 @@ function zeroCounts(): Record<string, number> {
 }
 
 function createStats(): SideStats {
-  // Öldürme istatistiği birlik ve kule türlerini birlikte sayar.
+  // Öldürme istatistiği birlik, kule ve yetenek türlerini birlikte sayar.
   const kills = zeroCounts();
   for (const tower of TOWERS) kills[tower.id] = 0;
+  for (const ability of ABILITIES) kills[ability.id] = 0;
   return {
     produced: zeroCounts(),
     lost: zeroCounts(),
@@ -40,6 +42,7 @@ function createSide(): SideState {
       { unlocked: false, tower: null },
       { unlocked: false, tower: null },
     ],
+    abilityCooldown: secToTicks(ABILITY_RULES.initialCooldownSec),
     stats: createStats(),
   };
 }
@@ -58,6 +61,8 @@ export function createMatch(config: MatchConfig): GameState {
     sides: [createSide(), createSide()],
     units: [],
     projectiles: [],
+    zones: [],
+    strikes: [],
     stone: { counter: 0, owner: null },
     ai: [null, null],
   };

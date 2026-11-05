@@ -40,7 +40,7 @@ export function deployArmy(state: GameState, side: SideId, army: readonly string
   for (const type of army) {
     const def = mustGetUnit(type).def;
     const x = frontEdge - dir * (def.width / 2);
-    const unit: UnitState = { id: state.nextId, side, type, x, hp: def.hp, cooldown: 0, mode: 'wait' };
+    const unit: UnitState = { id: state.nextId, side, type, x, hp: def.hp, cooldown: 0, mode: 'wait', stunTicks: 0, vulnTicks: 0, vulnPct: 0 };
     state.nextId += 1;
     state.units.push(unit);
     placed.push(unit);
