@@ -23,11 +23,11 @@ Her aşama **çalıştırılabilir** bir sürümle ve **komutla doğrulanabilir*
 | 2 | Roller, savaş derinliği, stil prototipi | Tamamlandı (2026-11-05): 136 test, karşılık senaryoları geçti, stil kullanıcı onaylı |
 | 3 | Çağlar (+ Sınır Taşı) | Tamamlandı (2026-11-05): 180 test, soak 500 ihlalsiz, tarayıcıda 1→5 çağ geçişi doğrulandı |
 | 4 | Savunmalar | Tamamlandı (2026-11-05): 236 test, soak ihlalsiz, 10 kule ve yuva arayüzü tarayıcıda doğrulandı; savunmacı bot ölçümü Aşama 6 |
-| 5 | Özel yetenekler | Bekliyor |
-| 6 | Bilgisayar rakibi ve ilk denge turu | Bekliyor |
-| 7 | Ekranlar, ayarlar, kayıt | Bekliyor |
+| 5 | Özel yetenekler | Tamamlandı (2026-11-05): 5 yetenek, hedefleme arayüzü, efektler; tarayıcıda kullanım doğrulandı |
+| 6 | Bilgisayar rakibi ve ilk denge turu | Uygulandı (2026-11-05): 3 zorluk, GDD §10 turnuva hedefleri tuttu; yetenek kullanımı ve çağ temposu ayarı sürüyor |
+| 7 | Ekranlar, ayarlar, kayıt | Tamamlandı (2026-11-05): menüler, ayarlar, kayıt/devam, sonuç ekranı, ses bağlantısı, 11 E2E |
 | 8 | Öğretici | Bekliyor |
-| 9 | Üretim kalitesinde görsel ve ses | Bekliyor |
+| 9 | Üretim kalitesinde görsel ve ses | Tamamlandı (2026-11-05): özgün siluetler, çağa özgü mermiler, arka planlar, üs hasarı, sarsıntı; sentez ses ve 5 çağ müziği |
 | 10 | Denge, kalite ve yayın | Bekliyor |
 
 ---

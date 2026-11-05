@@ -54,13 +54,15 @@ DOM'u veya Pixi'yi içe aktarmaz; bir mimari testi bunu denetler.
 devir/
   docs/                  bu belgeler
   src/
-    data/                denge ve içerik verisi (tek kaynak): ages, units, towers, abilities, economy, ai, tutorial
-    sim/                 saf simülasyon: state, commands, validate, step, systems/*, rng, events
-    ai/                  observation, karar modülleri, zorluk profilleri
-    match/               headless orkestrasyon: denetleyici kararları + sim adımı
-    game/                döngü, oturum yaşam döngüsü, kayıt, ayarlar, sonuç geçmişi
-    render/              Pixi sahnesi, görünüm nesneleri, interpolasyon, efektler, kamera sarsıntısı
-    art/                 kodla çizilen birlik/kule/üs/yetenek tanımları ve animasyonları
+    data/                denge ve içerik verisi (tek kaynak): world, ages, units, combat, towers, abilities, stone, ai
+    sim/                 saf simülasyon: types, create, validate, commands, step, combat, targeting, abilities,
+                         compile (veri → tick ve tamsayı hasar tabloları), rng, hash, invariants
+    ai/                  observation, controller, basicBot/testBots (test araçları), strategy/ (Kolay/Normal/Zor)
+    match/               headless orkestrasyon: denetleyici kararları + sim adımı; matchup senaryoları
+    game/                döngü, oturum (session), ekran akışı (flow), kayıt, ayarlar, sonuç geçmişi, özet, sürüm
+    app/                 tarayıcı köprüleri (audioBridge: oturum olayları → ses motoru)
+    render/              Pixi sahnesi, arka plan, görünüm nesneleri, mermiler, yetenek efektleri, sarsıntı
+    art/                 kodla çizilen birlik/kule/üs/yetenek parçaları, atlaslar, iskeletler, vitrin (gallery)
     audio/               mikser, sentez efektleri, müzik sıralayıcı
     ui/                  ekranlar (menü, kurulum, HUD, duraklatma, sonuç, ayarlar, öğretici katmanı)
     i18n/tr.ts           tüm Türkçe metinler

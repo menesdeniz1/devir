@@ -22,7 +22,22 @@ Bir bilgi yalnızca sahibi olan belgede yazılır; diğerleri bölüm numarasıy
 - Arayüz metinleri yalnızca `src/i18n/tr.ts`.
 - Her oynanış kuralı değişikliği bir testle gelir; önceki aşamaların testleri yeşil kalır.
 - Kapsam dışı büyük özellik eklenmez; önce PRD/GDD'de karara bağlanır.
-- Kalite kapısı: `npm run check` (Aşama 1'de kurulur).
+- Kalite kapısı: `npm run check` (typecheck + Vitest + build); arayüz akışları için `npm run e2e` (Playwright).
+
+## Komutlar
+
+| Komut | Ne yapar |
+|---|---|
+| `npm run dev` | Geliştirme sunucusu; `?debug` geliştirici panelini açar |
+| `npm run check` | typecheck + birim testleri + üretim derlemesi |
+| `npm run e2e` | Playwright uçtan uca testleri (kendi dev sunucusunu açar) |
+| `npm run sim -- match --a <bot> --b <bot>` | Tek headless maç özeti |
+| `npm run sim -- tournament --a <bot> --b <bot> --games 200` | Denge turnuvası (GDD §10 hedefleri) |
+| `npm run sim -- soak --games 500` | Değişmez ve kilitlenme denetimli toplu maç |
+| `npm run sim -- matchup` | Önceden dizilmiş ordu karşılık matrisi |
+
+Botlar: `easy`, `normal`, `hard` (oyunun rakipleri) ve test araçları (`basic`, `random`, `stacker`, `idle`,
+`defender`, `mono-*`, `normal-*`). Görsel vitrin: `/src/art/gallery.html?view=...` (yalnız geliştirme).
 
 ## Ekip
 
