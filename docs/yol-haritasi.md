@@ -35,6 +35,8 @@ kümesinde Normal–Normal medyan ≈ 10:45, zaman aşımı ≤ %7,5; Zor–Zor 
 normalizasyonu (kırpılma, DC sapması, çağlar arası düzey farkı) ve BS.1770 K-ağırlıklı gürlük (LUFS) ile frekans
 dengesi.
 
+**Sürüm 1.0.1:** 1280×720'de deneyim başlığında etiket ile değerin bitişip bölünmesi düzeltildi (sıkışık alt panelde deneyim sütunu genişletildi); CI action'ları Node 24 kullanan v7 sürümlerine geçti. Son tarayıcı doğrulaması (Chromium, 1280×720): öğretici baştan sona 2:34'te tamamlandı; kayıt → Ana menü → Devam et aynı durumu geri getirdi; düğmelere tıklayan basit betikli oyuncu Normal'e karşı 5 maçın 5'ini 10:43–12:55 arasında kaybetti (konsol hatası 0, reddedilen komut 0).
+
 **Bilinen açık noktalar:** saf ön hat yığınıyla oynanan aynalı maçlar (normal-front – Normal) çoğunlukla 20
 dakikayı aşar (kazanamaz, %27–28,5); ses ve müziğin tınısı yalnız ölçümle (LUFS, bant dengesi) doğrulandı, kulakla
 dinlenmedi; öğretici ve maç süresi gerçek insan oyununda ölçülmedi (betikli oyuncuyla tarayıcıda doğrulandı).

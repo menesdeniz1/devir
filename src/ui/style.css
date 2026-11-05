@@ -149,8 +149,8 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
 
 /* Deneyim ve çağ atlama */
 .hud-age { display: flex; flex-direction: column; gap: 4px; width: 190px; }
-.hud-xp__head { display: flex; justify-content: space-between; font-size: 13px; color: var(--c-muted); }
-.hud-xp__text { font-variant-numeric: tabular-nums; }
+.hud-xp__head { display: flex; justify-content: space-between; gap: 6px; font-size: 13px; color: var(--c-muted); }
+.hud-xp__text { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bar--xp { flex: none; height: 12px; min-width: 0; }
 .bar--xp .bar__fill { background: linear-gradient(90deg, #7a5cd6, #c79bff); }
 .btn--age {
@@ -408,7 +408,8 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
   /* Deneyim sütunu solda, Çağ Atla düğmesi sağda: satır yüksekliği düğme kadar kalır. */
   .hud-age {
     display: grid;
-    width: 240px;
+    /* Başlık sütunu "Deneyim" ile en uzun değeri ("12345 / 5000") tek satırda taşır. */
+    width: 276px;
     grid-template-columns: 1fr auto;
     grid-template-areas: "head btn" "bar btn" "reason btn";
     gap: 3px 8px;
