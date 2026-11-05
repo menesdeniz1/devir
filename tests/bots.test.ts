@@ -122,6 +122,7 @@ describe('Test botları', () => {
         for (const id of [...queuedUnits(events, 0), ...queuedUnits(events, 1)]) seen.add(id);
       }
     }
-    expect([...seen].sort()).toEqual(['primitive_front', 'primitive_heavy', 'primitive_ranged']);
+    // Rastgele bot eşik geçilince çağ da atlayabilir; İlkel Çağ'ın üç birliği de görülmüş olmalı.
+    expect([...seen].filter((id) => id.startsWith('primitive_')).sort()).toEqual(['primitive_front', 'primitive_heavy', 'primitive_ranged']);
   });
 });

@@ -9,6 +9,7 @@ import { createMatch } from '../src/sim/create';
 import { checkInvariants, goldBalanceProblems, StallDetector } from '../src/sim/invariants';
 import { rngFromSeed, rngInt } from '../src/sim/rng';
 import type { GameState, SimEvent } from '../src/sim/types';
+import { setAge } from './helpers';
 
 const DIFFICULTIES: readonly AiDifficulty[] = ['easy', 'normal', 'hard'];
 /** 20 dk (tick). */
@@ -91,14 +92,21 @@ describe('Her zorluk tüm eylem türlerini kullanır (uzun maç, PRD R-01)', () 
     });
   }
 
-  it('zor: eski çağ kulesini satıp yeniler (satış komutu kullanılır)', () => {
-    let sold = 0;
-    for (let i = 0; i < 8 && sold === 0; i++) {
-      const seed = 70 + i;
-      const r = play(createMatch({ seed, opponent: 'hard' }), [createAiBot('hard', seed, 0), createAiBot('hard', seed, 1)], LONG);
-      sold += r.sold[0] + r.sold[1];
-    }
-    expect(sold).toBeGreaterThan(0);
+  it('zor: maç içinde eski çağ kulesini satıp yeniler (satış komutu kullanılır, ret yok)', () => {
+    const seed = 70;
+    const state = createMatch({ seed, opponent: 'hard' });
+    // Taraf 1 Antik Çağ'da, yuvalarında İlkel Çağ kuleleri (çağ atlamış bir tarafın durumu).
+    setAge(state, 1, 2);
+    state.sides[1].gold = 1500;
+    state.sides[1].slots = [
+      { unlocked: true, tower: { type: 'primitive_tower_fast', paid: 120, cooldown: 0 } },
+      { unlocked: true, tower: { type: 'primitive_tower_heavy', paid: 160, cooldown: 0 } },
+      { unlocked: false, tower: null },
+    ];
+    const r = play(state, [null, createAiBot('hard', seed, 1)], 600);
+    expect(r.sold[1]).toBeGreaterThan(0);
+    expect(r.rejected).toEqual([]);
+    expect(state.sides[1].slots.some((x) => x.tower?.type.startsWith('ancient_') === true)).toBe(true);
   });
 
   it('pasif rakibe karşı her zorluk maçı bitirir', () => {

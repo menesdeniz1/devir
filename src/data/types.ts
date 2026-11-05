@@ -220,6 +220,27 @@ export interface AiProfileDef {
   idleChance: number;
   /** Sınır Taşı: 0 yok sayar, 1 taş kaybedilince ve güç uygunken iter, 2 tarafsızken de aktif hedefler. */
   stoneWeight: 0 | 1 | 2;
+  ability: AiAbilityProfileDef;
+}
+
+/**
+ * Yetenek kullanımı (GDD §9 modül 5). Alan içindeki düşman değeri = Σ birlik gücü (maliyet × can oranı × çağ çarpanı);
+ * en yüksek değerli merkez taranır. Kullanım koşulu: hedef sayısı ≥ minTargets ya da (minValue varsa) değer ≥ minValue.
+ */
+export interface AiAbilityProfileDef {
+  minTargets: number;
+  /** Değer eşiği, güncel çağın ön hat birliği maliyeti cinsinden; null: yalnız hedef sayısı. */
+  minValue: number | null;
+  /** Nişan sapması: merkeze eklenen ±aimJitter (birim) tekdüze rastgele kayma. */
+  aimJitter: number;
+  /** Bekleme bittikten sonra kullanmadan önce rastgele gecikme aralığı (sn). */
+  reactionDelaySec: [number, number];
+  /** Kendi üssüne yakın (AI_TUNING.nearBaseDistance) düşmanların değer çarpanı (savunma önceliği; 1 = yok). */
+  defenseWeight: number;
+  /** Baskı altındayken (tehdit modülü) geçerli hedef sayısı eşiği. */
+  defenseMinTargets: number;
+  /** Gecikmeli vuruşta (delaySec) düşmanın vuruşa kadar yürüyeceği yolu öngörür. */
+  leadDelayed: boolean;
 }
 
 /** Zorluklardan bağımsız yapay zekâ ayarları (ölçüm ve eşikler). */
@@ -251,6 +272,8 @@ export interface AiTuningDef {
   stances: Record<AiStance, Record<Role, number>>;
   /** Duruş seçimi (görünür düşman birliklerinin sayı payı): ağır payı ≥ heavy → antiHeavy; menzilli payı ≥ ranged → antiRanged. */
   stanceShare: { heavy: number; ranged: number };
+  /** Yetenek merkezi tarama adımı (birim). */
+  abilityScanStep: number;
   /** Görünür düşman birliği sayısı bunun altındaysa varsayılan duruş. */
   minEnemyUnits: number;
   /**

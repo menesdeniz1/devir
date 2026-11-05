@@ -20,8 +20,8 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     age: 2,
-    xpThreshold: 800,
-    ageUpCost: 400,
+    xpThreshold: 450,
+    ageUpCost: 300,
     baseMaxHp: 6400,
     incomePerSec: 7,
     stoneGoldPerSec: 2,
@@ -32,8 +32,8 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     age: 3,
-    xpThreshold: 2200,
-    ageUpCost: 750,
+    xpThreshold: 1500,
+    ageUpCost: 700,
     baseMaxHp: 10200,
     incomePerSec: 12,
     stoneGoldPerSec: 4,
@@ -44,8 +44,8 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     age: 4,
-    xpThreshold: 4800,
-    ageUpCost: 1400,
+    xpThreshold: 3200,
+    ageUpCost: 1300,
     baseMaxHp: 16400,
     incomePerSec: 21,
     stoneGoldPerSec: 6,
@@ -56,8 +56,8 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     age: 5,
-    xpThreshold: 9500,
-    ageUpCost: 2600,
+    xpThreshold: 6000,
+    ageUpCost: 2300,
     baseMaxHp: 26200,
     incomePerSec: 37,
     stoneGoldPerSec: 11,

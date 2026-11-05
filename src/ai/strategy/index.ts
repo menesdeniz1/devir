@@ -21,7 +21,7 @@ export interface AiBotOptions {
 
 /**
  * Bilgisayar rakibi (GDD §9). Yalnızca gözlemi kullanır (PRD R-03, K-13); oyuncuyla aynı komutları üretir.
- * Her karar anında sırayla: tehdit → çağ → savunma → ordu → yetenek (Aşama 5) ; Sınır Taşı ağırlığı ordu
+ * Her karar anında sırayla: tehdit → çağ → savunma → ordu → yetenek; Sınır Taşı ağırlığı ordu
  * hedefini değiştirir. Bellek düz JSON'dur; rastgelelik bellekteki üreteçten gelir ve ilk değeri yalnızca
  * (config.seed, taraf) çiftinden türer, böylece denetleyici kayıttan `createAiBot(zorluk, config.seed, taraf)` ile
  * yeniden kurulabilir.
@@ -52,7 +52,7 @@ export function createAiBot(difficulty: AiDifficulty, configSeed: number, side: 
       const push = wantsPush(obs, threat, profile);
       mem.stance = updateStance(mem.stance, threat, profile, mem.rng);
       commands.push(...planArmy(obs, threat, profile, mem.rng, mem.stance, available - defense.spent, push, roleLock));
-      commands.push(...planAbility(obs, threat, profile));
+      commands.push(...planAbility(obs, mem, threat, profile));
       return { commands, memory: writeMemory(mem) };
     },
   };

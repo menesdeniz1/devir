@@ -24,6 +24,7 @@ export const AI_PROFILES: Readonly<Record<AiDifficulty, AiProfileDef>> = {
     queueTarget: [1, 1],
     idleChance: 0.3,
     stoneWeight: 0,
+    ability: { minTargets: 1, minValue: null, aimJitter: 80, reactionDelaySec: [2, 12], defenseWeight: 1, defenseMinTargets: 1, leadDelayed: false },
   },
   normal: {
     decisionIntervalSec: 1.5,
@@ -35,6 +36,7 @@ export const AI_PROFILES: Readonly<Record<AiDifficulty, AiProfileDef>> = {
     queueTarget: [2, 3],
     idleChance: 0,
     stoneWeight: 1,
+    ability: { minTargets: 3, minValue: 4, aimJitter: 0, reactionDelaySec: [0, 0], defenseWeight: 2, defenseMinTargets: 1, leadDelayed: false },
   },
   hard: {
     decisionIntervalSec: 0.6,
@@ -46,6 +48,7 @@ export const AI_PROFILES: Readonly<Record<AiDifficulty, AiProfileDef>> = {
     queueTarget: [5, 5],
     idleChance: 0,
     stoneWeight: 2,
+    ability: { minTargets: 3, minValue: 5, aimJitter: 0, reactionDelaySec: [0, 0], defenseWeight: 2, defenseMinTargets: 1, leadDelayed: true },
   },
 };
 
@@ -60,9 +63,10 @@ export const AI_TUNING: AiTuningDef = {
   heavyTowerShare: 0.5,
   renewSpare: 100,
   pushRatio: 1.2,
+  abilityScanStep: 10,
   stances: {
-    opening: { front: 0.5, ranged: 0.25, heavy: 0.25 },
-    antiFront: { front: 0.67, ranged: 0.33, heavy: 0 },
+    opening: { front: 1, ranged: 0, heavy: 0 },
+    antiFront: { front: 1, ranged: 0, heavy: 0 },
     antiRanged: { front: 0, ranged: 0, heavy: 1 },
     antiHeavy: { front: 0.67, ranged: 0, heavy: 0.33 },
     antiTower: { front: 0, ranged: 0, heavy: 1 },

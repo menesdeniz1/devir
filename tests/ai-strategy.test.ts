@@ -31,7 +31,8 @@ function aiMatch(seed: number, a: AiDifficulty, b: AiDifficulty): { state: GameS
 }
 
 describe('K-13: yapay zekâ gizli bilgiye erişmez (GDD §9, TDD §5)', () => {
-  it('K-13: karşı tarafın altını, deneyimi, kuyruğu ve istatistikleri farklı iki durumda kararlar ve bellek birebir aynı', () => {
+  it('K-13: karşı tarafın altını, deneyimi, kuyruğu, yetenek beklemesi ve istatistikleri farklı iki durumda kararlar ve bellek birebir aynı', () => {
+    let casts = 0;
     for (const difficulty of DIFFICULTIES) {
       const { state, controllers } = aiMatch(11, 'normal', difficulty);
       let compared = 0;
@@ -44,6 +45,7 @@ describe('K-13: yapay zekâ gizli bilgiye erişmez (GDD §9, TDD §5)', () => {
           hidden.queue.push({ unitId: 'primitive_heavy', progressTicks: 7, paid: 160 });
           hidden.stats.goldEarned += 5000;
           hidden.stats.kills['primitive_front'] = 99;
+          hidden.abilityCooldown = hidden.abilityCooldown === 0 ? 777 : 0;
           expect(buildObservation(altered, 1)).toEqual(buildObservation(state, 1));
           const bot = createAiBot(difficulty, state.config.seed, 1);
           // Karar anı zorlanır (bellekteki next sıfırlanır) ki her örnekte gerçek bir karar karşılaştırılsın.
@@ -54,11 +56,14 @@ describe('K-13: yapay zekâ gizli bilgiye erişmez (GDD §9, TDD §5)', () => {
           expect(rb).toEqual(ra);
           expect(JSON.stringify(memory)).toBe(before); // girdi belleği değişmez
           compared += 1;
+          if (ra.commands.some((c) => c.type === 'castAbility')) casts += 1;
         }
         stepMatch(state, [], controllers);
       }
       expect(compared).toBeGreaterThan(20);
     }
+    // Karşılaştırılan kararların bir kısmı yetenek kullanımıdır (yetenekli sürümle K-13).
+    expect(casts).toBeGreaterThan(0);
   });
 });
 
@@ -151,7 +156,7 @@ describe('Karar modülleri (GDD §9)', () => {
     ).toBe('antiTower');
   });
 
-  it('ordu: ön hat yığınına karşı ön hat + menzilli, ağır yığınına karşı ön hat sipariş eder (Zor, isabet %95)', () => {
+  it('ordu: ön hat yığınına karşı ön hat, ağır yığınına karşı ön hat ağırlıklı, menzilli içerene ağır sipariş eder (Zor)', () => {
     const roles = (setup: (s: GameState) => void): string[] => {
       const s = createMatch({ seed: 2, opponent: 'hard' });
       s.sides[1].gold = 2000;
@@ -162,11 +167,13 @@ describe('Karar modülleri (GDD §9)', () => {
     };
     const vsFront = roles((s) => placeRole(s, 0, 'front', 5, 900));
     expect(vsFront.length).toBeGreaterThan(0);
-    expect(vsFront).toContain('ranged');
-    expect(vsFront).not.toContain('heavy');
+    for (const role of vsFront) expect(AI_TUNING.stances.antiFront[role as 'front']).toBeGreaterThan(0);
     const vsHeavy = roles((s) => placeRole(s, 0, 'heavy', 4, 900));
     expect(vsHeavy).toContain('front');
     expect(vsHeavy).not.toContain('ranged');
+    const vsRanged = roles((s) => (placeRole(s, 0, 'front', 3, 900), placeRole(s, 0, 'ranged', 2, 600)));
+    expect(vsRanged).toContain('heavy');
+    expect(vsRanged).not.toContain('ranged');
   });
 
   it('savunma: baskı altında yuva açar ve menzilli ağırlıklı düşmana ağır (B), ön hata hızlı (A) kule kurar', () => {

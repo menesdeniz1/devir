@@ -320,13 +320,14 @@ interface BotTally {
   /** Rol başına üretilen birlik sayısı. */
   produced: Record<Role, number>;
   towersBuilt: number;
+  abilityCasts: number;
   rejected: number;
   /** Maç sonundaki çağ toplamı (ortalama için). */
   finalAgeSum: number;
 }
 
 function newTally(): BotTally {
-  return { ageUps: [[], [], [], []], produced: { front: 0, ranged: 0, heavy: 0 }, towersBuilt: 0, rejected: 0, finalAgeSum: 0 };
+  return { ageUps: [[], [], [], []], produced: { front: 0, ranged: 0, heavy: 0 }, towersBuilt: 0, abilityCasts: 0, rejected: 0, finalAgeSum: 0 };
 }
 
 function describeTally(name: string, t: BotTally, games: number): string {
@@ -338,7 +339,7 @@ function describeTally(name: string, t: BotTally, games: number): string {
   return (
     `  ${name}: medyan çağ geçişleri ${ages}; ort. son çağ ${(t.finalAgeSum / games).toFixed(2)}; ` +
     `rol payı ön ${share('front')} / menzilli ${share('ranged')} / ağır ${share('heavy')}; ` +
-    `kule kurma/maç ${(t.towersBuilt / games).toFixed(1)}; reddedilen komut ${t.rejected}`
+    `kule kurma/maç ${(t.towersBuilt / games).toFixed(1)}; yetenek/maç ${(t.abilityCasts / games).toFixed(1)}; reddedilen komut ${t.rejected}`
   );
 }
 
@@ -355,6 +356,8 @@ function runTournament(opts: Record<string, string>): number {
   let timeouts = 0;
   let winsAAsSide0 = 0;
   const finishedTicks: number[] = [];
+  /** reachedAge[n]: en az bir tarafın n. çağa ulaştığı maç sayısı. */
+  const reachedAge = [0, 0, 0, 0, 0, 0];
   const tallies: [BotTally, BotTally] = [newTally(), newTally()];
   const started = Date.now();
 
@@ -371,8 +374,11 @@ function runTournament(opts: Record<string, string>): number {
       for (const e of stepMatch(state, [], controllers)) {
         if (e.type === 'commandRejected' && (e.command?.side === 0 || e.command?.side === 1)) tallyOf(e.command.side).rejected += 1;
         else if (e.type === 'towerBuilt') tallyOf(e.side).towersBuilt += 1;
+        else if (e.type === 'abilityCast') tallyOf(e.side).abilityCasts += 1;
       }
     }
+    const maxAge = Math.max(state.sides[0].age, state.sides[1].age);
+    for (let age = 1; age <= maxAge && age < reachedAge.length; age++) reachedAge[age]! += 1;
     for (const side of [0, 1] as const) {
       const s = state.sides[side];
       const t = tallyOf(side);
@@ -404,6 +410,9 @@ function runTournament(opts: Record<string, string>): number {
   console.log(
     `Biten maçların medyan süresi: ${finishedTicks.length === 0 ? '-' : formatTime(median(finishedTicks))} (${finishedTicks.length} maç; ` +
       `%10 ${quantile(0.1)}, %90 ${quantile(0.9)})`,
+  );
+  console.log(
+    `Çağa ulaşan maç (en az bir taraf): ${[2, 3, 4, 5].map((age) => `${age}. çağ ${percent(reachedAge[age]!, games)}`).join(', ')}`,
   );
   console.log(describeTally(`A=${nameA}`, tallies[0], games));
   console.log(describeTally(`B=${nameB}`, tallies[1], games));
