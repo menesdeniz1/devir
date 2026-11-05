@@ -194,6 +194,8 @@ const KINDS: readonly Kind[] = [
   ['easy', 'idle'],
   ['hard', 'idle'],
 ];
+/** Rakibi pasif türlerde üst sürenin katı (canlılık denetimi; test ayarı, denge değil). */
+const SOAK_IDLE_TIME_FACTOR = 2;
 /** Soak maçlarında başlangıç altınına eklenen en büyük rastgele ek (büyük orduları, dolu kuyruğu ve doğma engelini zorlar). */
 const SOAK_MAX_EXTRA_GOLD = 3000;
 /** Soak maçlarında başlangıç deneyimine eklenen en büyük rastgele ek (çağ atlamayı ve geç çağ birliklerini erken zorlar). */
@@ -203,6 +205,9 @@ function runSoak(opts: Record<string, string>): number {
   const games = numOpt(opts, 'games', 500);
   const baseSeed = numOpt(opts, 'seed', 1);
   const maxTicks = Math.round(numOpt(opts, 'max-minutes', 20) * 60 * WORLD.tickRate);
+  // Pasif rakibe karşı canlılık denetimi daha uzun süre tanır: üs canı İlkel Çağ'da yüksektir (ages.ts) ve yalnız
+  // menzilli üreten bot üsse ×0,5 hasar verir; denetlenen şey maçın sonunda bitmesidir, ne kadar hızlı bittiği değil.
+  const idleMaxTicks = maxTicks * SOAK_IDLE_TIME_FACTOR;
   let wins = 0;
   let draws = 0;
   let timeouts = 0;
@@ -242,7 +247,8 @@ function runSoak(opts: Record<string, string>): number {
     let stalled = false;
     // Yapay zekâ komutları validate'ten geçmelidir (PRD R-02); reddedilen her komut ihlaldir.
     const aiSide = [isAiBot(kindDef[0]), isAiBot(kindDef[1])];
-    while (state.outcome === null && state.tick < maxTicks) {
+    const limit = isIdleOpponent(kindDef) ? idleMaxTicks : maxTicks;
+    while (state.outcome === null && state.tick < limit) {
       const goldBefore: [number, number] = [state.sides[0].gold, state.sides[1].gold];
       const events = stepMatch(state, [], controllers);
       for (const e of events) {
@@ -269,7 +275,7 @@ function runSoak(opts: Record<string, string>): number {
     if (state.outcome === null && !stalled) {
       timeouts += 1;
       timeoutsByKind[kind] = (timeoutsByKind[kind] ?? 0) + 1;
-      if (isIdleOpponent(kindDef)) report(`zaman aşımı: rakibi pasif türde maç ${maxTicks} tick içinde bitmedi`);
+      if (isIdleOpponent(kindDef)) report(`zaman aşımı: rakibi pasif türde maç ${limit} tick içinde bitmedi`);
     } else if (state.outcome === null) {
       // Kilitlenme zaten ihlal olarak bildirildi.
     } else if (state.outcome.kind === 'draw') draws += 1;

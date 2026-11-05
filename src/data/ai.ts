@@ -68,6 +68,7 @@ export const AI_TUNING: AiTuningDef = {
   stances: {
     opening: ['front', 'heavy', 'front', 'ranged'],
     antiFront: ['front', 'front', 'ranged'],
+    antiSwarm: ['front', 'front', 'front', 'ranged'],
     antiRanged: ['heavy'],
     antiHeavy: ['front', 'front', 'heavy'],
     antiTower: ['heavy'],
@@ -78,6 +79,7 @@ export const AI_TUNING: AiTuningDef = {
     ['front'],
   ],
   stanceShare: { heavy: 0.4, ranged: 0.2 },
+  swarm: { front: 0.9, minUnits: 4 },
   minEnemyUnits: 1,
   siege: { towers: 3, fewUnits: 3 },
 };

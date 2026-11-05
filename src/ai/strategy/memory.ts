@@ -29,7 +29,7 @@ export interface AiMemory {
   stance: AiStance;
 }
 
-const STANCES: readonly AiStance[] = ['opening', 'antiFront', 'antiRanged', 'antiHeavy', 'antiTower'];
+const STANCES: readonly AiStance[] = ['opening', 'antiFront', 'antiSwarm', 'antiRanged', 'antiHeavy', 'antiTower'];
 
 /** Rastgele üreteç tuzu: rastgele botla aynı tohumu paylaşmasın diye ayrı tuz (taraf + bu değer). */
 const RNG_SALT = 0x5a17;

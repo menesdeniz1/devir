@@ -12,7 +12,8 @@ export const ROLES: readonly Role[] = ['front', 'ranged', 'heavy'];
 
 /**
  * Görünür düşman bileşimine karşılık duruşu (GDD §3 döngüsü, dizilişle birlikte): kule savunmasına ağır kuşatma,
- * ağır yığınına ön hat ağırlıklı, menzilli içeren orduya uzun menzilli ağır, ön hat yığınına ön hat + arkasında menzilli.
+ * ağır yığınına ön hat ağırlıklı, menzilli içeren orduya uzun menzilli ağır, ön hat yığınına ön hat + arkasında menzilli
+ * (saf ön hat yığınına daha kalın ön hat).
  */
 export function chooseStance(threat: Threat): AiStance {
   const c = threat.enemyCount;
@@ -22,6 +23,7 @@ export function chooseStance(threat: Threat): AiStance {
   if (total < AI_TUNING.minEnemyUnits) return 'opening';
   if (c.heavy / total >= AI_TUNING.stanceShare.heavy) return 'antiHeavy';
   if (c.ranged / total >= AI_TUNING.stanceShare.ranged) return 'antiRanged';
+  if (total >= AI_TUNING.swarm.minUnits && c.front / total >= AI_TUNING.swarm.front) return 'antiSwarm';
   return 'antiFront';
 }
 

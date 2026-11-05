@@ -275,6 +275,8 @@ export interface AiTuningDef {
   openings: Role[][];
   /** Duruş seçimi (görünür düşman birliklerinin sayı payı): ağır payı ≥ heavy → antiHeavy; menzilli payı ≥ ranged → antiRanged. */
   stanceShare: { heavy: number; ranged: number };
+  /** Saf ön hat yığını (antiSwarm): görünür düşmanın en az `minUnits` birliği varken ön hat payı ≥ `front`. */
+  swarm: { front: number; minUnits: number };
   /**
    * Karar zamanlaması dağılımı: her karar aralığı ±decisionJitter oranında rastgele uzar/kısalır; ilk karar
    * [0, aralık) içinde rastgele tick'tedir. Aynı tohumlu iki yapay zekânın birebir aynı oyunu oynamasını önler.
@@ -292,4 +294,4 @@ export interface AiTuningDef {
 }
 
 /** Ordu duruşu: varsayılan ya da görünür düşman bileşimine karşılık. */
-export type AiStance = 'opening' | 'antiFront' | 'antiRanged' | 'antiHeavy' | 'antiTower';
+export type AiStance = 'opening' | 'antiFront' | 'antiSwarm' | 'antiRanged' | 'antiHeavy' | 'antiTower';

@@ -153,14 +153,17 @@ describe('Karar modülleri (GDD §9)', () => {
     expect(t.enemyCount).toEqual({ front: 2, ranged: 0, heavy: 0 });
   });
 
-  it('duruş: ön hat yığınına antiFront, menzilliye antiRanged, ağır yığınına antiHeavy, kuleye yaslanana antiTower', () => {
+  it('duruş: ön hat ağırlıklıya antiFront, saf ön hat yığınına antiSwarm, menzilliye antiRanged, ağır yığınına antiHeavy, kuleye yaslanana antiTower', () => {
     const stanceVs = (setup: (s: GameState) => void): string => {
       const s = createMatch({ seed: 1, opponent: 'normal' });
       setup(s);
       return chooseStance(assessThreat(buildObservation(s, 1), initialMemory(1, 1)));
     };
     expect(stanceVs(() => {})).toBe('opening');
-    expect(stanceVs((s) => placeRole(s, 0, 'front', 4, 900))).toBe('antiFront');
+    expect(stanceVs((s) => (placeRole(s, 0, 'front', 3, 900), placeRole(s, 0, 'heavy', 1, 700)))).toBe('antiFront');
+    // Saf ön hat yığını (en az swarm.minUnits birlik): daha kalın ön hat dizisi.
+    expect(stanceVs((s) => placeRole(s, 0, 'front', AI_TUNING.swarm.minUnits, 900))).toBe('antiSwarm');
+    expect(stanceVs((s) => placeRole(s, 0, 'front', AI_TUNING.swarm.minUnits - 1, 900))).toBe('antiFront');
     expect(stanceVs((s) => (placeRole(s, 0, 'front', 3, 900), placeRole(s, 0, 'ranged', 2, 600)))).toBe('antiRanged');
     expect(stanceVs((s) => (placeRole(s, 0, 'front', 1, 900), placeRole(s, 0, 'heavy', 3, 800)))).toBe('antiHeavy');
     expect(
@@ -183,7 +186,7 @@ describe('Karar modülleri (GDD §9)', () => {
     const vsFront = roles((s) => placeRole(s, 0, 'front', 5, 900));
     expect(vsFront.length).toBeGreaterThan(0);
     expect(vsFront).toContain('ranged');
-    for (const role of vsFront) expect(AI_TUNING.stances.antiFront).toContain(role);
+    for (const role of vsFront) expect(AI_TUNING.stances.antiSwarm).toContain(role);
     const vsHeavy = roles((s) => placeRole(s, 0, 'heavy', 4, 900));
     expect(vsHeavy).toContain('front');
     expect(vsHeavy).not.toContain('ranged');
