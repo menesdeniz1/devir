@@ -1,15 +1,18 @@
 import { Application, Container, Graphics } from 'pixi.js';
-import { prewarmUnitArt } from '../art/unitArt';
+import { prewarmFxArt } from '../art/projectileArt';
+import { artAge, prewarmUnitArt } from '../art/unitArt';
 import { WORLD } from '../data/world';
 import type { Session, SessionEvent } from '../game/session';
 import { battlefieldBounds } from '../sim/geometry';
 import { AbilityFx } from './abilityFx';
+import { BackgroundView } from './background';
+import { ScreenShake, SHAKE_ABILITIES } from './fxMath';
 import { COLOR_SKY_TOP, GROUND_BOTTOM_Y, GROUND_TOP_Y, MAX_ANIM_FRAME_MS, MAX_RESOLUTION, SCENE_HEIGHT, WINDOW_MARGIN } from './constants';
 import {
-  createBackground,
   createBaseView,
   createStoneView,
   setBaseAge,
+  setBaseDamage,
   setTowerSlot,
   towerLaunchPoint,
   triggerBaseFlash,
@@ -44,7 +47,7 @@ export interface Renderer {
   isInCorridor(clientX: number, clientY: number): boolean;
   /** Canlı ve solmakta olan birlik görünümü sayısı (test/hata ayıklama). */
   readonly unitViewCount: number;
-  /** Ekran sarsıntısını açar/kapatır (ayar: PRD EK-07, GR-06). Aşama 9'da uygulanır. */
+  /** Ekran sarsıntısını açar/kapatır (ayar: PRD EK-07, GR-06). Kapalıyken hiç sarsıntı yoktur. */
   setScreenShake(enabled: boolean): void;
   /** Performans paneli için son karenin sayıları (TDD §4). */
   readonly stats: RenderStats;
@@ -52,7 +55,7 @@ export interface Renderer {
 }
 
 export interface RenderStats {
-  /** Son karede çizilen birlik, mermi ve etkin efekt sayısı. */
+  /** Son karede çizilen birlik, mermi ve etkin efekt sayısı (mermi parçacıkları + yetenek efektleri). */
   units: number;
   projectiles: number;
   effects: number;
@@ -77,8 +80,9 @@ export async function createRenderer(host: HTMLElement, session: Session, option
   });
   app.ticker.stop();
   host.appendChild(app.canvas);
-  // Birlik parçalarını açılışta bir kez dokuya pişir (ilk birlik doğduğunda takılma olmasın).
+  // Birlik ve mermi parçalarını açılışta bir kez dokuya pişir (ilk birlik/mermi doğduğunda takılma olmasın).
   prewarmUnitArt();
+  prewarmFxArt();
 
   const world = new Container();
   const units = new Container();
@@ -90,9 +94,15 @@ export async function createRenderer(host: HTMLElement, session: Session, option
   preview.visible = false;
   let previewKey = '';
   const stone = createStoneView();
+  // Arka plan oyuncunun çağını izler (GDD §14); çağ değişince yumuşak geçiş.
+  const background = new BackgroundView(artAge(session.state.sides[0].age));
+  const shake = new ScreenShake();
+  const stats: RenderStats = { units: 0, projectiles: 0, effects: 0, renderMs: 0 };
+  let baseX = 0;
+  let baseY = 0;
   // Yetenek zemin efektleri (hendek, çiviler, hedef bandı) birliklerin altında; diğer efektler üstünde.
   world.addChild(
-    createBackground(),
+    background.container,
     bases[0].container,
     bases[1].container,
     stone.container,
@@ -116,8 +126,10 @@ export async function createRenderer(host: HTMLElement, session: Session, option
     lastH = h;
     const scale = Math.max(0.05, Math.min((w - 2 * WINDOW_MARGIN) / WORLD.worldWidth, (h - 2 * WINDOW_MARGIN) / SCENE_HEIGHT));
     world.scale.set(scale);
-    world.x = (w - WORLD.worldWidth * scale) / 2;
-    world.y = (h - SCENE_HEIGHT * scale) / 2;
+    baseX = (w - WORLD.worldWidth * scale) / 2;
+    baseY = (h - SCENE_HEIGHT * scale) / 2;
+    world.x = baseX;
+    world.y = baseY;
   }
 
   function clearViews(): void {
@@ -130,6 +142,8 @@ export async function createRenderer(host: HTMLElement, session: Session, option
       clearViews();
       projectiles.clear();
       abilityFx.clear();
+      shake.reset();
+      background.setAge(artAge(session.state.sides[0].age), false);
       // Yeni maç: üsler ve taş yeni durumdan çizilir; taşın görsel durumu da baştan başlar.
       setBaseAge(bases[0], session.state.sides[0].age, false);
       setBaseAge(bases[1], session.state.sides[1].age, false);
@@ -143,10 +157,18 @@ export async function createRenderer(host: HTMLElement, session: Session, option
     for (const e of event.events) {
       projectiles.handleEvent(e);
       if (e.type === 'abilityCast') abilityFx.onCast(e.side, e.abilityId, e.x0, e.x1);
-      else if (e.type === 'abilityImpact') abilityFx.onImpact(e.side, e.abilityId, e.x0, e.x1, e.hits);
+      else if (e.type === 'abilityImpact') {
+        abilityFx.onImpact(e.side, e.abilityId, e.x0, e.x1, e.hits);
+        // Büyük yeteneklerin vuruşu: orta sarsıntı (GDD §14; GR-06: kısa, kapatılabilir, parlama yok).
+        if (SHAKE_ABILITIES.has(e.abilityId)) shake.trigger('medium');
+      }
       if (e.type === 'attack') views.get(e.attackerId)?.startAttack();
       else if (e.type === 'towerFired') triggerTowerFire(bases[e.side], e.slot);
-      else if (e.type === 'baseDamaged') triggerBaseFlash(bases[e.side]);
+      else if (e.type === 'baseDamaged') {
+        triggerBaseFlash(bases[e.side]);
+        // Kendi üssün vuruş aldı: hafif sarsıntı.
+        if (e.side === 0) shake.trigger('light');
+      }
       else if (e.type === 'unitDied') views.get(e.id)?.startDying();
     }
   });
@@ -177,16 +199,18 @@ export async function createRenderer(host: HTMLElement, session: Session, option
 
   return {
     screenToWorldX(clientX: number): number {
-      return (localOf(clientX, 0).x - world.x) / world.scale.x;
+      // Sarsıntı ofseti yok sayılır (hedefleme titremesin).
+      return (localOf(clientX, 0).x - baseX) / world.scale.x;
     },
     isInCorridor(clientX: number, clientY: number): boolean {
       const local = localOf(clientX, clientY);
-      const worldX = (local.x - world.x) / world.scale.x;
-      const worldY = (local.y - world.y) / world.scale.y;
+      const worldX = (local.x - baseX) / world.scale.x;
+      const worldY = (local.y - baseY) / world.scale.y;
       const field = battlefieldBounds();
       return worldX >= field.x0 && worldX <= field.x1 && worldY >= 0 && worldY <= SCENE_HEIGHT;
     },
     render(frameMs: number): void {
+      const t0 = performance.now();
       layout();
       const animMs = session.paused ? 0 : Math.min(Math.max(frameMs, 0), MAX_ANIM_FRAME_MS);
       const alpha = session.renderAlpha;
@@ -225,6 +249,12 @@ export async function createRenderer(host: HTMLElement, session: Session, option
       setBaseAge(bases[0], state.sides[0].age);
       setBaseAge(bases[1], state.sides[1].age);
       for (const side of [0, 1] as const) {
+        const s = state.sides[side];
+        setBaseDamage(bases[side], s.baseMaxHp > 0 ? s.baseHp / s.baseMaxHp : 1);
+      }
+      background.setAge(artAge(state.sides[0].age));
+      background.update(animMs);
+      for (const side of [0, 1] as const) {
         state.sides[side].slots.forEach((slot, i) => setTowerSlot(bases[side], i, slot.tower?.type ?? null, slot.unlocked));
       }
       updateStoneView(stone, state.stone, animMs);
@@ -232,23 +262,31 @@ export async function createRenderer(host: HTMLElement, session: Session, option
       updatePreview(options.preview?.() ?? null);
       updateBaseFlash(bases[0], animMs);
       updateBaseFlash(bases[1], animMs);
+      // Sarsıntı dünya konteynerine ofset olarak uygulanır (arayüz katmanı DOM'dadır, sarsılmaz).
+      const off = shake.update(animMs);
+      world.x = baseX + off.x * world.scale.x;
+      world.y = baseY + off.y * world.scale.y;
       app.render();
+      stats.units = views.size;
+      stats.projectiles = projectiles.projectileViewCount;
+      stats.effects = projectiles.effectCount + abilityFx.effectCount;
+      stats.renderMs = performance.now() - t0;
     },
     get unitViewCount(): number {
       return views.size;
     },
     setScreenShake(enabled: boolean): void {
-      // Aşama 9: sarsıntı uygulanınca bu bayrak okunur.
-      void enabled;
+      shake.setEnabled(enabled);
     },
     get stats(): RenderStats {
-      return { units: views.size, projectiles: session.state.projectiles.length, effects: 0, renderMs: 0 };
+      return { ...stats };
     },
     destroy(): void {
       unsubscribe();
       clearViews();
       projectiles.destroy();
       abilityFx.destroy();
+      background.destroy();
       preview.destroy();
       app.destroy(true, { children: true });
     },

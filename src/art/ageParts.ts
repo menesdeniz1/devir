@@ -1,8 +1,9 @@
 import type { PartSpec } from './atlas';
 import { circle, detail, ellipse, emblem, eye, lashing, line, rr, shape, soft, stick, stroke, type Ctx, type PathFn } from './paint';
 import { AGE_KIT, GLOW_CORE, GROUND_SHADOW, INK, TEAM, WHITE_STRAP, type AgeKit, type ArtSide } from './palette';
+import { archerTorso, mountedParts } from './mountedParts';
 import { HEAVY_JOINTS } from './primitiveParts';
-import type { FrontStyle, HeavyStyle, RangedStyle } from './primitiveRigs';
+import { THRUST, type FrontStyle, type HeavyStyle, type RangedStyle } from './primitiveRigs';
 
 /**
  * Antik → Gelecek çağlarının parça çizimleri (Aşama 3: çağ görünüm varyantları).
@@ -10,25 +11,33 @@ import type { FrontStyle, HeavyStyle, RangedStyle } from './primitiveRigs';
  * böylece her çağ kendi atlasında aynı iskelete giydirilir. Çağ başına fark: malzeme paleti (AGE_KIT) +
  * rol başına belirgin parça değişimi (başlık, kalkan, silah; ağırda kiriş/namlu, gövde, tekerlek/ayak).
  * Takım rengi her çağda büyük bir yüzeyde (giysi/kalkan/siper) ve amblem her rolde görünür kalır.
- * 12 birliğin tam özgün tasarımı Aşama 9'dadır.
+ * Aşama 9 özgün siluetleri: Kalkanlı Mızrakçı (büyük yuvarlak kalkan, yatay uzun mızrakla saplama),
+ * Atlı Okçu (at üstünde yaylı okçu; src/art/mountedParts.ts), Zırhlı Muhafız (badem kalkan, topuz, pelerin),
+ * Süngülü Er (bel hizasında süngülü tüfekle saplama), Plazma Muhafızı (güç zırhı omuzluğu, uzun altıgen enerji
+ * kalkanı, plazma teberi, sırt kanatlı miğfer), Ray Tüfekçisi (çatal raylı uzun tüfek, tek mercekli kukuleta, palto).
  */
 
 export type LaterAge = 2 | 3 | 4 | 5;
 
 // ---- Çağ başına iskelet ayarları (silah ucu, kip, namlu) ----
 
+/** Saplama silahının ucu (kol yereli): el (0, 13.5) + silah yönünde `len`. */
+function thrustTip(len: number): { x: number; y: number } {
+  return { x: Math.cos(THRUST.weaponAngle) * len, y: 13.5 + Math.sin(THRUST.weaponAngle) * len };
+}
+
 export const AGE_FRONT_STYLE: Record<LaterAge, FrontStyle> = {
-  2: { tip: { x: 0, y: 58 } },
-  3: { tip: { x: 0, y: 42 } },
-  4: { tip: { x: 0, y: 55 } },
-  5: { tip: { x: 0, y: 44 } },
+  2: { tip: thrustTip(58), grip: 'thrust' },
+  3: { tip: { x: 0, y: 44 } },
+  4: { tip: thrustTip(64), grip: 'thrust' },
+  5: { tip: { x: 4, y: 58 } },
 };
 
 export const AGE_RANGED_STYLE: Record<LaterAge, RangedStyle> = {
-  2: { mode: 'throw', muzzle: { x: 46, y: 0 } },
+  2: { mode: 'mounted', muzzle: { x: 0, y: 0 } },
   3: { mode: 'shoot', muzzle: { x: 33, y: -3.4 } },
   4: { mode: 'shoot', muzzle: { x: 47, y: -1.2 } },
-  5: { mode: 'shoot', muzzle: { x: 53, y: -0.6 } },
+  5: { mode: 'shoot', muzzle: { x: 68, y: -0.6 } },
 };
 
 export const AGE_HEAVY_STYLE: Record<LaterAge, HeavyStyle> = {
@@ -109,35 +118,57 @@ function frontLeg(age: LaterAge, K: AgeKit) {
   };
 }
 
+/** Saplama kavrayışı (THRUST): silah elde, kol yerelinde THRUST.weaponAngle eğiminde, +x öne. */
+function alongWeapon(c: Ctx, draw: () => void): void {
+  c.save();
+  c.translate(0, 13.5);
+  c.rotate(THRUST.weaponAngle);
+  draw();
+  c.restore();
+}
+
 function frontArm(age: LaterAge, K: AgeKit) {
   return (c: Ctx): void => {
-    // Silah (kolun altında): ağız/uç kol yerelinde +y yönünde.
+    // Silah (kolun altında). chop: ağız/uç kol yerelinde +y; thrust: elde yatay, uç +x.
     if (age === 2) {
-      // Bronz uçlu mızrak (yukarıdan saplama).
-      stick(c, [0, -12, 0, 50], 3.4, K.wood);
-      shape(c, soft([0, 46, 3.8, 51.5, 0, 63, -3.8, 51.5], 1.4), K.metal, { shadeOffset: [1, 1.2] });
-      detail(c, line([0, 49, 0, 59]), K.metal.shade, 1.1);
-      shape(c, soft([-2, -11, 2, -11, 0, -16.5], 1), K.metal, { line: 2 });
+      // Kalkanlı Mızrakçı: uzun bronz uçlu mızrak, dipte sivri demir (sauroter).
+      alongWeapon(c, () => {
+        shape(c, soft([-24, -2.2, -31, 0, -24, 2.2], 0.8), K.metal, { line: 1.8, shadeOffset: null });
+        stick(c, [-24, 0, 47, 0], 3.2, K.wood, 2.2);
+        shape(c, soft([45, -4.2, 52, -4.6, 61, 0, 52, 4.6, 45, 4.2], 1.3), K.metal, { shadeOffset: [1, 1.2] });
+        detail(c, line([47, 0, 58, 0]), K.metal.shade, 1.1);
+        shape(c, rr(42, -2.6, 4, 5.2, 1), K.metal, { line: 1.6 });
+      });
     } else if (age === 3) {
-      // Çelik kılıç: kabza, balçak, ağız.
-      shape(c, soft([-2.8, 18, 2.8, 18, 2.6, 40, 0, 46, -2.6, 40], 1.2), K.metal, { shadeOffset: [1, 1] });
-      detail(c, line([0, 20, 0, 39]), K.metal.shade, 1.1);
-      shape(c, rr(-7.5, 15.5, 15, 3.4, 1.6), K.band, { line: 2.2 });
-      shape(c, circle(0, 7.5, 2.8), K.metal, { line: 2 });
+      // Zırhlı Muhafız: kanatlı demir topuz, deri sargılı sap.
+      stick(c, [0, 6, 0, 36], 3.6, K.wood);
+      for (const y of [9, 13]) detail(c, line([-2.4, y, 2.4, y + 1.6]), K.leather.shade, 1.4);
+      shape(c, rr(-5.5, 33, 11, 13, 3), K.metal, { shadeOffset: [1.5, 1.5] });
+      for (const [x, y] of [[-8, 36], [-8, 43], [8, 36], [8, 43]] as const) {
+        shape(c, soft([x * 0.6, y - 2.5, x, y, x * 0.6, y + 2.5], 0.6), K.metal, { line: 1.6, shadeOffset: null });
+      }
+      shape(c, soft([-2.5, 46, 2.5, 46, 0, 51], 0.8), K.metal, { line: 1.6, shadeOffset: null });
+      detail(c, line([-2, 35, -2, 44]), K.metalHi, 1.2);
     } else if (age === 4) {
-      // Süngülü tüfek, dipçik geride.
-      shape(c, soft([-3.6, -4, 3.2, -4, 3.8, 14, -2.6, 14], 1.6), K.wood, { shadeOffset: [1, 1.2] });
-      shape(c, rr(-1.8, 13, 3.6, 31, 1.2), K.metal, { line: 2.2 });
-      shape(c, rr(-2.8, 15, 5.6, 17, 2), K.wood, { shadeOffset: [1, 1] });
-      shape(c, rr(-3, 22, 6, 2.4, 1), K.trim, { line: 1.6 });
-      shape(c, soft([-1.4, 43, 1.4, 43, 0.4, 58, -0.4, 58], 0.6), { base: 0xdfe3ea, shade: 0xa9afba }, { line: 2 });
+      // Süngülü Er: tüfek bel hizasında öne, uzun süngü (kalkanın önüne taşar).
+      alongWeapon(c, () => {
+        shape(c, soft([-14, -1.6, -2, -3, 8, -2.6, 8, 2.6, -2, 3, -14, 5.6], 1.6), K.wood, { shadeOffset: [1, 1.2] });
+        shape(c, rr(6, -2.6, 38, 3.6, 1.2), K.metal, { line: 2 });
+        shape(c, rr(8, -0.6, 24, 3.8, 1.6), K.wood, { shadeOffset: [1, 1] });
+        for (const x of [13, 27]) shape(c, rr(x, -1.2, 2, 4.8, 0.8), K.trim, { line: 1.4 });
+        stroke(c, (p) => p.arc(1, 2.6, 2.6, 0, Math.PI), 1.6, INK);
+        shape(c, rr(42, -3.6, 3.4, 5.4, 1), K.metal, { line: 1.4 });
+        shape(c, soft([44, -2.2, 66, -0.6, 44, 1.4], 0.6), { base: 0xe6e9ef, shade: 0xa9afba }, { line: 2 });
+      });
     } else {
-      // Plazma çubuğu: sap + parlayan ağız.
-      shape(c, rr(-2.6, 8, 5.2, 11, 2), K.trim, { line: 2.2 });
-      haze(c, rr(-5.5, 18, 11, 31, 5.5), K.glow.shade, 0.35);
-      shape(c, rr(-2.8, 19, 5.6, 26, 2.8), K.glow, { line: 2.2, shadeOffset: [1, 1] });
-      stroke(c, line([0, 21, 0, 42]), 1.6, GLOW_CORE);
-      shape(c, ellipse(0, 18.5, 6, 2.4), K.metal, { line: 2 });
+      // Plazma Muhafızı: uzun saplı plazma teberi; ağzı parlayan hilal.
+      stick(c, [0, -14, 0, 46], 3.2, K.trim);
+      for (const y of [4, 24]) stroke(c, line([-2.2, y, 2.2, y]), 1.6, K.band.base);
+      haze(c, ellipse(1, 54, 13, 12), K.glow.shade, 0.35);
+      shape(c, soft([-3, 44, 4, 44, 12, 50, 11, 60, 3, 66, -2, 62, 4, 56, 3, 50, -3, 49], 2), K.glow, { line: 2.2, shadeOffset: [1, 1] });
+      stroke(c, line([6, 49, 9, 55, 5, 61]), 1.4, GLOW_CORE);
+      shape(c, rr(-3.6, 42, 7.2, 4, 1.6), K.metal, { line: 1.8 });
+      shape(c, soft([-2.4, -14, 2.4, -14, 0, -20], 0.6), K.metal, { line: 1.6, shadeOffset: null });
     }
     // Kol ve omuzluk.
     shape(c, rr(-4.5, -4, 9, 18, 4.5), K.limb, { shadeOffset: [2, 1.5] });
@@ -145,15 +176,21 @@ function frontArm(age: LaterAge, K: AgeKit) {
       shape(c, rr(-5, 6, 10, 4, 2), K.band, { line: 2 });
       shape(c, ellipse(0, -1.5, 6.5, 5), K.metal, { shadeOffset: [1.5, 1.5] });
     } else if (age === 3) {
-      shape(c, ellipse(0, -1, 7, 5.6), K.metal, { shadeOffset: [1.5, 1.5] });
-      detail(c, line([-5, 1.5, 5, 1.5]), K.metal.shade, 1.2);
+      // Katmanlı omuz plakası.
+      shape(c, ellipse(0, 2, 7.6, 5.8), K.metal, { shadeOffset: [1.5, 1.5] });
+      shape(c, ellipse(0, -1.5, 8, 6), K.metal, { shadeOffset: [1.5, 1.5] });
+      detail(c, line([-5.5, 1.5, 5.5, 1.5]), K.metal.shade, 1.2);
+      shape(c, rr(-5.4, 9, 10.8, 4.6, 2), K.metal, { line: 2 });
     } else if (age === 4) {
       shape(c, rr(-5, 8, 10, 3.6, 1.8), K.trim, { line: 2 });
       shape(c, ellipse(0, -2, 6.8, 4.2), K.trim, { shadeOffset: [1, 1.2] });
       for (const x of [-4, -1.3, 1.3, 4]) detail(c, line([x, 1.5, x, 4.5]), K.trim.shade, 1.3);
     } else {
-      shape(c, ellipse(0, -1.5, 7, 5.4), K.metal, { shadeOffset: [1.5, 1.5] });
-      stroke(c, line([-5, 7, 5, 7]), 1.8, K.band.base);
+      // Güç zırhı: iri, iki katlı omuzluk + parlayan şerit.
+      shape(c, soft([-9, 5, -10, -3, -5, -8, 5, -8, 10, -3, 9, 5], 3), K.metal, { shadeOffset: [2, 2] });
+      shape(c, soft([-8, 1, -8.5, -4, -4, -6.5, 4, -6.5, 8.5, -4, 8, 1], 2.5), K.limb, { shadeOffset: [1.5, 1.5] });
+      stroke(c, line([-7, 3.2, 7, 3.2]), 1.8, K.band.base);
+      shape(c, rr(-5.2, 8, 10.4, 4.4, 2), K.metal, { line: 2 });
     }
     const hand = age === 3 ? K.metal : age === 5 ? K.boot : K.skin;
     shape(c, circle(0, 13.5, 4.9), hand, { shadeOffset: [1.5, 1.5] });
@@ -178,7 +215,9 @@ function frontTorso(age: LaterAge, K: AgeKit, side: ArtSide) {
       detail(c, line([-8, -24, -3, -25.5]), K.metalHi, 1.4);
       shape(c, rr(-14.5, -10, 29, 3.4, 1.7), K.leather, { line: 2 });
     } else if (age === 3) {
-      // Örgü zırh üstünde takım renkli cübbe (tabar) + küçük amblem.
+      // Sırtta takım renkli pelerin (dalgalı alt kenar), örgü zırh, cübbe (tabar) + küçük amblem.
+      shape(c, soft([-9, -27, -3, -27, -12, -2, -16, 9, -19.5, 3, -22, 8, -21, -6], 2.5), team.cloth, { shadeOffset: [2, 2.5] });
+      detail(c, line([-8, -22, -17, 2]), team.cloth.shade, 1.4);
       shape(c, soft(FRONT_OUTLINE, 7), K.limb, { shadeOffset: [3.5, 4] });
       for (let y = -23; y < 2; y += 4) detail(c, line([-13, y, 13, y]), K.limb.shade, 1);
       shape(c, soft([-10.5, 4, 10.5, 4, 11.5, -14, 7.5, -27, -7.5, -27, -11.5, -14], 4), team.cloth, { shadeOffset: [2.5, 3] });
@@ -256,9 +295,9 @@ function frontHead(age: LaterAge, K: AgeKit, side: ArtSide) {
       frontNoseEye(c, K);
       moustache(c, K, 9, -5.5, 1);
     } else {
-      // Kapalı miğfer, takım renkli parlak vizör, anten kanadı.
-      stick(c, [-4, -22, -10, -32], 2, K.metal, 1.6);
-      shape(c, circle(-10, -32, 2.2), K.glow, { line: 1.6 });
+      // Kapalı miğfer, takım renkli parlak vizör, geriye yatık sırt kanadı.
+      shape(c, soft([-2, -23, 6, -26, 2, -36, -8, -44, -14, -40, -9, -31], 2.5), K.metal, { shadeOffset: [1.5, 2] });
+      stroke(c, line([0, -27, -6, -37, -11, -40]), 1.6, K.band.base);
       shape(c, soft([-10, -1, -11.5, -14, -7, -23.5, 3, -25.5, 11.5, -22, 15.5, -13, 16, -4, 9, 0.5], 4), K.limb, { shadeOffset: [3, 3] });
       shape(c, soft([3.5, -17, 16, -14.5, 16, -8, 4.5, -8.5], 2), team.trim, { line: 2.2, shadeOffset: [1, 1.2] });
       stroke(c, line([6, -15, 14, -13.5]), 1.4, GLOW_CORE);
@@ -272,18 +311,20 @@ function frontShield(age: LaterAge, K: AgeKit, side: ArtSide) {
   return (c: Ctx): void => {
     const team = TEAM[side];
     if (age === 2) {
-      // Yuvarlak bronz kalkan.
-      shape(c, circle(0, 0, 17), K.metal, { shadeOffset: [2.5, 3] });
-      shape(c, circle(0, 0, 13), team.cloth, { shadeOffset: [2.5, 3] });
-      detail(c, circle(0, 0, 15), K.metal.shade, 1.2);
-      emblem(c, side, 0, 0, 6.8);
+      // Büyük yuvarlak bronz kalkan (aspis): kalın kenar, takım yüzü, amblem.
+      shape(c, circle(0, 0, 20), K.metal, { shadeOffset: [2.5, 3] });
+      shape(c, circle(0, 0, 15.5), team.cloth, { shadeOffset: [2.5, 3] });
+      detail(c, circle(0, 0, 17.8), K.metal.shade, 1.3);
+      detail(c, (p) => p.arc(0, 0, 18, -2.6, -1.4), K.metalHi, 1.6);
+      emblem(c, side, 0, 0, 7.2);
     } else if (age === 3) {
-      // Üçgen (heater) kalkan: demir kenar, takım yüz, üst şerit.
-      const outer: PathFn = soft([-13, -18, 13, -18, 13, -3, 0, 20, -13, -3], 3);
+      // Uzun badem (kite) kalkan: demir kenar, takım yüzü, üst şerit, umbo.
+      const outer: PathFn = soft([-13.5, -22, 13.5, -22, 14, -4, 0, 27, -14, -4], 3);
       shape(c, outer, K.band, { shadeOffset: [2.5, 3] });
-      shape(c, soft([-10, -15, 10, -15, 10, -3.5, 0, 15.5, -10, -3.5], 2.5), team.cloth, { shadeOffset: [2, 2.5] });
-      shape(c, rr(-10, -15, 20, 5, 1.5), team.trim, { line: 2 });
-      emblem(c, side, 0, 0, 6.4);
+      shape(c, soft([-10.5, -19, 10.5, -19, 11, -4.5, 0, 22.5, -11, -4.5], 2.5), team.cloth, { shadeOffset: [2, 2.5] });
+      shape(c, rr(-10.5, -19, 21, 5, 1.5), team.trim, { line: 2 });
+      rivets(c, [-11, -20.5, 11, -20.5, 0, 25], 1.1);
+      emblem(c, side, 0, -1, 6.6);
     } else if (age === 4) {
       // Perçinli demir siper: gözetleme yarığı, takım boyalı levha.
       shape(c, rr(-12.5, -20, 25, 40, 3), K.metal, { shadeOffset: [2.5, 3] });
@@ -293,21 +334,23 @@ function frontShield(age: LaterAge, K: AgeKit, side: ArtSide) {
       detail(c, line([-12, -9, 12, -9]), K.metal.shade, 1.4);
       emblem(c, side, 0, 5, 6.2);
     } else {
-      // Altıgen enerji kalkanı: yarı saydam takım rengi, alaşım çerçeve.
+      // Uzun altıgen enerji kalkanı: yarı saydam takım rengi, alaşım çerçeve, iç ızgara.
       const hex: number[] = [];
       for (let i = 0; i < 6; i++) {
         const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
-        hex.push(Math.cos(a) * 15, Math.sin(a) * 19);
+        hex.push(Math.cos(a) * 16.5, Math.sin(a) * 24);
       }
       haze(c, soft(hex, 3), team.trim.base, 0.35);
       c.save();
-      c.globalAlpha = 0.78;
+      c.globalAlpha = 0.8;
       shape(c, soft(hex, 3), team.cloth, { line: 0, shadeOffset: [2.5, 3] });
       c.restore();
-      stroke(c, soft(hex, 3), 3.2, K.trim.base);
-      stroke(c, soft(hex, 3), 1.4, team.trim.base);
-      detail(c, line([-7, -10, 0, -14, 7, -10]), GLOW_CORE, 1.2);
-      emblem(c, side, 0, 0, 6.6);
+      for (const y of [-12, 12]) detail(c, line([-13, y, 13, y]), team.trim.base, 1.2);
+      stroke(c, soft(hex, 3), 3.6, K.trim.base);
+      stroke(c, soft(hex, 3), 1.5, team.trim.base);
+      detail(c, line([-8, -15, 0, -19.5, 8, -15]), GLOW_CORE, 1.3);
+      shape(c, rr(-3, 21, 6, 4, 1.5), K.metal, { line: 1.6 });
+      emblem(c, side, 0, 0, 7);
     }
   };
 }
@@ -375,17 +418,19 @@ function rangedWeapon(age: LaterAge, K: AgeKit) {
       stroke(c, (p) => p.arc(4, 3, 2.6, 0, Math.PI), 1.6, INK);
       shape(c, rr(44.5, -4.6, 1.6, 2.2, 0.6), K.metal, { line: 1.2 });
     } else {
-      // Ray tüfeği: çift ray, eflatun bobinler, dürbün.
-      shape(c, soft([-12, -2, 2, -3.4, 3, 3.4, -2, 4.6, -12, 5.2], 1.8), K.limb, { shadeOffset: [1, 1.2] });
-      haze(c, rr(18, -4, 36, 8, 4), K.glow.shade, 0.4);
-      shape(c, rr(18, -5, 35, 2.6, 1.2), K.metal, { line: 1.8 });
-      shape(c, rr(18, 2.4, 35, 2.6, 1.2), K.metal, { line: 1.8 });
-      stroke(c, line([20, -0.6, 51, -0.6]), 2.4, K.glow.base);
-      stroke(c, line([22, -0.6, 49, -0.6]), 1, GLOW_CORE);
+      // Ray tüfeği: uzun çatal raylar (uçta ayrılır), eflatun bobinler, dürbün, dipçik.
+      shape(c, soft([-14, -2, 2, -3.4, 3, 3.4, -2, 4.6, -14, 6.2, -15, 1], 1.8), K.limb, { shadeOffset: [1, 1.2] });
+      haze(c, rr(18, -5, 50, 10, 5), K.glow.shade, 0.4);
+      shape(c, soft([18, -5.4, 58, -5.4, 68, -8.6, 68, -6, 59, -2.8, 18, -2.8], 1), K.metal, { line: 1.8, shadeOffset: null });
+      shape(c, soft([18, 2.6, 59, 2.6, 68, 5.6, 68, 8.2, 58, 5.2, 18, 5.2], 1), K.metal, { line: 1.8, shadeOffset: null });
+      stroke(c, line([20, -0.6, 62, -0.6]), 2.6, K.glow.base);
+      stroke(c, line([22, -0.6, 60, -0.6]), 1, GLOW_CORE);
+      for (const x of [30, 42, 54]) shape(c, rr(x, -6.2, 3, 12.4, 1), K.trim, { line: 1.2 });
       shape(c, rr(1, -5.5, 19, 9.5, 2.6), K.metal, { shadeOffset: [1.2, 1.5] });
       for (const x of [5, 10, 15]) shape(c, rr(x, -4.5, 2.4, 7.5, 1), K.band, { line: 1.2 });
-      shape(c, rr(4, -10, 11, 3.6, 1.6), K.trim, { line: 1.8 });
-      shape(c, circle(14.5, -8.2, 1.4), K.glow, { line: 0 });
+      shape(c, rr(3, -11, 14, 4, 1.8), K.trim, { line: 1.8 });
+      shape(c, circle(16.5, -9, 1.6), K.glow, { line: 0 });
+      stroke(c, (p) => p.arc(4, 4, 2.6, 0, Math.PI), 1.6, INK);
     }
   };
 }
@@ -433,7 +478,10 @@ function rangedTorso(age: LaterAge, K: AgeKit, side: ArtSide) {
       for (const y of [-17, -9]) shape(c, circle(5.5, y, 1.2), K.trim, { line: 1 });
       emblem(c, side, 0.5, -13, 4.5, 2.2);
     } else {
-      // Sırtta güç paketi (eflatun hücreler, kablo); alaşım giysi, takım göğüs paneli.
+      // Takım renkli uzun palto etekleri (arkada), sırtta soğutma kanatlı güç paketi, alaşım giysi.
+      shape(c, soft([-9, -10, 6, -10, 8, 9, 2, 6.5, -3, 10, -10, 7.5], 2), team.cloth, { shadeOffset: [1.5, 2] });
+      detail(c, line([-3, -2, -3, 9]), team.cloth.shade, 1.3);
+      for (const y of [-25, -20, -15]) shape(c, soft([-17, y, -22, y - 3, -22, y - 1, -17, y + 2.5], 0.8), K.metal, { line: 1.6, shadeOffset: null });
       shape(c, rr(-17.5, -23, 10.5, 19, 3), K.trim, { shadeOffset: [1.5, 2] });
       for (const y of [-19, -12]) shape(c, rr(-15.5, y, 6.5, 4, 1.6), K.band, { line: 1.6 });
       stroke(c, (p) => {
@@ -499,10 +547,13 @@ function rangedHead(age: LaterAge, K: AgeKit, side: ArtSide) {
       rangedNoseEye(c, K);
       moustache(c, K, 8.5, -3.5, 0.75);
     } else {
-      // Dar vizörlü miğfer, kulakta eflatun alıcı.
+      // Kukuletalı miğfer, öne çıkan tek büyük nişan merceği (takım rengi), kulakta eflatun alıcı.
+      shape(c, soft([-11, 1, -10.5, -14, -5, -21.5, 4, -22, 10, -17, 12, -8, 10, 1], 4), K.trim, { shadeOffset: [2, 2] });
       shape(c, soft([-8, -2, -9.5, -12, -5, -19, 3, -20.5, 10, -17, 13.5, -10, 13.5, -2, 6, 1], 3.5), K.limb, { shadeOffset: [2.5, 2.5] });
-      shape(c, soft([4, -13, 14, -11.5, 14, -7.5, 4.5, -8], 1.8), team.trim, { line: 2, shadeOffset: [0.8, 1] });
-      stroke(c, line([6, -11.2, 12.5, -10.2]), 1.2, GLOW_CORE);
+      shape(c, rr(8, -14.5, 6, 7.5, 2), K.metal, { line: 2 });
+      shape(c, circle(15, -10.8, 4.6), K.metal, { line: 2.2, shadeOffset: [1, 1] });
+      shape(c, circle(15.4, -10.8, 3), team.trim, { line: 1.4, shadeOffset: null });
+      shape(c, circle(16.4, -11.8, 1.1), GLOW_CORE, { line: 0 });
       shape(c, circle(-3, -9, 3.6), K.metal, { line: 2 });
       shape(c, circle(-3, -9, 1.6), K.band, { line: 0 });
       stick(c, [-3, -12.5, -6, -24], 1.4, K.metal, 1.4);
@@ -753,6 +804,14 @@ function pusherBody(age: LaterAge, K: AgeKit, side: ArtSide) {
   };
 }
 
+/** Ön hat silah kolunun sınırları (saplama silahları yatay ve uzundur). */
+const FRONT_ARM_BOUNDS: Record<LaterAge, { x0: number; y0: number; x1: number; y1: number }> = {
+  2: { x0: -34, y0: -9, x1: 63, y1: 27 },
+  3: { x0: -10, y0: -9, x1: 10, y1: 53 },
+  4: { x0: -18, y0: -9, x1: 69, y1: 25 },
+  5: { x0: -13, y0: -22, x1: 15, y1: 68 },
+};
+
 /** Bir sonraki çağın tüm birlik parçaları (iki taraf). Adlar İlkel Çağ ile aynıdır. */
 export function ageUnitParts(age: LaterAge): PartSpec[] {
   const K = AGE_KIT[age];
@@ -760,22 +819,29 @@ export function ageUnitParts(age: LaterAge): PartSpec[] {
     { name: 'shadow', x0: -20, y0: -5, x1: 20, y1: 5, draw: shadowDraw },
     { name: 'spark', x0: -12, y0: -12, x1: 12, y1: 12, draw: sparkDraw(K) },
     { name: 'front.leg', x0: -7, y0: -4, x1: 10, y1: 16, draw: frontLeg(age, K) },
-    { name: 'front.axeArm', x0: -9, y0: -18, x1: 9, y1: 64, draw: frontArm(age, K) },
+    { name: 'front.axeArm', ...FRONT_ARM_BOUNDS[age], draw: frontArm(age, K) },
     { name: 'ranged.leg', x0: -5, y0: -4, x1: 8, y1: 18, draw: rangedLeg(age, K) },
-    { name: 'ranged.armFront', x0: -5, y0: -5, x1: 5, y1: 18, draw: rangedArmFront(age, K) },
-    { name: 'ranged.armThrow', x0: -5, y0: -5, x1: 5, y1: 25, draw: rangedArmThrow(age, K) },
-    { name: 'ranged.spear', x0: -16, y0: -15, x1: 55, y1: 15, draw: rangedWeapon(age, K) },
     { name: 'heavy.wheel', x0: -14, y0: -19, x1: 16, y1: 14, draw: wheelDraw(age, K) },
     { name: 'heavy.beam', x0: -61, y0: -24, x1: 55, y1: 24, draw: beamDraw(age, K) },
     { name: 'heavy.rock', x0: -24, y0: -11, x1: 29, y1: 11, draw: ammoDraw(age, K) },
   ];
+  if (age === 2) {
+    // Atlı Okçu: at ve binici parçaları (yaya menzilli parçaları gerekmez).
+    parts.push(...mountedParts());
+  } else {
+    parts.push(
+      { name: 'ranged.armFront', x0: -5, y0: -5, x1: 5, y1: 18, draw: rangedArmFront(age, K) },
+      { name: 'ranged.armThrow', x0: -5, y0: -5, x1: 5, y1: 25, draw: rangedArmThrow(age, K) },
+      { name: 'ranged.spear', x0: -16, y0: -15, x1: 70, y1: 15, draw: rangedWeapon(age, K) },
+    );
+  }
   for (const side of [0, 1] as const) {
     parts.push(
-      { name: `front.torso.${side}`, x0: -17, y0: -30, x1: 17, y1: 7, draw: frontTorso(age, K, side) },
+      { name: `front.torso.${side}`, x0: -23, y0: -30, x1: 17, y1: 10, draw: frontTorso(age, K, side) },
       { name: `front.head.${side}`, x0: -17, y0: -47, x1: 20, y1: 2, draw: frontHead(age, K, side) },
-      { name: `front.shield.${side}`, x0: -18, y0: -21, x1: 18, y1: 21, draw: frontShield(age, K, side) },
-      { name: `ranged.torso.${side}`, x0: -27, y0: -50, x1: 11, y1: 4, draw: rangedTorso(age, K, side) },
-      { name: `ranged.head.${side}`, x0: -16, y0: -35, x1: 17, y1: 2, draw: rangedHead(age, K, side) },
+      { name: `front.shield.${side}`, x0: -21, y0: -26, x1: 21, y1: 28, draw: frontShield(age, K, side) },
+      { name: `ranged.torso.${side}`, x0: -27, y0: -50, x1: 11, y1: 11, draw: age === 2 ? archerTorso(side) : rangedTorso(age, K, side) },
+      { name: `ranged.head.${side}`, x0: -16, y0: -35, x1: 22, y1: 3, draw: rangedHead(age, K, side) },
       { name: `heavy.chassis.${side}`, x0: -56, y0: -92, x1: 62, y1: -11, draw: heavyChassis(age, K, side) },
       { name: `heavy.pusher.${side}`, x0: -10, y0: -47, x1: 25, y1: 4, draw: pusherBody(age, K, side) },
     );

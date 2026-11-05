@@ -27,3 +27,13 @@ export function effectProgress(elapsedMs: number, durationMs: number): number {
   if (durationMs <= 0) return 1;
   return Math.min(1, Math.max(0, elapsedMs / durationMs));
 }
+
+/**
+ * Yayın ekran eğimi (dy / d|x|, y aşağı): t ilerlemesinde, `height` yüksekliğinde, `span` mesafeli yay.
+ * Başta eksi (yükseliş), sonda artı (iniş); mesafe sıfırsa 0.
+ */
+export function arcSlope(t: number, height: number, span: number): number {
+  const d = Math.abs(span);
+  if (d < 1e-6) return 0;
+  return (-4 * height * (1 - 2 * t)) / d;
+}

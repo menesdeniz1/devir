@@ -29,17 +29,33 @@ interface Pt {
   readonly y: number;
 }
 
-/** Çağa göre ön hat farkı: silah ucu (kol yerelinde; kıvılcım burada). */
+/**
+ * Çağa göre ön hat farkı: silah ucu (kol yerelinde; kıvılcım burada) ve kavrayış.
+ * `chop` (varsayılan): silah omuz üstünden yukarıdan indirilir (balta, topuz, teber).
+ * `thrust`: uzun silah (mızrak, süngülü tüfek) bel hizasında öne yatay tutulur ve ileri saplanır.
+ */
 export interface FrontStyle {
   readonly tip: Pt;
+  readonly grip?: 'chop' | 'thrust';
 }
+
+/** Saplama kavrayışının kol açıları (radyan; 0 = aşağı) ve kolun öne uzanması (px). Silah kol yerelinde bu açıyla çizilir. */
+export const THRUST = {
+  carry: 0.22,
+  raised: 0.55,
+  impact: -0.1,
+  reach: 7,
+  /** Silahın kol yerelindeki yönü (+x'ten): taşırken yatay görünsün. */
+  weaponAngle: -0.22,
+} as const;
 
 /**
  * Menzilli: `throw` atlatl/mızrak savurma (silah elden çıkar, yenisi kavranır);
  * `shoot` tetikli silah (arbalet, tüfek, ray tüfeği): nişan alır, geri teper, silah elde kalır.
  */
 export interface RangedStyle {
-  readonly mode: 'throw' | 'shoot';
+  /** `mounted`: atlı okçu (ayrı iskelet, src/art/mountedRig.ts). */
+  readonly mode: 'throw' | 'shoot' | 'mounted';
   /** Silah yerelinde namlu ucu (shoot). */
   readonly muzzle: Pt;
 }
@@ -144,10 +160,13 @@ export class FrontRig implements UnitRig {
   private readonly spark: Sprite;
   private armAngle: number = FRONT.carry;
   private readonly tip: Pt;
+  private readonly thrust: boolean;
 
   constructor(tex: TextureLookup, side: ArtSide, style: FrontStyle = PRIMITIVE_FRONT) {
     const J = FRONT_JOINTS;
     this.tip = style.tip;
+    this.thrust = style.grip === 'thrust';
+    if (this.thrust) this.armAngle = THRUST.carry;
     shadow(tex, this.root, this.footprint);
     this.root.addChild(this.body);
     this.body.pivot.x = -8;
@@ -184,18 +203,22 @@ export class FrontRig implements UnitRig {
     this.head.rotation = -this.upper.rotation * 0.4;
 
     let th: number;
-    if (ap.strike < 1) th = lerp(FRONT.raised, FRONT.impact, easeInQuad(ap.strike));
-    else th = lerp(lerp(FRONT.impact, FRONT.carry, easeOutCubic(ap.recover)), FRONT.raised, ap.windup);
-    th += 0.1 * s * wb;
+    const A = this.thrust ? THRUST : FRONT;
+    if (ap.strike < 1) th = lerp(A.raised, A.impact, this.thrust ? easeOutCubic(ap.strike) : easeInQuad(ap.strike));
+    else th = lerp(lerp(A.impact, A.carry, easeOutCubic(ap.recover)), A.raised, ap.windup);
+    th += (this.thrust ? 0.04 : 0.1) * s * wb;
     this.armAngle = th;
     this.arm.rotation = th;
+    // Saplama: kol öne uzanır (geri çekilmede geride).
+    this.arm.x = J.shoulder.x + (this.thrust ? THRUST.reach * (lunge - 0.6 * ap.windup) : 0);
 
     this.shield.x = J.shield.x + lunge * 2.5;
     this.shield.y = J.shield.y + 0.8 * s * wb;
     this.shield.rotation = -lunge * 0.1;
 
-    const tip = rotate(this.tip.x, this.tip.y, FRONT.impact);
-    poseSpark(this.spark, i.sinceAttackMs, FRONT.sparkAtMs, J.shoulder.x + tip.x, J.shoulder.y + tip.y, 0.9);
+    const tip = rotate(this.tip.x, this.tip.y, A.impact);
+    const reach = this.thrust ? THRUST.reach : 0;
+    poseSpark(this.spark, i.sinceAttackMs, FRONT.sparkAtMs, J.shoulder.x + reach + tip.x, J.shoulder.y + tip.y, 0.9);
   }
 
   poseDeath(t: number): void {
@@ -204,7 +227,7 @@ export class FrontRig implements UnitRig {
     this.body.x = -8 - 4 * f;
     this.legB.rotation = lerp(this.legB.rotation, 0.25, f);
     this.legF.rotation = lerp(this.legF.rotation, -0.15, f);
-    this.arm.rotation = lerp(this.armAngle, 1.3, f);
+    this.arm.rotation = lerp(this.armAngle, this.thrust ? 1.0 : 1.3, f);
     this.spark.visible = false;
   }
 }

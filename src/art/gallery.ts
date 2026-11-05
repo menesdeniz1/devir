@@ -1,6 +1,6 @@
 import { Application, ColorMatrixFilter, Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import type { UnitAnimInput, UnitRig } from './anim';
-import { BaseRig, baseAtlasStats } from './baseRig';
+import { BaseRig, baseAtlasStats, baseDamageAtlasStats } from './baseRig';
 import type { ArtAge, ArtSide } from './palette';
 import { StoneRig } from './stoneArt';
 import { SLOT_SCALE, TowerSlot, towerAtlasStats } from './towerRig';
@@ -15,6 +15,8 @@ import type { AbilityDef } from '../data/types';
 import type { AbilityZoneState, PendingStrikeState, SideId, UnitState } from '../sim/types';
 import { mustGetUnit } from '../sim/compile';
 import { abilityAtlasStats } from './abilityArt';
+import { backgroundsView, baseDamageView, gameView, projectilesView, stressView } from './galleryFx';
+import { fxAtlasStats } from './projectileArt';
 
 /**
  * Yalnız geliştirme vitrini (GDD §14 denetimi için). Oyuna ve derlemeye girmez; metin içermez.
@@ -36,6 +38,12 @@ import { abilityAtlasStats } from './abilityArt';
  *             karşı tarafın üç birliği. Altta durum görselleri: sersem (yıldız) ve donmuş (buz) birlikler,
  *             oyuncu ve rakip. Statik kareler (gerçek efekt sınıfı, sabit adımlı zamanla sürülür).
  *   abilitylive — aynı hücreler canlı döngüde (iki taraf).
+ *   projectiles — çağ satırları: birlik menzilli/ağır, hızlı/ağır kule mermileri; solda durağan dokular
+ *             (üst oyuncu, alt rakip yönü), sağda canlı uçuş ve çarpma etkileri (gerçek ProjectileLayer).
+ *   backgrounds — beş çağ arka planı küçük boy + altta canlı çağ geçişi (her 3 sn bir sonraki çağ).
+ *   basedamage — çağ satırları: üs × hasar (can %100, %70, %45, %20) + rakip %20.
+ *   game    — gerçek oyun sahnesi (createRenderer + Session), iki yapay zekâ; betik tutamağı globalThis.__game.
+ *   stress  — en kötü sahne (TDD §6), age=n: 120 birlik + 80 mermi + etkiler; ölçüm globalThis.__stress.
  * `age=2,3` çağ süzgeci (units/gray/bases).
  */
 
@@ -405,7 +413,7 @@ function towerLive(world: Container, app: Application): { w: number; h: number }
 
 function sceneView(world: Container, app: Application): { w: number; h: number } {
   const age = AGES[0] ?? 1;
-  world.addChild(createBackground());
+  world.addChild(createBackground(age));
   const marks = new Graphics();
   for (const side of [0, 1] as const) {
     const v = createBaseView(side);
@@ -792,6 +800,10 @@ function abilities(world: Container, app: Application | null): { w: number; h: n
 
 async function main(): Promise<void> {
   const host = document.getElementById('gallery')!;
+  if (VIEW === 'game') {
+    await gameView(host);
+    return;
+  }
   const app = new Application();
   const W = globalThis.innerWidth;
   const H = globalThis.innerHeight;
@@ -812,6 +824,10 @@ async function main(): Promise<void> {
   else if (VIEW === 'towerfx') size = towerFx(world);
   else if (VIEW === 'abilities') size = abilities(world, null);
   else if (VIEW === 'abilitylive') size = abilities(world, app);
+  else if (VIEW === 'projectiles') size = projectilesView(world, app, AGES);
+  else if (VIEW === 'backgrounds') size = backgroundsView(world, app);
+  else if (VIEW === 'basedamage') size = baseDamageView(world, app, AGES);
+  else if (VIEW === 'stress') size = stressView(world, app, AGES[0] ?? 5);
   else size = unitRows(app, world, VIEW === 'gray');
 
   const fit = Math.min(W / size.w, H / size.h);
@@ -820,9 +836,18 @@ async function main(): Promise<void> {
   world.scale.set(scale);
   world.position.set(-Number(params.get('ox') ?? 0) * scale, -Number(params.get('oy') ?? 0) * scale);
 
-  const stats = { units: unitAtlasStats(), bases: baseAtlasStats(), towers: towerAtlasStats(), abilities: abilityAtlasStats() };
+  const stats = { units: unitAtlasStats(), bases: baseAtlasStats(), towers: towerAtlasStats(), abilities: abilityAtlasStats(), fx: fxAtlasStats(), baseDamage: baseDamageAtlasStats() };
   (globalThis as { __galleryApp?: Application; __atlasStats?: typeof stats }).__galleryApp = app;
   (globalThis as { __atlasStats?: typeof stats }).__atlasStats = stats;
+  // Tembel pişirilen atlaslar sonradan oluşur: güncel boyutlar için.
+  (globalThis as { __atlasStatsNow?: () => typeof stats }).__atlasStatsNow = () => ({
+    units: unitAtlasStats(),
+    bases: baseAtlasStats(),
+    towers: towerAtlasStats(),
+    abilities: abilityAtlasStats(),
+    fx: fxAtlasStats(),
+    baseDamage: baseDamageAtlasStats(),
+  });
 }
 
 void main();

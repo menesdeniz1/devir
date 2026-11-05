@@ -1,4 +1,4 @@
-import { CanvasSource, Rectangle, Texture } from 'pixi.js';
+import { CanvasSource, Rectangle, Texture, type Sprite } from 'pixi.js';
 import type { Ctx } from './paint';
 
 /**
@@ -18,6 +18,11 @@ export interface PartSpec {
   draw: (ctx: Ctx) => void;
   /** Çizimi beyaz siluete çevir (vuruş parlaması için). */
   silhouette?: boolean;
+  /**
+   * Maske: çizim yalnızca bu çizimin opak olduğu yerde kalır (ör. üs çatlakları üssün siluetine kırpılır).
+   * Maske ayrı tuvalde çizilir; yalnızca açılışta (pişirmede) çalışır.
+   */
+  mask?: (ctx: Ctx) => void;
 }
 
 /** Kontur taşmasını karşılayan kenar payı (mantıksal px). */
@@ -81,7 +86,32 @@ export function buildAtlas(label: string, parts: readonly PartSpec[], resolution
   if (ctx === null) throw new Error('Canvas 2D bağlamı alınamadı');
 
   let scratch: HTMLCanvasElement | null = null;
+  let maskCanvas: HTMLCanvasElement | null = null;
   for (const s of slots) {
+    if (s.spec.mask) {
+      // Maskeli parça: çizimi ve maskeyi ayrı tuvallerde çiz, maskenin opak olduğu yeri tut (destination-in).
+      scratch ??= document.createElement('canvas');
+      maskCanvas ??= document.createElement('canvas');
+      const w = Math.ceil(s.w * resolution);
+      const h = Math.ceil(s.h * resolution);
+      for (const cv of [scratch, maskCanvas]) {
+        cv.width = w;
+        cv.height = h;
+      }
+      const mc = maskCanvas.getContext('2d')!;
+      mc.setTransform(resolution, 0, 0, resolution, -s.bx0 * resolution, -s.by0 * resolution);
+      s.spec.mask(mc);
+      const sc = scratch.getContext('2d')!;
+      sc.setTransform(resolution, 0, 0, resolution, -s.bx0 * resolution, -s.by0 * resolution);
+      s.spec.draw(sc);
+      sc.setTransform(1, 0, 0, 1, 0, 0);
+      sc.globalCompositeOperation = 'destination-in';
+      sc.drawImage(maskCanvas, 0, 0);
+      sc.globalCompositeOperation = 'source-over';
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(scratch, s.x * resolution, s.y * resolution);
+      continue;
+    }
     if (s.spec.silhouette) {
       // Siluet: ayrı tuvalde çiz, beyaza boya, atlasa kopyala (source-in tüm tuvali etkilediği için).
       scratch ??= document.createElement('canvas');
@@ -133,4 +163,13 @@ export function mustTexture(map: ReadonlyMap<string, Texture>, name: string): Te
   const t = map.get(name);
   if (t === undefined) throw new Error(`Parça dokusu yok: ${name}`);
   return t;
+}
+
+/**
+ * Sprite dokusunu değiştirir ve eksen noktasını dokunun yerel (0,0)'ına alır: Pixi `defaultAnchor`'ı yalnız
+ * kurucuda uygular, sonradan atanan dokuda (çağ değişimi, havuz, poz dokusu) elle kopyalanmalıdır.
+ */
+export function setSpriteTexture(sprite: Sprite, texture: Texture): void {
+  sprite.texture = texture;
+  sprite.anchor.set(texture.defaultAnchor?.x ?? 0, texture.defaultAnchor?.y ?? 0);
 }

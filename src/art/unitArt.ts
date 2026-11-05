@@ -2,6 +2,7 @@ import type { Texture } from 'pixi.js';
 import { AGE_FRONT_STYLE, AGE_HEAVY_STYLE, AGE_RANGED_STYLE, ageUnitParts } from './ageParts';
 import type { UnitRig } from './anim';
 import { buildAtlas, mustTexture } from './atlas';
+import { MountedRig } from './mountedRig';
 import type { ArtAge, ArtSide } from './palette';
 import { primitiveUnitParts } from './primitiveParts';
 import {
@@ -74,8 +75,8 @@ export function unitAtlasStats(): Array<{ age: ArtAge; width: number; height: nu
   return out.sort((a, b) => a.age - b.age);
 }
 
-/** Birlik başına sprite sayısı (rapor/test): gölge + parçalar + kıvılcım. Her çağda aynı iskelet. */
-export const SPRITES_PER_UNIT: Readonly<Record<Design, number>> = { front: 8, ranged: 9, heavy: 10 };
+/** Birlik başına sprite sayısı (rapor/test): gölge + parçalar + kıvılcım. Atlı Okçu (Antik menzilli) 16. */
+export const SPRITES_PER_UNIT: Readonly<Record<Design | 'mounted', number>> = { front: 8, ranged: 9, heavy: 10, mounted: 16 };
 
 function styles(age: ArtAge): { front: FrontStyle; ranged: RangedStyle; heavy: HeavyStyle } {
   if (age === 1) return { front: PRIMITIVE_FRONT, ranged: PRIMITIVE_RANGED, heavy: PRIMITIVE_HEAVY };
@@ -94,7 +95,7 @@ export function createUnitRig(typeId: string, role: string, side: ArtSide, age?:
   const st = styles(a);
   switch (design) {
     case 'ranged':
-      return new RangedRig(tex, side, st.ranged);
+      return st.ranged.mode === 'mounted' ? new MountedRig(tex, side) : new RangedRig(tex, side, st.ranged);
     case 'heavy':
       return new HeavyRig(tex, side, st.heavy);
     default:

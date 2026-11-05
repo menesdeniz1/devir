@@ -1,6 +1,7 @@
 import { Container, Graphics, Sprite } from 'pixi.js';
 import { abilityTexture } from '../art/abilityArt';
 import { clamp01, easeOutCubic, TAU, type UnitAnimInput, type UnitRig } from '../art/anim';
+import { fxTexture } from '../art/projectileArt';
 import { createUnitRig } from '../art/unitArt';
 import { mustGetUnit } from '../sim/compile';
 import type { SideId, UnitState } from '../sim/types';
@@ -29,12 +30,20 @@ import {
   UNIT_HP_BAR_H,
   WALK_BLEND_PER_MS,
 } from './constants';
+import { hitFlashAlpha } from './fxMath';
 import { paletteOf } from './scene';
 
 /** Kimliğe göre görsel derinlik kayması (yalnızca çizim). */
 export function depthOffset(unitId: number): number {
   return ((unitId % DEPTH_LEVELS) - Math.floor(DEPTH_LEVELS / 2)) * DEPTH_STEP_PX;
 }
+
+/** Vuruş parlaması halesi: renk ve birliğe göre boyut (ayak izi ve can çubuğu yüksekliği oranı). */
+const HIT_HALO_TINT = 0xfff4d8;
+const HIT_HALO_W = 2.7;
+const HIT_HALO_H = 1.0;
+/** Hale dokusunun yarıçapı (src/art/projectileArt.ts `fx.halo`). */
+const HALO_TEX_RADIUS = 32;
 
 /** Ölümde solmanın başladığı an (devrilme önce görünsün), süre oranı. */
 const DEATH_FADE_START = 0.25;
@@ -135,6 +144,9 @@ export class UnitView {
   private lastX = 0;
   private status: StatusMarks | null = null;
   private frozenTint = false;
+  /** Vuruş parlaması: gövdenin arkasında açık hale (takım rengi değişmez). İlk vuruşta kurulur. */
+  private halo: Sprite | null = null;
+  private sinceHitMs = Infinity;
 
   constructor(unit: UnitState) {
     this.unitId = unit.id;
@@ -220,10 +232,37 @@ export class UnitView {
       a.sinceHitMs = hit ? 0 : a.sinceHitMs + animMs;
       this.rig.pose(a);
     }
+    this.sinceHitMs = hit ? 0 : this.sinceHitMs + animMs;
+    this.poseHalo();
     this.lastX = x;
     this.container.x = x;
     this.setHp(unit.hp);
     this.setStatus(held && !frozen, frozen, animMs);
+  }
+
+  /** Vuruş parlaması (GDD §14): kısa açık hale, gövde çevresinde; birliğin arkasında çizilir. */
+  private poseHalo(): void {
+    const a = hitFlashAlpha(this.sinceHitMs);
+    if (a <= 0) {
+      if (this.halo !== null) this.halo.visible = false;
+      return;
+    }
+    if (this.halo === null) {
+      const h = new Sprite(fxTexture('fx.halo'));
+      h.tint = HIT_HALO_TINT;
+      const r = this.rig;
+      h.scale.set((r.footprint * HIT_HALO_W * UNIT_ART_SCALE) / (2 * HALO_TEX_RADIUS), (Math.abs(r.hpBarY) * HIT_HALO_H * UNIT_ART_SCALE) / (2 * HALO_TEX_RADIUS));
+      h.position.set(0, r.hpBarY * 0.48 * UNIT_ART_SCALE);
+      this.halo = h;
+      this.container.addChildAt(h, 0);
+    }
+    this.halo.visible = true;
+    this.halo.alpha = a;
+  }
+
+  /** Vuruş parlaması görünür mü (test/vitrin). */
+  get flashing(): boolean {
+    return this.halo?.visible === true;
   }
 
   private setStatus(stunned: boolean, frozen: boolean, animMs: number): void {
@@ -248,6 +287,7 @@ export class UnitView {
     this.container.alpha = t < DEATH_FADE_START ? 1 : 1 - (t - DEATH_FADE_START) / (1 - DEATH_FADE_START);
     this.container.x = this.lastX;
     this.hpBar.visible = false;
+    if (this.halo !== null) this.halo.visible = false;
     this.status?.hide();
     if (this.frozenTint) {
       this.frozenTint = false;
