@@ -1,7 +1,7 @@
 # itch.io sayfası — Devir
 
-Yayında: https://menesdeniz.itch.io/devir. 1.0.1 olarak 2026-11-06'da yayınlandı; 1.1.0 bu dosyadaki adımlarla
-güncellenir. Görseller bu klasörde: `en-*` İngilizce (1.1.0), önek olmayanlar Türkçe (1.0.1 arayüzü).
+Yayında: https://menesdeniz.itch.io/devir. 2026-11-06'da 1.0.1 olarak yayınlandı, aynı gün bu dosyadaki adımlarla
+1.1.0'a güncellendi (İngilizce sayfa). Görseller bu klasörde: `en-*` İngilizce (1.1.0), önek olmayanlar Türkçe (1.0.1 arayüzü).
 Paket: GitHub sürüm sayfasındaki `devir-1.1.0-html5.zip` (yerelde `release/devir-1.1.0-html5.zip`).
 
 ## Mevcut sayfayı 1.1.0'a güncelleme (adım adım)
