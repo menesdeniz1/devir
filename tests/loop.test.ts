@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createBasicBot } from '../src/ai/basicBot';
+import { createAiBot } from '../src/ai/strategy';
 import { WORLD } from '../src/data/world';
 import { createLoopConfig, FixedStepLoop, startFrameLoop, type FrameClock } from '../src/game/loop';
 import { Session } from '../src/game/session';
@@ -44,9 +44,9 @@ function playSession(frames: readonly number[]): Session {
 
 /** Başsız referans: aynı betik doğrudan stepMatch ile. */
 function headlessReference(ticks: number): string {
-  const state = createMatch({ seed: 1, opponent: 'basic-bot' });
+  const state = createMatch({ seed: 1, opponent: 'normal' });
   state.sides[0].gold += 2000;
-  const bot = createBasicBot();
+  const bot = createAiBot('normal', state.config.seed, 1);
   for (let t = 0; t < ticks; t++) {
     const due = SCRIPT.filter(([tick]) => tick === t).map(([, c]) => c);
     stepMatch(state, due, [null, bot]);

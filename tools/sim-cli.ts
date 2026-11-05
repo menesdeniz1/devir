@@ -1,7 +1,8 @@
 import { createBasicBot } from '../src/ai/basicBot';
 import type { Controller } from '../src/ai/controller';
+import { createAiBot } from '../src/ai/strategy';
 import { createDefenderBot, createMonoBot, createRandomBot, createStackerBot } from '../src/ai/testBots';
-import type { Role } from '../src/data/types';
+import type { AiDifficulty, Role } from '../src/data/types';
 import { runBattle, repeatUnit, type BattleResult } from '../src/match/matchup';
 import { UNITS } from '../src/data/units';
 import { WORLD } from '../src/data/world';
@@ -10,7 +11,7 @@ import { checkInvariants, goldBalanceProblems, StallDetector } from '../src/sim/
 import { createMatch } from '../src/sim/create';
 import { stateHash } from '../src/sim/hash';
 import { rngFromSeed, rngInt } from '../src/sim/rng';
-import type { GameState, Outcome, SideId } from '../src/sim/types';
+import type { GameState, MatchConfig, Outcome, SideId } from '../src/sim/types';
 
 function parseArgs(argv: string[]): { command: string; opts: Record<string, string> } {
   const [command = 'help', ...rest] = argv;
@@ -76,10 +77,44 @@ function printSummary(state: GameState, stoneTicks?: StoneTicks): void {
   console.log(`Son karma: ${stateHash(state)}`);
 }
 
-const BOT_NAMES = ['stacker', 'basic', 'random', 'defender', 'mono-front', 'mono-ranged', 'mono-heavy', 'idle'] as const;
+const BOT_NAMES = [
+  'easy',
+  'normal',
+  'hard',
+  'normal-front',
+  'normal-ranged',
+  'normal-heavy',
+  'stacker',
+  'basic',
+  'random',
+  'defender',
+  'mono-front',
+  'mono-ranged',
+  'mono-heavy',
+  'idle',
+] as const;
+
+const DIFFICULTIES: readonly string[] = ['easy', 'normal', 'hard'];
+
+/** Aşama 6 yapay zekâsı mı (zorluk ya da onun tek rol ölçüm sürümü)? */
+const isAiBot = (name: string): boolean => DIFFICULTIES.includes(name.split('-')[0]!);
+
+/** Maç config'ine yazılacak rakip türü: taraf 1 botuna göre (kayıt/yeniden kurma için bilgi amaçlı). */
+function opponentOf(name: string): MatchConfig['opponent'] {
+  if (DIFFICULTIES.includes(name)) return name as AiDifficulty;
+  return name === 'basic' ? 'basic-bot' : 'none';
+}
 
 function makeBot(name: string, configSeed: number, side: SideId): Controller | null {
+  if (DIFFICULTIES.includes(name)) return createAiBot(name as AiDifficulty, configSeed, side);
   switch (name) {
+    // Tek rol ölçüm botları (GDD §10): yalnız bir rol üretir, diğer kararları Normal yapay zekânınki.
+    case 'normal-front':
+      return createAiBot('normal', configSeed, side, { roleLock: 'front' });
+    case 'normal-ranged':
+      return createAiBot('normal', configSeed, side, { roleLock: 'ranged' });
+    case 'normal-heavy':
+      return createAiBot('normal', configSeed, side, { roleLock: 'heavy' });
     case 'stacker':
       return createStackerBot();
     case 'basic':
@@ -106,7 +141,7 @@ function runMatch(opts: Record<string, string>): number {
   const maxTicks = Math.round(numOpt(opts, 'max-minutes', 60) * 60 * WORLD.tickRate);
   const nameA = opts['a'] ?? 'stacker';
   const nameB = opts['b'] ?? 'basic';
-  const state = createMatch({ seed, opponent: nameB === 'basic' ? 'basic-bot' : 'none' });
+  const state = createMatch({ seed, opponent: opponentOf(nameB) });
   const controllers: [Controller | null, Controller | null] = [makeBot(nameA, state.config.seed, 0), makeBot(nameB, state.config.seed, 1)];
   console.log(`Taraf 0: ${nameA}, taraf 1: ${nameB}, tohum ${seed}`);
   const stoneTicks: StoneTicks = [0, 0];
@@ -146,6 +181,17 @@ const KINDS: readonly Kind[] = [
   ['basic', 'basic'],
   ['stacker', 'stacker'],
   ['mono-front', 'mono-ranged'],
+  // Aşama 6 yapay zekâsı (GDD §9).
+  ['normal', 'normal'],
+  ['hard', 'easy'],
+  ['easy', 'hard'],
+  ['normal', 'random'],
+  ['hard', 'defender'],
+  ['stacker', 'normal'],
+  ['normal-heavy', 'hard'],
+  ['normal', 'idle'],
+  ['easy', 'idle'],
+  ['hard', 'idle'],
 ];
 /** Soak maçlarında başlangıç altınına eklenen en büyük rastgele ek (büyük orduları, dolu kuyruğu ve doğma engelini zorlar). */
 const SOAK_MAX_EXTRA_GOLD = 3000;
@@ -172,7 +218,7 @@ function runSoak(opts: Record<string, string>): number {
     const kindDef = KINDS[g % KINDS.length]!;
     const kind = kindName(kindDef);
     perKind[kind] = (perKind[kind] ?? 0) + 1;
-    const state = createMatch({ seed, opponent: kindDef[1] === 'basic' ? 'basic-bot' : 'none' });
+    const state = createMatch({ seed, opponent: opponentOf(kindDef[1]) });
     const setup = rngFromSeed(seed + 100003);
     if (g % 3 !== 0) {
       state.sides[0].gold += rngInt(setup, SOAK_MAX_EXTRA_GOLD + 1);
@@ -190,10 +236,17 @@ function runSoak(opts: Record<string, string>): number {
       if (violations <= 20) console.log(`İHLAL oyun ${g} (seed ${seed}, ${kind}) tick ${state.tick}: ${what}`);
     };
     let stalled = false;
+    // Yapay zekâ komutları validate'ten geçmelidir (PRD R-02); reddedilen her komut ihlaldir.
+    const aiSide = [isAiBot(kindDef[0]), isAiBot(kindDef[1])];
     while (state.outcome === null && state.tick < maxTicks) {
       const goldBefore: [number, number] = [state.sides[0].gold, state.sides[1].gold];
       const events = stepMatch(state, [], controllers);
-      for (const e of events) if (e.type === 'stoneCaptured') stoneCaptures += 1;
+      for (const e of events) {
+        if (e.type === 'stoneCaptured') stoneCaptures += 1;
+        else if (e.type === 'commandRejected' && (e.command.side === 0 || e.command.side === 1) && aiSide[e.command.side]) {
+          report(`yapay zekâ komutu reddedildi: ${e.command.type} (${e.reason})`);
+        }
+      }
       for (const p of checkInvariants(state)) report(p);
       for (const p of goldBalanceProblems(goldBefore, state, events)) report(p);
       if (stall.observe(state, events)) {
@@ -247,6 +300,35 @@ function percent(count: number, total: number): string {
   return total === 0 ? '0.0%' : `${((count / total) * 100).toFixed(1)}%`;
 }
 
+/** Bir botun turnuva boyunca biriken istatistikleri (taraftan bağımsız). */
+interface BotTally {
+  /** Çağ geçiş tick'leri: [0] = 2. çağ, … */
+  ageUps: number[][];
+  /** Rol başına üretilen birlik sayısı. */
+  produced: Record<Role, number>;
+  towersBuilt: number;
+  rejected: number;
+  /** Maç sonundaki çağ toplamı (ortalama için). */
+  finalAgeSum: number;
+}
+
+function newTally(): BotTally {
+  return { ageUps: [[], [], [], []], produced: { front: 0, ranged: 0, heavy: 0 }, towersBuilt: 0, rejected: 0, finalAgeSum: 0 };
+}
+
+function describeTally(name: string, t: BotTally, games: number): string {
+  const ages = t.ageUps
+    .map((ticks, i) => (ticks.length === 0 ? `${i + 2}.çağ -` : `${i + 2}.çağ ${formatTime(median(ticks))} (${ticks.length})`))
+    .join(', ');
+  const total = t.produced.front + t.produced.ranged + t.produced.heavy;
+  const share = (r: Role): string => percent(t.produced[r], total);
+  return (
+    `  ${name}: medyan çağ geçişleri ${ages}; ort. son çağ ${(t.finalAgeSum / games).toFixed(2)}; ` +
+    `rol payı ön ${share('front')} / menzilli ${share('ranged')} / ağır ${share('heavy')}; ` +
+    `kule kurma/maç ${(t.towersBuilt / games).toFixed(1)}; reddedilen komut ${t.rejected}`
+  );
+}
+
 /** İki botu N maç oynatır; çift numaralı maçlarda A taraf 0, tek numaralılarda taraf 1'dedir (GDD §10). */
 function runTournament(opts: Record<string, string>): number {
   const nameA = opts['a'] ?? 'defender';
@@ -260,16 +342,34 @@ function runTournament(opts: Record<string, string>): number {
   let timeouts = 0;
   let winsAAsSide0 = 0;
   const finishedTicks: number[] = [];
+  const tallies: [BotTally, BotTally] = [newTally(), newTally()];
   const started = Date.now();
 
   for (let g = 0; g < games; g++) {
     const seed = baseSeed + g;
     const aSide: SideId = g % 2 === 0 ? 0 : 1;
-    const state = createMatch({ seed, opponent: nameA === 'basic' || nameB === 'basic' ? 'basic-bot' : 'none' });
+    const state = createMatch({ seed, opponent: opponentOf(aSide === 1 ? nameA : nameB) });
     const botA = makeBot(nameA, state.config.seed, aSide);
     const botB = makeBot(nameB, state.config.seed, aSide === 0 ? 1 : 0);
     const controllers: [Controller | null, Controller | null] = aSide === 0 ? [botA, botB] : [botB, botA];
-    while (state.outcome === null && state.tick < maxTicks) stepMatch(state, [], controllers);
+    // tallyOf[taraf]: o taraftaki botun istatistiği (A = 0, B = 1).
+    const tallyOf = (side: SideId): BotTally => tallies[side === aSide ? 0 : 1];
+    while (state.outcome === null && state.tick < maxTicks) {
+      for (const e of stepMatch(state, [], controllers)) {
+        if (e.type === 'commandRejected' && (e.command?.side === 0 || e.command?.side === 1)) tallyOf(e.command.side).rejected += 1;
+        else if (e.type === 'towerBuilt') tallyOf(e.side).towersBuilt += 1;
+      }
+    }
+    for (const side of [0, 1] as const) {
+      const s = state.sides[side];
+      const t = tallyOf(side);
+      s.stats.ageUpTicks.forEach((tick, i) => t.ageUps[i]?.push(tick));
+      t.finalAgeSum += s.age;
+      for (const [unitId, count] of Object.entries(s.stats.produced)) {
+        const role = UNITS.find((u) => u.id === unitId)?.role;
+        if (role !== undefined) t.produced[role] += count;
+      }
+    }
     if (state.outcome === null) {
       timeouts += 1;
       continue;
@@ -282,10 +382,18 @@ function runTournament(opts: Record<string, string>): number {
     } else winsB += 1;
   }
 
+  const sortedTicks = finishedTicks.slice().sort((x, y) => x - y);
+  const quantile = (q: number): string =>
+    sortedTicks.length === 0 ? '-' : formatTime(sortedTicks[Math.min(sortedTicks.length - 1, Math.floor(q * sortedTicks.length))]!);
   console.log(`Turnuva: A=${nameA} vs B=${nameB}, ${games} maç, taraflar dönüşümlü, tohum ${baseSeed}…${baseSeed + games - 1}, üst süre ${(maxTicks / WORLD.tickRate / 60).toFixed(0)} dk`);
   console.log(`A kazandı: ${winsA} (${percent(winsA, games)}), B kazandı: ${winsB} (${percent(winsB, games)}), beraberlik: ${draws} (${percent(draws, games)}), zaman aşımı: ${timeouts} (${percent(timeouts, games)})`);
   console.log(`A'nın taraf 0'daki galibiyeti: ${winsAAsSide0}/${Math.ceil(games / 2)}, taraf 1'deki: ${winsA - winsAAsSide0}/${Math.floor(games / 2)}`);
-  console.log(`Biten maçların medyan süresi: ${finishedTicks.length === 0 ? '-' : formatTime(median(finishedTicks))} (${finishedTicks.length} maç)`);
+  console.log(
+    `Biten maçların medyan süresi: ${finishedTicks.length === 0 ? '-' : formatTime(median(finishedTicks))} (${finishedTicks.length} maç; ` +
+      `%10 ${quantile(0.1)}, %90 ${quantile(0.9)})`,
+  );
+  console.log(describeTally(`A=${nameA}`, tallies[0], games));
+  console.log(describeTally(`B=${nameB}`, tallies[1], games));
   console.log(`Gerçek süre: ${((Date.now() - started) / 1000).toFixed(1)} sn`);
   return 0;
 }

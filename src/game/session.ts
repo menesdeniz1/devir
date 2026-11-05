@@ -1,5 +1,6 @@
 import { createBasicBot } from '../ai/basicBot';
 import type { Controller } from '../ai/controller';
+import { createAiBot } from '../ai/strategy';
 import { WORLD } from '../data/world';
 import type { UiRejectReason } from '../i18n/tr';
 import { stepMatch } from '../match/runner';
@@ -31,7 +32,7 @@ export type SessionEvent =
 export interface SessionOptions {
   seed?: number;
   opponent?: MatchConfig['opponent'];
-  /** Her yeni maçta çağrılır; [taraf 0, taraf 1]. Varsayılan: [null, basicBot]. */
+  /** Her yeni maçta çağrılır; [taraf 0, taraf 1]. Varsayılan: [null, config.opponent'in denetleyicisi]. */
   createControllers?: () => [Controller | null, Controller | null];
   visibility?: VisibilitySource | null;
 }
@@ -42,8 +43,21 @@ interface QueuedCommand {
   command: Command;
 }
 
-function defaultControllers(): [Controller | null, Controller | null] {
-  return [null, createBasicBot()];
+/** Oyunun varsayılan rakibi (GDD §9). */
+const DEFAULT_OPPONENT: MatchConfig['opponent'] = 'normal';
+
+/** Rakip (taraf 1) denetleyicisi yalnız config'ten kurulur; böylece kayıttan aynı yolla yeniden kurulabilir (TDD §5). */
+function defaultControllers(config: MatchConfig): [Controller | null, Controller | null] {
+  switch (config.opponent) {
+    case 'easy':
+    case 'normal':
+    case 'hard':
+      return [null, createAiBot(config.opponent, config.seed, 1)];
+    case 'basic-bot':
+      return [null, createBasicBot()];
+    case 'none':
+      return [null, null];
+  }
 }
 
 /**
@@ -69,8 +83,9 @@ export class Session {
   private endedAnnounced = false;
 
   constructor(options: SessionOptions = {}) {
-    this.config = { seed: options.seed ?? DEFAULT_SEED, opponent: options.opponent ?? 'basic-bot' };
-    this.makeControllers = options.createControllers ?? defaultControllers;
+    this.config = { seed: options.seed ?? DEFAULT_SEED, opponent: options.opponent ?? DEFAULT_OPPONENT };
+    const config = this.config;
+    this.makeControllers = options.createControllers ?? (() => defaultControllers(config));
     this.visibility = options.visibility ?? null;
     this.gameState = createMatch(this.config);
     this.controllers = this.makeControllers();

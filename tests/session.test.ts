@@ -32,7 +32,7 @@ function fakeVisibility(): VisibilitySource & { visibilityState: string; fire():
   };
 }
 
-const freshHash = (): string => stateHash(createMatch({ seed: 1, opponent: 'basic-bot' }));
+const freshHash = (): string => stateHash(createMatch({ seed: 1, opponent: 'normal' }));
 
 describe('K-14: duraklatmada oyun zamanı ilerlemez ve komut kabul edilmez', () => {
   it('K-14: duraklatılmışken N kare beslenir, tick ve durum karması sabit kalır', () => {

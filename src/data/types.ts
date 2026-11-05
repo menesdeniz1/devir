@@ -218,12 +218,6 @@ export interface AiProfileDef {
   queueTarget: [number, number];
   /** Karar anında hiç sipariş vermeme olasılığı (Kolay: "altın boşta bekler"). */
   idleChance: number;
-  /** Rol başına temel ordu payı (maliyet ağırlıklı; toplamı 1). Karşılık payıyla harmanlanır. */
-  baseMix: Record<Role, number>;
-  /** İstenen bileşimde karşılık payının ağırlığı (0..1); kalanı temel paydır. */
-  counterWeight: number;
-  /** true: menzilli/ağır siparişinden önce ön hat örtüsünü sağlar (`AI_TUNING.frontRatio`; GDD §10 aynalı takas). */
-  formation: boolean;
   /** Sınır Taşı: 0 yok sayar, 1 taş kaybedilince ve güç uygunken iter, 2 tarafsızken de aktif hedefler. */
   stoneWeight: 0 | 1 | 2;
 }
@@ -248,8 +242,23 @@ export interface AiTuningDef {
   renewSpare: number;
   /** İleri itme: güç oranı (kendi / düşman) bunun üstündeyse. */
   pushRatio: number;
-  /** Ön hat örtüsü: sahadaki + kuyruktaki ön hat sayısı, menzilli + ağır sayısının bu katından az olmamalı. */
-  frontRatio: number;
-  /** Düşman kulesi başına ağır rol ağırlığına eklenen pay. */
-  heavyPerEnemyTower: number;
+  /**
+   * Ordu duruşları: rol başına hedef sayı payı (toplamı 1). Sıradaki rol, sahadaki + kuyruktaki kendi birliklerinin
+   * sayı payına göre en çok eksik olandır. Karşılık döngüsü (GDD §3) dizilişle birlikte okunur: ön hat + arkasında
+   * menzilli düzeni ön hat yığınını, uzun menzilli ağır yığını menzilli + ön hat karışımını, ön hat ağırlıklı düzen
+   * ağır yığınını yener.
+   */
+  stances: Record<AiStance, Record<Role, number>>;
+  /** Duruş seçimi (görünür düşman birliklerinin sayı payı): ağır payı ≥ heavy → antiHeavy; menzilli payı ≥ ranged → antiRanged. */
+  stanceShare: { heavy: number; ranged: number };
+  /** Görünür düşman birliği sayısı bunun altındaysa varsayılan duruş. */
+  minEnemyUnits: number;
+  /**
+   * Kuşatma duruşu (antiTower): düşmanın en az `towers` kulesi varken görünür birliği `fewUnits`'ten azsa (kuleye
+   * yaslanan savunma). Ağır birlik hızlı kulenin menzili dışından üssü döver (GDD §3, §6); başka rol kulelere yürür.
+   */
+  siege: { towers: number; fewUnits: number };
 }
+
+/** Ordu duruşu: varsayılan ya da görünür düşman bileşimine karşılık. */
+export type AiStance = 'opening' | 'antiFront' | 'antiRanged' | 'antiHeavy' | 'antiTower';
