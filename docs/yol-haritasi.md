@@ -19,8 +19,8 @@ Her aşama **çalıştırılabilir** bir sürümle ve **komutla doğrulanabilir*
 | Aşama | Konu | Durum |
 |---|---|---|
 | 0 | Planlama ve dokümanlar | Tamamlandı (2026-11-05): kararlar verildi, çapraz kontrol bulguları işlendi |
-| 1 | Uçtan uca minimum maç | Tamamlandı (2026-11-05): 80 test, soak 500 ihlalsiz, tarayıcıda kazanma/kaybetme doğrulandı · commit onayı bekleniyor |
-| 2 | Roller, savaş derinliği, stil prototipi | Bekliyor |
+| 1 | Uçtan uca minimum maç | Tamamlandı (2026-11-05): 80 test, soak 500 ihlalsiz, tarayıcıda kazanma/kaybetme doğrulandı |
+| 2 | Roller, savaş derinliği, stil prototipi | Tamamlandı (2026-11-05): 136 test, karşılık senaryoları geçti, stil kullanıcı onaylı |
 | 3 | Çağlar (+ Sınır Taşı) | Bekliyor |
 | 4 | Savunmalar | Bekliyor |
 | 5 | Özel yetenekler | Bekliyor |
@@ -125,7 +125,7 @@ tarayıcıda baştan sona oynanabilir.
 |---|---|
 | O | Gözlem katmanı, karar modülleri, üç zorluk profili (GDD §9) |
 | S | Turnuva aracı, denge raporu, tek tip ve savunmacı test botları |
-| L | Denge ayarı — yalnızca `src/data/` değişir |
+| L | Denge ayarı — yalnızca `src/data/` değişir. Aşama 2 gözlemleri: önceden dizilmiş 480 altınlık çatışmalarda 3 ağır tüm karma dizilişleri yeniyor (alan hasarı + 300 menzil); sınırlı üretimli basit bota karşı yalnız ön hat üreten bot kazanıyor. İkisi de gerçek yapay zekâyla yeniden ölçülecek (`npm run sim -- matchup`, turnuva) |
 | K | Oyun testi: Normal'i yenmek mümkün ama zahmetli mi? |
 
 - **Testler:** K-13 (gizli bilgi); yapay zekâ tüm eylem türlerini kullanır; soak.

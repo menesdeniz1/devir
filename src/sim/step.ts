@@ -1,32 +1,11 @@
 import { WORLD } from '../data/world';
 import { applyCommand } from './commands';
-import { isWellFormedCommand } from './validate';
+import { strike, type PendingDamage } from './combat';
 import { EPS, mustGetAge, mustGetUnit } from './compile';
-import type { Command, GameState, Outcome, SideId, SimEvent, UnitState } from './types';
-
-/** Taraf yönü: taraf 0 +x, taraf 1 -x. */
-function dirOf(side: SideId): 1 | -1 {
-  return side === 0 ? 1 : -1;
-}
-
-function otherSide(side: SideId): SideId {
-  return side === 0 ? 1 : 0;
-}
-
-/** Hedefin ön yüzünün x değeri (hedef = rakip üssü). */
-function enemyBaseFaceX(side: SideId): number {
-  return side === 0 ? WORLD.worldWidth - WORLD.baseWidth : WORLD.baseWidth;
-}
-
-/** Hedef türü: birlik kimliği, 'base' ya da hedef yok. */
-type Target = number | 'base' | null;
-
-interface PendingDamage {
-  attackerSide: SideId;
-  attackerType: string;
-  target: Target;
-  damage: number;
-}
+import { dirOf, enemyBaseFaceX, facingEdgeX, otherSide } from './geometry';
+import { selectTargets, type Target } from './targeting';
+import type { Command, GameState, Outcome, ProjectileState, SideId, SimEvent, UnitState } from './types';
+import { isWellFormedCommand } from './validate';
 
 /**
  * Bir simülasyon adımı (TDD §3). Durumu yerinde değiştirir ve olayları döndürür.
@@ -41,7 +20,9 @@ export function step(state: GameState, commands: readonly Command[]): SimEvent[]
   production(state, events);
   const targets = selectTargets(state);
   movement(state, targets);
-  const pending = attacks(state, targets, events);
+  const pending: PendingDamage[] = [];
+  attacks(state, targets, pending, events);
+  advanceProjectiles(state, pending, events);
   resolveDamage(state, pending, events);
   resolveOutcome(state, events);
   state.tick += 1;
@@ -124,45 +105,7 @@ function spawnUnit(state: GameState, side: SideId, unitId: string, events: SimEv
   events.push({ type: 'unitSpawned', side, id, unitType: unitId });
 }
 
-// ---- 6. Hedefleme ------------------------------------------------------------
-
-/** İki birlik arasında birbirine bakan kenarlar arası mesafe (negatif olabilir). */
-function gapBetween(a: UnitState, aWidth: number, b: UnitState, bWidth: number): number {
-  return dirOf(a.side) * (b.x - a.x) - (aWidth + bWidth) / 2;
-}
-
-function selectTargets(state: GameState): Target[] {
-  const targets: Target[] = [];
-  const defs = state.units.map((u) => mustGetUnit(u.type));
-  const bySide: [number[], number[]] = [[], []];
-  state.units.forEach((u, i) => bySide[u.side].push(i));
-  for (let ai = 0; ai < state.units.length; ai++) {
-    const a = state.units[ai]!;
-    const aUnit = defs[ai]!;
-    let best: Target = null;
-    let bestGap = Infinity;
-    for (const ei of bySide[otherSide(a.side)]) {
-      const e = state.units[ei]!;
-      const eWidth = defs[ei]!.def.width;
-      const gap = gapBetween(a, aUnit.def.width, e, eWidth);
-      // Tamamen arkada kalmış düşman (yan yana değil, geride) hedef olamaz; birlikler birbirini geçemediği için
-      // normal oyunda bu durum oluşmaz, yalnızca bozuk/elle kurulmuş durumlara karşı koruma.
-      if (gap <= -(aUnit.def.width + eWidth)) continue;
-      if (gap <= aUnit.def.range && gap < bestGap) {
-        best = e.id;
-        bestGap = gap;
-      }
-    }
-    if (best === null) {
-      const dir = dirOf(a.side);
-      const frontX = a.x + (dir * aUnit.def.width) / 2;
-      const baseGap = dir * (enemyBaseFaceX(a.side) - frontX);
-      if (baseGap <= aUnit.def.range) best = 'base';
-    }
-    targets.push(best);
-  }
-  return targets;
-}
+// ---- 6. Hedefleme: targeting.ts ----------------------------------------------
 
 // ---- 7. Hareket --------------------------------------------------------------
 
@@ -175,7 +118,7 @@ function movement(state: GameState, targets: readonly Target[]): void {
     for (const e of state.units) {
       if (e.side !== enemy) continue;
       const half = mustGetUnit(e.type).def.width / 2;
-      const edgeX = e.x + (dirOf(enemy) * half);
+      const edgeX = e.x + dirOf(enemy) * half;
       enemyFrontForward[side] = Math.min(enemyFrontForward[side], dir * edgeX);
     }
   }
@@ -201,6 +144,7 @@ function movement(state: GameState, targets: readonly Target[]): void {
         const front = dir * u.x + half;
         let limit = front + def.speedPerTick;
         if (aheadRear !== null) limit = Math.min(limit, aheadRear - WORLD.friendlyGap);
+        // "Boşluğun yarısı" sınırı: iki taraf aynı adımda iç içe geçmez.
         const enemyFront = enemyFrontForward[side];
         if (enemyFront !== Infinity) limit = Math.min(limit, front + Math.max(0, enemyFront - front) / 2);
         limit = Math.min(limit, baseLimit);
@@ -220,32 +164,97 @@ function movement(state: GameState, targets: readonly Target[]): void {
 
 // ---- 8. Saldırılar -----------------------------------------------------------
 
-function attacks(state: GameState, targets: readonly Target[], events: SimEvent[]): PendingDamage[] {
-  const pending: PendingDamage[] = [];
+function attacks(state: GameState, targets: readonly Target[], pending: PendingDamage[], events: SimEvent[]): void {
+  const byId = indexById(state.units);
   state.units.forEach((u, i) => {
     if (u.cooldown > 0) u.cooldown -= 1;
     const target = targets[i] ?? null;
     if (target === null || u.cooldown > 0) return;
     const def = mustGetUnit(u.type);
-    // Aşama 1: yalnız yakın dövüş, rol çarpanı yok.
-    const damage = def.def.damage;
+    const victim = target === 'base' ? 'base' : byId.get(target);
+    if (victim === undefined) return; // hedefler aynı adımda seçildiği için oluşmaz
     u.cooldown = def.attackIntervalTicks;
-    pending.push({ attackerSide: u.side, attackerType: u.type, target, damage });
-    events.push({ type: 'attack', side: u.side, attackerId: u.id, target, damage });
+    const impactX = victim === 'base' ? enemyBaseFaceX(u.side) : facingEdgeX(victim, mustGetUnit(victim.type).def.width, u.side);
+    if (def.projectileStep === null) {
+      // Yakın dövüş: hasar anında bekleyen hasara girer (tamsayı tablo).
+      const result = strike(state, u.side, u.type, victim, impactX, pending);
+      events.push({ type: 'attack', side: u.side, attackerId: u.id, target, damage: result.mainDamage });
+      return;
+    }
+    // Menzilli/ağır: mermi üretir; hasar çarpmada (adım 9) bekleyen hasara girer.
+    const dir = dirOf(u.side);
+    const id = state.nextId;
+    state.nextId += 1;
+    const projectile: ProjectileState = {
+      id,
+      side: u.side,
+      sourceType: u.type,
+      sourceId: u.id,
+      targetId: victim === 'base' ? null : victim.id,
+      x: u.x + (dir * def.def.width) / 2,
+      targetX: impactX,
+      targetLost: false,
+    };
+    state.projectiles.push(projectile);
+    events.push({ type: 'attack', side: u.side, attackerId: u.id, target, damage: null });
+    events.push({ type: 'projectileFired', side: u.side, id, sourceType: u.type, target });
   });
-  return pending;
+}
+
+function indexById(units: readonly UnitState[]): Map<number, UnitState> {
+  const byId = new Map<number, UnitState>();
+  for (const u of units) byId.set(u.id, u);
+  return byId;
+}
+
+// ---- 9. Mermiler -------------------------------------------------------------
+
+/**
+ * Her mermi hedefinin güncel çarpma noktasına speed/tickRate kadar ilerler; kalan mesafe adımdan kısaysa çarpar.
+ * Hedef ölmüşse targetLost işaretlenir ve targetX son bilinen noktada kalır: alan hasarı varsa orada patlar,
+ * yoksa hasarsız kaybolur. Atan birlik ölmüş olsa da mermi sürer (hasar sourceType'tan hesaplanır).
+ */
+function advanceProjectiles(state: GameState, pending: PendingDamage[], events: SimEvent[]): void {
+  if (state.projectiles.length === 0) return;
+  const byId = indexById(state.units);
+  const flying: ProjectileState[] = [];
+  for (const p of state.projectiles) {
+    const source = mustGetUnit(p.sourceType);
+    const dir = dirOf(p.side);
+    let victim: UnitState | 'base' | null;
+    if (p.targetId === null) {
+      victim = 'base';
+    } else {
+      const found = p.targetLost ? undefined : byId.get(p.targetId);
+      if (found === undefined) {
+        p.targetLost = true;
+        victim = null;
+      } else {
+        victim = found;
+        p.targetX = facingEdgeX(found, mustGetUnit(found.type).def.width, p.side);
+      }
+    }
+    const stepLength = source.projectileStep ?? 0;
+    if (dir * (p.targetX - p.x) > stepLength) {
+      p.x += dir * stepLength;
+      flying.push(p);
+      continue;
+    }
+    p.x = p.targetX;
+    const result = strike(state, p.side, p.sourceType, victim, p.targetX, pending);
+    events.push({ type: 'projectileImpact', side: p.side, id: p.id, x: p.targetX, hits: result.unitsHit, hitBase: result.hitBase });
+  }
+  state.projectiles = flying;
 }
 
 // ---- 10. Hasarın eşzamanlı uygulanması ---------------------------------------
 
 function resolveDamage(state: GameState, pending: readonly PendingDamage[], events: SimEvent[]): void {
   if (pending.length === 0) return;
-  const byId = new Map<number, UnitState>();
-  for (const u of state.units) byId.set(u.id, u);
+  const byId = indexById(state.units);
   const fatalSeen = new Set<number>();
 
   for (const p of pending) {
-    if (p.target === null) continue;
     if (p.target === 'base') {
       const victim = otherSide(p.attackerSide);
       const base = state.sides[victim];

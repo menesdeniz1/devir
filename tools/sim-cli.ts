@@ -1,6 +1,9 @@
 import { createBasicBot } from '../src/ai/basicBot';
 import type { Controller } from '../src/ai/controller';
-import { createRandomBot, createStackerBot } from '../src/ai/testBots';
+import { createMonoBot, createRandomBot, createStackerBot } from '../src/ai/testBots';
+import type { Role } from '../src/data/types';
+import { runBattle, repeatUnit, type BattleResult } from '../src/match/matchup';
+import { UNITS } from '../src/data/units';
 import { WORLD } from '../src/data/world';
 import { stepMatch } from '../src/match/runner';
 import { checkInvariants, goldBalanceProblems, StallDetector } from '../src/sim/invariants';
@@ -59,6 +62,8 @@ function printSummary(state: GameState): void {
   console.log(`Son karma: ${stateHash(state)}`);
 }
 
+const BOT_NAMES = ['stacker', 'basic', 'random', 'mono-front', 'mono-ranged', 'mono-heavy', 'idle'] as const;
+
 function makeBot(name: string, configSeed: number, side: SideId): Controller | null {
   switch (name) {
     case 'stacker':
@@ -67,10 +72,16 @@ function makeBot(name: string, configSeed: number, side: SideId): Controller | n
       return createBasicBot();
     case 'random':
       return createRandomBot(configSeed, side);
+    case 'mono-front':
+      return createMonoBot('front');
+    case 'mono-ranged':
+      return createMonoBot('ranged');
+    case 'mono-heavy':
+      return createMonoBot('heavy');
     case 'idle':
       return null;
     default:
-      throw new Error(`Bilinmeyen bot: ${name} (stacker | basic | random | idle)`);
+      throw new Error(`Bilinmeyen bot: ${name} (${BOT_NAMES.join(' | ')})`);
   }
 }
 
@@ -89,26 +100,28 @@ function runMatch(opts: Record<string, string>): number {
   return 0;
 }
 
-type Kind = 'random-random' | 'random-basic' | 'stacker-random' | 'stacker-idle' | 'random-idle';
-
-function makeControllers(kind: Kind, configSeed: number): [Controller, Controller | null] {
-  switch (kind) {
-    case 'random-random':
-      return [createRandomBot(configSeed, 0), createRandomBot(configSeed, 1)];
-    case 'random-basic':
-      return [createRandomBot(configSeed, 0), createBasicBot()];
-    case 'stacker-random':
-      return [createStackerBot(), createRandomBot(configSeed, 1)];
-    case 'stacker-idle':
-      return [createStackerBot(), null];
-    case 'random-idle':
-      return [createRandomBot(configSeed, 0), null];
-  }
-}
+/** Soak türü: [taraf 0 botu, taraf 1 botu]. Adı `${a}-${b}`. */
+type Kind = readonly [string, string];
+const kindName = (kind: Kind): string => `${kind[0]}-${kind[1]}`;
 
 /** Rakibi pasif ('idle') olan türler: üssü savunmasız rakibe karşı maç mutlaka bitmelidir; zaman aşımı ihlaldir. */
-const IDLE_OPPONENT_KINDS: ReadonlySet<Kind> = new Set<Kind>(['stacker-idle', 'random-idle']);
-const KINDS: readonly Kind[] = ['random-random', 'random-basic', 'stacker-random', 'stacker-idle', 'random-idle'];
+const isIdleOpponent = (kind: Kind): boolean => kind[1] === 'idle';
+const KINDS: readonly Kind[] = [
+  ['random', 'random'],
+  ['random', 'basic'],
+  ['stacker', 'random'],
+  ['stacker', 'basic'],
+  ['stacker', 'idle'],
+  ['random', 'idle'],
+  ['mono-front', 'basic'],
+  ['mono-ranged', 'basic'],
+  ['mono-heavy', 'basic'],
+  ['mono-front', 'idle'],
+  ['mono-ranged', 'idle'],
+  ['mono-heavy', 'idle'],
+  ['mono-heavy', 'mono-ranged'],
+  ['mono-front', 'mono-heavy'],
+];
 /** Soak maçlarında başlangıç altınına eklenen en büyük rastgele ek (büyük orduları, dolu kuyruğu ve doğma engelini zorlar). */
 const SOAK_MAX_EXTRA_GOLD = 3000;
 
@@ -126,15 +139,19 @@ function runSoak(opts: Record<string, string>): number {
 
   for (let g = 0; g < games; g++) {
     const seed = baseSeed + g;
-    const kind = KINDS[g % KINDS.length]!;
+    const kindDef = KINDS[g % KINDS.length]!;
+    const kind = kindName(kindDef);
     perKind[kind] = (perKind[kind] ?? 0) + 1;
-    const state = createMatch({ seed, opponent: kind === 'random-basic' ? 'basic-bot' : 'none' });
+    const state = createMatch({ seed, opponent: kindDef[1] === 'basic' ? 'basic-bot' : 'none' });
     const setup = rngFromSeed(seed + 100003);
     if (g % 3 !== 0) {
       state.sides[0].gold += rngInt(setup, SOAK_MAX_EXTRA_GOLD + 1);
       state.sides[1].gold += rngInt(setup, SOAK_MAX_EXTRA_GOLD + 1);
     }
-    const controllers = makeControllers(kind, state.config.seed);
+    const controllers: [Controller | null, Controller | null] = [
+      makeBot(kindDef[0], state.config.seed, 0),
+      makeBot(kindDef[1], state.config.seed, 1),
+    ];
     const stall = new StallDetector();
     const report = (what: string): void => {
       violations += 1;
@@ -155,7 +172,7 @@ function runSoak(opts: Record<string, string>): number {
     if (state.outcome === null && !stalled) {
       timeouts += 1;
       timeoutsByKind[kind] = (timeoutsByKind[kind] ?? 0) + 1;
-      if (IDLE_OPPONENT_KINDS.has(kind)) report(`zaman aşımı: rakibi pasif türde maç ${maxTicks} tick içinde bitmedi`);
+      if (isIdleOpponent(kindDef)) report(`zaman aşımı: rakibi pasif türde maç ${maxTicks} tick içinde bitmedi`);
     } else if (state.outcome === null) {
       // Kilitlenme zaten ihlal olarak bildirildi.
     } else if (state.outcome.kind === 'draw') draws += 1;
@@ -165,10 +182,11 @@ function runSoak(opts: Record<string, string>): number {
   console.log(`Soak: ${games} oyun (${Object.entries(perKind).map(([k, v]) => `${k}: ${v}`).join(', ')})`);
   console.log(`Galibiyet: ${wins}, beraberlik: ${draws}, zaman aşımı: ${timeouts}`);
   console.log('Zaman aşımı dökümü (türe göre):');
-  for (const kind of KINDS) {
+  for (const kindDef of KINDS) {
+    const kind = kindName(kindDef);
     const count = timeoutsByKind[kind] ?? 0;
     const total = perKind[kind] ?? 0;
-    const note = IDLE_OPPONENT_KINDS.has(kind)
+    const note = isIdleOpponent(kindDef)
       ? count > 0
         ? 'İHLAL: rakibi pasif türde zaman aşımı olmamalı'
         : 'beklenen: 0 (rakibi pasif)'
@@ -180,6 +198,76 @@ function runSoak(opts: Record<string, string>): number {
   return violations > 0 ? 1 : 0;
 }
 
+// ---- matchup: karşılık matrisi ---------------------------------------------------
+
+const ROLE_UNIT: Record<Role, string> = { front: 'primitive_front', ranged: 'primitive_ranged', heavy: 'primitive_heavy' };
+const ROLE_LABEL: Record<Role, string> = { front: 'ön hat', ranged: 'menzilli', heavy: 'ağır' };
+/** Tek rol ordularının büyüklüğü (≈480 altın; test yoğunluğu, denge değil). */
+const MONO_COUNTS: Record<Role, number> = { front: 9, ranged: 7, heavy: 3 };
+const ROLES: readonly Role[] = ['front', 'ranged', 'heavy'];
+
+interface NamedArmy {
+  label: string;
+  units: string[];
+  cost: number;
+}
+
+function army(label: string, parts: readonly (readonly [Role, number])[]): NamedArmy {
+  const units = parts.flatMap(([role, count]) => repeatUnit(ROLE_UNIT[role], count));
+  const cost = units.reduce((total, id) => total + (UNITS.find((u) => u.id === id)?.cost ?? 0), 0);
+  return { label, units, cost };
+}
+
+function describeBattle(r: BattleResult): string {
+  const who = r.timedOut ? 'ZAMAN AŞIMI' : r.winner === null ? 'BERABERE' : r.winner === 0 ? 'SOL' : 'SAĞ';
+  const hp = Math.round(r.remainingHp[0] + r.remainingHp[1]);
+  return `${who} · ${hp} can · ${(r.ticks / WORLD.tickRate).toFixed(1)} sn`;
+}
+
+function runMatchup(): number {
+  const monos = ROLES.map((role) => army(`${MONO_COUNTS[role]} ${ROLE_LABEL[role]}`, [[role, MONO_COUNTS[role]]]));
+  const mixes: NamedArmy[] = [
+    army('4 ön hat + 4 menzilli', [['front', 4], ['ranged', 4]]),
+    army('3 ön hat + 2 menzilli + 1 ağır', [['front', 3], ['ranged', 2], ['heavy', 1]]),
+    army('2 ön hat + 2 menzilli + 1 ağır', [['front', 2], ['ranged', 2], ['heavy', 1]]),
+    army('2 ön hat + 2 ağır', [['front', 2], ['heavy', 2]]),
+  ];
+
+  console.log('Karşılık matrisi — tek rol, ≈480 altın (satır: sol taraf, sütun: sağ taraf). Hücre: kazanan · kalan toplam can · süre');
+  console.log(`Ordular: ${monos.map((m) => `${m.label} (${m.cost} altın)`).join(', ')}`);
+  for (const row of monos) {
+    for (const col of monos) {
+      console.log(`  ${row.label.padEnd(12)} vs ${col.label.padEnd(12)} → ${describeBattle(runBattle(row.units, col.units))}`);
+    }
+  }
+
+  console.log('');
+  console.log('Karma ordu vs tek rol (karma solda, tek rol sağda; karma ordu önden arkaya ön hat → menzilli → ağır dizilir)');
+  for (const mix of mixes) {
+    for (const mono of monos) {
+      console.log(`  ${mix.label.padEnd(32)} (${mix.cost}) vs ${mono.label.padEnd(12)} → ${describeBattle(runBattle(mix.units, mono.units))}`);
+    }
+  }
+
+  console.log('');
+  console.log('Yol haritası Aşama 2 karşılık kontrolleri (iki taraf düzeninde de aynı sonuç beklenir)');
+  const checks: { label: string; left: NamedArmy; right: NamedArmy }[] = [
+    { label: '(a) 9 ön hat > 3 ağır', left: monos[0]!, right: monos[2]! },
+    { label: '(b) 3 ağır > 7 menzilli', left: monos[2]!, right: monos[1]! },
+    { label: '(c) 4 ön hat + 4 menzilli > 9 ön hat', left: mixes[0]!, right: monos[0]! },
+  ];
+  let failed = 0;
+  for (const check of checks) {
+    const asLeft = runBattle(check.left.units, check.right.units);
+    const asRight = runBattle(check.right.units, check.left.units);
+    const ok = asLeft.winner === 0 && asRight.winner === 1;
+    if (!ok) failed += 1;
+    console.log(`  ${ok ? 'TUTTU ' : 'TUTMADI'} ${check.label}: ${describeBattle(asLeft)} | taraflar değişince: ${describeBattle(asRight)}`);
+  }
+  console.log(failed === 0 ? 'Üç kontrol de tuttu.' : `${failed} kontrol tutmadı (denge kararı lead'e aittir).`);
+  return 0;
+}
+
 function main(): number {
   const { command, opts } = parseArgs(process.argv.slice(2));
   switch (command) {
@@ -187,9 +275,12 @@ function main(): number {
       return runMatch(opts);
     case 'soak':
       return runSoak(opts);
+    case 'matchup':
+      return runMatchup();
     default:
-      console.log('Kullanım: npm run sim -- match --seed 1 [--max-minutes 60] [--a stacker] [--b basic]  (botlar: stacker | basic | random | idle)');
+      console.log('Kullanım: npm run sim -- match --seed 1 [--max-minutes 60] [--a stacker] [--b basic]  (botlar: ' + BOT_NAMES.join(' | ') + ')');
       console.log('          npm run sim -- soak --games 500 [--seed 1] [--max-minutes 20]');
+      console.log('          npm run sim -- matchup   (karşılık matrisi ve karma-vs-tek rol sonuçları)');
       return command === 'help' ? 0 : 1;
   }
 }

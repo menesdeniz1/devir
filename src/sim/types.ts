@@ -61,6 +61,28 @@ export interface UnitState {
   mode: UnitMode;
 }
 
+/**
+ * Uçan mermi (GDD §3). Menzilli ve ağır saldırılar mermi üretir; yakın dövüş anlıktır.
+ * Mermi hedefini izler. Hedef mermi varmadan ölürse: alan hasarı olmayan mermi kaybolur;
+ * alan hasarlı mermi hedefin son bilinen konumuna düşer ve patlar.
+ */
+export interface ProjectileState {
+  id: number;
+  /** Atan taraf. */
+  side: SideId;
+  /** Atan birliğin türü (UnitDef.id); hasar ve istatistik buradan hesaplanır. Atan birlik ölmüş olabilir. */
+  sourceType: string;
+  sourceId: number;
+  /** Hedef birlik kimliği; null ise hedef rakip üstür. */
+  targetId: number | null;
+  /** Merminin anlık konumu (dünya birimi). */
+  x: number;
+  /** Hedefin son bilinen çarpma noktası (birliğin bakan kenarı veya üs ön yüzü). */
+  targetX: number;
+  /** Hedef öldüyse true; mermi targetX'e düşer (alan hasarı varsa patlar, yoksa kaybolur). */
+  targetLost: boolean;
+}
+
 /** Yapay zekâ belleği: yalnızca JSON değerleri. Biçimi ai/ katmanı belirler. */
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
@@ -79,6 +101,8 @@ export interface GameState {
   sides: [SideState, SideState];
   /** Sabit sırayla (oluşturulma sırası) tutulur. */
   units: UnitState[];
+  /** Sabit sırayla (oluşturulma sırası) tutulur. */
+  projectiles: ProjectileState[];
   /** Taraf başına yapay zekâ belleği; denetlenmeyen taraf için null. */
   ai: [JsonValue, JsonValue];
 }
@@ -112,7 +136,11 @@ export type SimEvent =
   | { type: 'unitQueued'; side: SideId; unitId: string; paid: number }
   | { type: 'orderCancelled'; side: SideId; index: number; unitId: string; refund: number }
   | { type: 'unitSpawned'; side: SideId; id: number; unitType: string }
-  | { type: 'attack'; side: SideId; attackerId: number; target: number | 'base'; damage: number }
+  /** damage: yakın dövüşte uygulanan hasar; mermili saldırıda null (hasar çarpmada uygulanır). */
+  | { type: 'attack'; side: SideId; attackerId: number; target: number | 'base'; damage: number | null }
+  | { type: 'projectileFired'; side: SideId; id: number; sourceType: string; target: number | 'base' }
+  /** hits: hasar alan birlik sayısı (üs dahil değil); 0 ise mermi boşa gitti. */
+  | { type: 'projectileImpact'; side: SideId; id: number; x: number; hits: number; hitBase: boolean }
   | { type: 'baseDamaged'; side: SideId; amount: number }
   | { type: 'unitDied'; side: SideId; id: number; unitType: string; bountyGold: number; bountyXp: number }
   | { type: 'income'; side: SideId; amount: number }

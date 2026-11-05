@@ -1,57 +1,48 @@
 import { Container, Graphics } from 'pixi.js';
+import type { UnitAnimInput, UnitRig } from '../art/anim';
+import { createUnitRig } from '../art/unitArt';
 import { mustGetUnit } from '../sim/compile';
 import type { SideId, UnitState } from '../sim/types';
 import {
-  ATTACK_ANIM_MS,
-  ATTACK_LUNGE_PX,
-  ATTACK_SWING_RAD,
-  COLOR_EMBLEM,
   COLOR_HP_BACK,
   COLOR_HP_FILL,
   COLOR_OUTLINE,
-  COLOR_SKIN,
-  COLOR_STONE,
-  COLOR_WOOD,
   DEATH_FADE_MS,
-  DEATH_SINK_PX,
   DEPTH_LEVELS,
   DEPTH_STEP_PX,
+  HEAVY_Z_OFFSET,
   HP_NOTCHES,
-  ROLE_SCALE,
-  UNIT_BODY_H,
-  UNIT_BODY_W,
+  UNIT_ART_SCALE,
   UNIT_FEET_Y,
-  UNIT_HEAD_R,
   UNIT_HP_BAR_H,
-  UNIT_HP_BAR_W,
-  UNIT_HP_BAR_Y,
-  UNIT_LINE_WIDTH,
-  WALK_BOB_PERIOD_MS,
-  WALK_BOB_PX,
+  WALK_BLEND_PER_MS,
 } from './constants';
-import { drawEmblem, paletteOf } from './scene';
+import { paletteOf } from './scene';
 
 /** Kimliğe göre görsel derinlik kayması (yalnızca çizim). */
 export function depthOffset(unitId: number): number {
   return ((unitId % DEPTH_LEVELS) - Math.floor(DEPTH_LEVELS / 2)) * DEPTH_STEP_PX;
 }
 
+/** Ölümde solmanın başladığı an (devrilme önce görünsün), süre oranı. */
+const DEATH_FADE_START = 0.25;
+
 /**
  * Bir birliğin görünümü. Simülasyon kimliğine bağlıdır; animasyon durumu yalnız burada tutulur (TDD §6).
- * Yönlenme: oyuncu sağa, rakip sola bakar. Gövdede amblem (daire / elmas). Can çubuğu: oyuncu düz, rakip çentikli.
+ * Çizim `src/art` iskeletindedir (atlas sprite'ları; karede yeniden çizim yok).
+ * Takım ayrımı: yön (oyuncu sağa, rakip sola), amblem (daire / elmas), can çubuğu (düz / çentikli), renk.
  */
 export class UnitView {
   readonly container = new Container();
   readonly unitId: number;
   readonly side: SideId;
   private readonly dir: 1 | -1;
-  private readonly body = new Container();
-  private readonly weapon = new Container();
+  private readonly rig: UnitRig;
   private readonly hpBar = new Graphics();
   private readonly maxHp: number;
+  private readonly anim: UnitAnimInput;
   private lastHpFraction = 1;
-  private attackMs = 0;
-  private animClockMs = 0;
+  private lastHp: number;
   private dyingMs = -1;
   private lastX = 0;
 
@@ -61,56 +52,29 @@ export class UnitView {
     this.dir = unit.side === 0 ? 1 : -1;
     const def = mustGetUnit(unit.type).def;
     this.maxHp = def.hp;
-    const pal = paletteOf(unit.side);
-    const dir = this.dir;
-    const line = { width: UNIT_LINE_WIDTH, color: COLOR_OUTLINE };
+    this.lastHp = unit.hp;
 
-    // Bacaklar.
-    const legs = new Graphics();
-    legs.roundRect(-9, -8, 7, 8, 2).fill(pal.dark).stroke(line);
-    legs.roundRect(2, -8, 7, 8, 2).fill(pal.dark).stroke(line);
-    this.body.addChild(legs);
-
-    // Gövde + gölge yarısı.
-    const torso = new Graphics();
-    const top = -8 - UNIT_BODY_H;
-    torso.roundRect(-UNIT_BODY_W / 2, top, UNIT_BODY_W, UNIT_BODY_H, 6).fill(pal.main).stroke(line);
-    torso.rect(dir === 1 ? -UNIT_BODY_W / 2 + 2 : 1, top + 3, UNIT_BODY_W / 2 - 3, UNIT_BODY_H - 6).fill({ color: pal.dark, alpha: 0.5 });
-    // Gövde amblemi.
-    drawEmblem(torso, unit.side, 0, top + UNIT_BODY_H / 2, 5.5, COLOR_EMBLEM);
-    this.body.addChild(torso);
-
-    // Baş (bakış yönüne kaymış) + göz.
-    const head = new Graphics();
-    const headY = top - UNIT_HEAD_R + 3;
-    head.circle(dir * 2, headY, UNIT_HEAD_R).fill(COLOR_SKIN).stroke(line);
-    head.circle(dir * 6, headY - 1, 1.8).fill(COLOR_OUTLINE);
-    // Saç bandı: takım rengi.
-    head.rect(dir * 2 - UNIT_HEAD_R + 1, headY - 6, UNIT_HEAD_R * 2 - 2, 4).fill(pal.accent);
-    this.body.addChild(head);
-
-    // Kalkan: önde, bakış yönünde.
-    const shield = new Graphics();
-    shield.roundRect(dir === 1 ? 8 : -17, top + 2, 9, 22, 4).fill(pal.accent).stroke(line);
-    this.body.addChild(shield);
-
-    // Silah (balta): kolun ucunda, sallanır.
-    const axe = new Graphics();
-    axe.moveTo(0, 0).lineTo(dir * 22, -16).stroke({ width: 5, color: COLOR_WOOD });
-    axe.circle(dir * 24, -18, 7).fill(COLOR_STONE).stroke(line);
-    this.weapon.addChild(axe);
-    this.weapon.x = dir * 8;
-    this.weapon.y = top + 16;
-    this.body.addChild(this.weapon);
-
-    this.container.addChild(this.body);
+    this.rig = createUnitRig(unit.type, def.role, unit.side);
+    this.rig.root.scale.set(this.dir * UNIT_ART_SCALE, UNIT_ART_SCALE);
+    this.container.addChild(this.rig.root);
     this.container.addChild(this.hpBar);
     this.hpBar.visible = false;
-    this.container.scale.set(ROLE_SCALE[def.role] ?? 1);
+
+    this.anim = {
+      walkDist: unit.id * 7,
+      walkBlend: unit.mode === 'walk' ? 1 : 0,
+      sinceAttackMs: Infinity,
+      attackIntervalMs: def.attackIntervalSec * 1000,
+      engaged: unit.mode === 'attack',
+      sinceHitMs: Infinity,
+      timeMs: unit.id * 137,
+    };
+
     this.container.y = UNIT_FEET_Y + depthOffset(unit.id);
-    this.container.zIndex = this.container.y;
+    this.container.zIndex = this.container.y + (def.role === 'heavy' ? HEAVY_Z_OFFSET : 0);
     this.lastX = unit.x;
     this.container.x = unit.x;
+    this.rig.pose(this.anim);
   }
 
   get dying(): boolean {
@@ -122,8 +86,18 @@ export class UnitView {
     return this.dyingMs >= DEATH_FADE_MS;
   }
 
+  /**
+   * İsteğe bağlı kanca: silahın vuruş/atış noktası, dünya koordinatında (mermi çıkışı, yakın dövüş kıvılcımı).
+   * Mızrak elden, kaya kovadan çıkar; çizici kullanmazsa davranış değişmez.
+   */
+  launchPoint(): { x: number; y: number } {
+    const l = this.rig.launch;
+    return { x: this.container.x + this.dir * l.x * UNIT_ART_SCALE, y: this.container.y + l.y * UNIT_ART_SCALE };
+  }
+
+  /** Saldırı olayı (vuruş veya atış anı). */
   startAttack(): void {
-    this.attackMs = ATTACK_ANIM_MS;
+    this.anim.sinceAttackMs = 0;
   }
 
   startDying(): void {
@@ -132,26 +106,30 @@ export class UnitView {
 
   /** Canlı birliği günceller: interpolasyonlu konum, animasyonlar, can çubuğu. */
   update(unit: UnitState, x: number, animMs: number): void {
-    this.animClockMs += animMs;
+    const a = this.anim;
+    a.walkDist += Math.abs(x - this.lastX);
     this.lastX = x;
-    this.attackMs = Math.max(0, this.attackMs - animMs);
-    const lungeT = this.attackMs > 0 ? 1 - this.attackMs / ATTACK_ANIM_MS : 0;
-    const lunge = this.attackMs > 0 ? Math.sin(Math.PI * lungeT) : 0;
-    const bob = unit.mode === 'walk' ? Math.abs(Math.sin((this.animClockMs / WALK_BOB_PERIOD_MS) * Math.PI)) * WALK_BOB_PX : 0;
+    a.timeMs += animMs;
+    a.sinceAttackMs += animMs;
+    a.sinceHitMs += animMs;
+    a.engaged = unit.mode === 'attack';
+    const target = unit.mode === 'walk' ? 1 : 0;
+    const step = animMs * WALK_BLEND_PER_MS;
+    a.walkBlend = a.walkBlend < target ? Math.min(target, a.walkBlend + step) : Math.max(target, a.walkBlend - step);
+    if (unit.hp < this.lastHp) a.sinceHitMs = 0;
+    this.lastHp = unit.hp;
+
     this.container.x = x;
-    this.body.x = this.dir * ATTACK_LUNGE_PX * lunge;
-    this.body.y = -bob;
-    this.weapon.rotation = this.dir * ATTACK_SWING_RAD * lunge;
+    this.rig.pose(a);
     this.setHp(unit.hp);
   }
 
-  /** Ölen birliği solar (son bilinen konumda). */
+  /** Ölen birlik: devrilir ve solar (son bilinen konumda). */
   updateDying(animMs: number): void {
     this.dyingMs += animMs;
     const t = Math.min(1, this.dyingMs / DEATH_FADE_MS);
-    this.container.alpha = 1 - t;
-    this.body.y = DEATH_SINK_PX * t;
-    this.body.x = 0;
+    this.rig.poseDeath(t);
+    this.container.alpha = t < DEATH_FADE_START ? 1 : 1 - (t - DEATH_FADE_START) / (1 - DEATH_FADE_START);
     this.container.x = this.lastX;
     this.hpBar.visible = false;
   }
@@ -168,10 +146,10 @@ export class UnitView {
   private drawHpBar(fraction: number): void {
     const g = this.hpBar;
     g.clear();
-    const w = UNIT_HP_BAR_W;
+    const w = this.rig.hpBarW * UNIT_ART_SCALE;
     const h = UNIT_HP_BAR_H;
     const x = -w / 2;
-    const y = UNIT_HP_BAR_Y;
+    const y = this.rig.hpBarY * UNIT_ART_SCALE;
     g.rect(x, y, w, h).fill(COLOR_HP_BACK);
     const pal = paletteOf(this.side);
     g.rect(x, y, w * fraction, h).fill(this.side === 0 ? COLOR_HP_FILL : pal.accent);

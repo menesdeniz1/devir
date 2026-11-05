@@ -52,13 +52,14 @@ Her birlik her adımda şu durumlardan birindedir:
 
 **Hasar = taban hasar × rol çarpanı (saldıran, hedef) × hedefin aldığı hasar çarpanı (durum etkileri).**
 
-### Rol çarpanları (başlangıç)
+### Rol çarpanları
+
+Birlik rollerinin çarpanları ve mermi hızları `src/data/combat.ts`'tedir (tek kaynak). Simülasyon bunları
+yüklerken tür başına tamsayı hasar tablosuna çevirir. Kule satırları Aşama 4'te veriye taşınır; o zamana kadar
+başlangıç değerleri:
 
 | Saldıran ↓ / Hedef → | Ön hat | Menzilli | Ağır | Üs |
 |---|---|---|---|---|
-| Ön hat | 1,0 | 1,2 | **1,5** | 1,0 |
-| Menzilli | **1,3** | 1,0 | 0,7 | 0,5 |
-| Ağır | 0,6 | **1,5** | 1,0 | **2,5** |
 | Kule — hızlı (A) | 1,0 | 1,2 | 0,7 | — |
 | Kule — ağır (B) | 0,9 | 1,3 | 1,2 | — |
 | Yetenek | 1,0 | 1,0 | 1,0 | — (PRD Y-03) |
@@ -80,12 +81,8 @@ Amaçlanan karşılık döngüsü:
 - **Yakın dövüş** hasarı anında uygulanır. **Menzilli, ağır ve kule** saldırıları mermi oluşturur.
 - Mermi hedefini takip eder. Hedef mermi varmadan ölürse: tek hedefli mermi kaybolur; alan hasarlı mermi
   hedefin son konumuna düşer ve patlar. Böylece fazla öldürme olsa bile ödül tektir (PRD K-03).
-
-| Mermi | Hız (birim/sn) |
-|---|---|
-| Menzilli | 600 |
-| Ağır | 400 (görselde yay çizer) |
-| Kule | 700 |
+- Mermi hızları `src/data/combat.ts`'te; kule mermisi (başlangıç 700 birim/sn) Aşama 4'te eklenir.
+  Ağır birliğin mermisi görselde yay çizer.
 
 ### Yenilgi ödülü
 
@@ -115,11 +112,8 @@ Amaçlanan karşılık döngüsü:
 
 ### İlkel Çağ taban değerleri
 
-| Rol | Maliyet | Üretim (sn) | Can | Hasar | Aralık (sn) | Menzil | Hız | Genişlik | Ödül altın / XP |
-|---|---|---|---|---|---|---|---|---|---|
-| Ön hat | 50 | 3,0 | 180 | 20 | 1,0 | 12 | 60 | 36 | 30 / 25 |
-| Menzilli | 70 | 3,5 | 90 | 14 | 1,2 | 190 | 55 | 30 | 40 / 35 |
-| Ağır | 160 | 6,0 | 420 | 48 | 3,0 | 300 | 32 | 56 | 95 / 80 |
+Üç rolün İlkel Çağ değerleri `src/data/units.ts`'tedir (tek kaynak); aşağıdaki ölçekleme bu değerlerden
+diğer çağları türetir.
 
 ### Çağ ölçekleme (çağ `n` için, `n` = 1…5)
 

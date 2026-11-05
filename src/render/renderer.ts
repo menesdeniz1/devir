@@ -1,8 +1,10 @@
 import { Application, Container } from 'pixi.js';
+import { prewarmUnitArt } from '../art/unitArt';
 import { WORLD } from '../data/world';
 import type { Session, SessionEvent } from '../game/session';
 import { COLOR_SKY_TOP, MAX_ANIM_FRAME_MS, MAX_RESOLUTION, SCENE_HEIGHT, WINDOW_MARGIN } from './constants';
 import { createBackground, createBaseView, triggerBaseFlash, updateBaseFlash, type BaseView } from './scene';
+import { ProjectileLayer } from './projectileView';
 import { UnitView } from './unitView';
 
 export interface Renderer {
@@ -30,12 +32,15 @@ export async function createRenderer(host: HTMLElement, session: Session): Promi
   });
   app.ticker.stop();
   host.appendChild(app.canvas);
+  // Birlik parçalarını açılışta bir kez dokuya pişir (ilk birlik doğduğunda takılma olmasın).
+  prewarmUnitArt();
 
   const world = new Container();
   const units = new Container();
   units.sortableChildren = true;
   const bases: [BaseView, BaseView] = [createBaseView(0), createBaseView(1)];
-  world.addChild(createBackground(), bases[0].container, bases[1].container, units);
+  const projectiles = new ProjectileLayer();
+  world.addChild(createBackground(), bases[0].container, bases[1].container, units, projectiles.container);
   app.stage.addChild(world);
 
   const views = new Map<number, UnitView>();
@@ -62,10 +67,12 @@ export async function createRenderer(host: HTMLElement, session: Session): Promi
   const unsubscribe = session.subscribe((event: SessionEvent) => {
     if (event.type === 'reset') {
       clearViews();
+      projectiles.clear();
       return;
     }
     if (event.type !== 'sim') return;
     for (const e of event.events) {
+      projectiles.handleEvent(e);
       if (e.type === 'attack') views.get(e.attackerId)?.startAttack();
       else if (e.type === 'baseDamaged') triggerBaseFlash(bases[e.side]);
       else if (e.type === 'unitDied') views.get(e.id)?.startDying();
@@ -100,6 +107,15 @@ export async function createRenderer(host: HTMLElement, session: Session): Promi
           views.delete(id);
         }
       }
+      // Maç bitince mermiler donar; sonuç ekranında havada asılı kalmasın diye gizlenir.
+      projectiles.setVisible(!session.ended);
+      projectiles.update(
+        state.projectiles,
+        (id) => session.previousProjectileX(id),
+        alpha,
+        animMs,
+        (sourceId) => views.get(sourceId)?.launchPoint(),
+      );
       updateBaseFlash(bases[0], animMs);
       updateBaseFlash(bases[1], animMs);
       app.render();
@@ -110,6 +126,7 @@ export async function createRenderer(host: HTMLElement, session: Session): Promi
     destroy(): void {
       unsubscribe();
       clearViews();
+      projectiles.destroy();
       app.destroy(true, { children: true });
     },
   };

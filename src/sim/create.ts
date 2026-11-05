@@ -47,6 +47,7 @@ export function createMatch(config: MatchConfig): GameState {
     outcome: null,
     sides: [createSide(), createSide()],
     units: [],
+    projectiles: [],
     ai: [null, null],
   };
 }

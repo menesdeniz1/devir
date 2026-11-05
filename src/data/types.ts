@@ -17,6 +17,29 @@ export interface WorldDef {
   friendlyGap: number;
 }
 
+/** Alan hasarı: ana hedef tam hasar; çarpma noktasına `radius` içindeki diğer düşman birlikleri `falloff` oranında. */
+export interface SplashDef {
+  radius: number;
+  /** 0..1 */
+  falloff: number;
+}
+
+/** Delme: ana hedef ve arkasındaki en yakın `count` düşman birliği (ana hedeften en fazla `length` uzakta) tam hasar alır. */
+export interface PierceDef {
+  count: number;
+  length: number;
+}
+
+/** Hasar çarpanı tablosunda hedef sınıfı. */
+export type TargetClass = Role | 'base';
+
+export interface CombatDef {
+  /** Saldıran rol → hedef sınıfı → çarpan (GDD §3). Kule satırları Aşama 4'te eklenir. */
+  roleMultipliers: Record<Role, Record<TargetClass, number>>;
+  /** Rol başına mermi hızı (birim/sn); null ise saldırı anlıktır (yakın dövüş). */
+  projectileSpeed: Record<Role, number | null>;
+}
+
 export interface UnitDef {
   /** Kalıcı kimlik (kayıtlarda geçer, değiştirilmez). Görünen ad i18n'dedir: `unit.<id>`. */
   id: string;
@@ -36,6 +59,8 @@ export interface UnitDef {
   width: number;
   bountyGold: number;
   bountyXp: number;
+  splash?: SplashDef;
+  pierce?: PierceDef;
 }
 
 export interface AgeDef {
@@ -63,4 +88,6 @@ export interface BasicBotDef {
   decisionIntervalSec: number;
   /** Bot bu sayıdan az sipariş varken yenisini verir. */
   targetQueueLength: number;
+  /** Sipariş sırası; döngüsel tekrarlanır. Aşama 6'da gözleme dayalı karşılık seçimiyle değiştirilir. */
+  composition: Role[];
 }

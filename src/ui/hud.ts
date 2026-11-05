@@ -7,6 +7,7 @@ import type { SideId } from '../sim/types';
 import { availableUnitIds, cancelCommand, cancelOrderAt, produceUnit, queueCommand } from './actions';
 import { UNIT_SHORTCUT_LABELS } from './constants';
 import { attrWriter, boolWriter, el, formatClock, styleWriter, textWriter } from './dom';
+import { roleMarkOf, roleNameOf, unitTooltip } from './unitInfo';
 
 export interface Hud {
   /** Her karede çağrılır; yalnızca değişen değerler DOM'a yazılır. */
@@ -60,6 +61,8 @@ interface QueueSlot {
   setTitle: (v: string | null) => void;
   setAria: (v: string | null) => void;
   setKind: (v: string) => void;
+  setRole: (v: string | null) => void;
+  mark: (v: string) => void;
 }
 
 export function mountHud(root: HTMLElement, session: Session): Hud {
@@ -104,6 +107,7 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
       const cell = el('div', 'unit-cell', unitsBox);
       const button = el('button', 'btn btn--unit', cell);
       button.type = 'button';
+      button.dataset['role'] = getUnit(unitId)?.role ?? '';
       const nameEl = el('span', 'btn__name', button);
       nameEl.textContent = unitName(unitId);
       const costEl = el('span', 'btn__cost', button);
@@ -139,7 +143,10 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
     button.type = 'button';
     const progress = el('span', 'queue-slot__progress', button);
     const glyph = el('span', 'queue-slot__glyph', button);
+    const mark = el('span', 'queue-slot__mark', button);
+    mark.setAttribute('aria-hidden', 'true');
     const kind = attrWriter(button, 'data-kind');
+    const role = attrWriter(button, 'data-role');
     button.addEventListener('click', () => {
       cancelOrderAt(session, i);
     });
@@ -153,6 +160,8 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
       setTitle: attrWriter(button, 'title'),
       setAria: attrWriter(button, 'aria-label'),
       setKind: (v) => kind(v),
+      setRole: (v) => role(v),
+      mark: textWriter(mark),
     });
   }
 
@@ -187,12 +196,12 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
       ub.setDisabled(!check.ok);
       if (check.ok) {
         ub.setReason('');
-        ub.setTitle(fmt(tr.hud.unitTitle, { name, cost, key }));
+        ub.setTitle(unitTooltip(ub.unitId, key));
         ub.setAria(fmt(tr.hud.produceAria, { name, cost, key }));
       } else {
         const reason = rejectText(check.reason, check.missingGold);
         ub.setReason(reason);
-        ub.setTitle(reason);
+        ub.setTitle(unitTooltip(ub.unitId, key, reason));
         ub.setAria(fmt(tr.hud.produceAriaBlocked, { name, cost, key, reason }));
       }
     });
@@ -202,6 +211,8 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
       const order = me.queue[i];
       if (order === undefined) {
         slot.setKind('empty');
+        slot.setRole(null);
+        slot.mark('');
         slot.glyph('');
         slot.progress('0%');
         slot.setDisabled(true);
@@ -210,15 +221,18 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
         return;
       }
       const name = unitName(order.unitId);
+      const roleName = roleNameOf(order.unitId);
       slot.glyph(name.charAt(0));
+      slot.mark(roleMarkOf(order.unitId));
+      slot.setRole(getUnit(order.unitId)?.role ?? null);
       if (i === 0) {
         const build = getUnit(order.unitId)?.buildTicks ?? 1;
         const pct = Math.min(100, Math.floor((order.progressTicks / build) * 100));
         slot.setKind('producing');
         slot.progress(`${pct}%`);
         slot.setDisabled(true);
-        slot.setTitle(rejectText('orderInProduction'));
-        slot.setAria(fmt(tr.hud.queueSlotProducing, { name, pct }));
+        slot.setTitle(fmt(tr.hud.queueSlotProducingTip, { name, role: roleName, reason: rejectText('orderInProduction') }));
+        slot.setAria(fmt(tr.hud.queueSlotProducing, { name, role: roleName, pct }));
         return;
       }
       slot.setKind('waiting');
@@ -226,11 +240,11 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
       const check = session.check(cancelCommand(i));
       slot.setDisabled(!check.ok);
       if (check.ok) {
-        slot.setTitle(fmt(tr.hud.queueSlotCancelTip, { refund: order.paid }));
-        slot.setAria(fmt(tr.hud.queueSlotCancel, { name, refund: order.paid }));
+        slot.setTitle(fmt(tr.hud.queueSlotCancelTip, { name, role: roleName, refund: order.paid }));
+        slot.setAria(fmt(tr.hud.queueSlotCancel, { name, role: roleName, refund: order.paid }));
       } else {
         slot.setTitle(rejectText(check.reason, check.missingGold));
-        slot.setAria(fmt(tr.hud.queueSlotCancel, { name, refund: order.paid }));
+        slot.setAria(fmt(tr.hud.queueSlotCancel, { name, role: roleName, refund: order.paid }));
       }
     });
   }

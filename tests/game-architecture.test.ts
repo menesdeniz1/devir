@@ -49,7 +49,7 @@ describe('Mimari: game katmanı başsızdır (TDD §2)', () => {
 
   it('render ve ui: yalnızca alt katmanları kullanır; birbirini içe aktarmaz', () => {
     const allowed: Record<string, string[]> = {
-      render: ['data', 'sim', 'game', 'i18n', 'render'],
+      render: ['data', 'sim', 'game', 'i18n', 'render', 'art'],
       ui: ['data', 'sim', 'game', 'i18n', 'ui'],
     };
     for (const layer of ['render', 'ui']) {

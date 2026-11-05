@@ -22,8 +22,33 @@ export const tr = {
   reject,
   unit: {
     primitive_front: 'Taşbaltacı',
+    primitive_ranged: 'Mızrak Savuran',
+    primitive_heavy: 'Kaya Kaldıracı',
   } as Record<string, string>,
   unitFallback: 'Birlik',
+  /** Rol adları (araç ipucu ve kuyruk işareti). */
+  role: {
+    front: 'Ön hat',
+    ranged: 'Menzilli',
+    heavy: 'Ağır',
+  },
+  /** Kuyruk kutusundaki kısa rol işareti. */
+  roleMark: {
+    front: 'ÖN',
+    ranged: 'MEN',
+    heavy: 'AĞR',
+  },
+  /** Kısa rol/karşılık açıklaması (GDD §3 döngüsü). */
+  roleHint: {
+    front: 'Yakın dövüş. Ağır birliklere karşı güçlü; menzilli birliklere karşı zayıf.',
+    ranged: 'Uzaktan atış. Ön hat birliklerine karşı güçlü; ağır birliklere karşı zayıf.',
+    heavy: 'Alan hasarı. Menzilli birlikleri ve üssü ezer; ön hat birliklerine karşı zayıf.',
+  },
+  unitStats: {
+    line: 'Can {hp} · Hasar {damage} · Menzil {range} · Hız {speed} · Üretim {build} sn',
+    splash: 'Alan hasarı (yarıçap {radius})',
+    pierce: 'Delici ({count} hedef daha)',
+  },
   hud: {
     you: 'Sen',
     enemy: 'Rakip',
@@ -38,9 +63,10 @@ export const tr = {
     produceAriaBlocked: 'Üret: {name}, {cost} altın, kısayol {key}. Kullanılamıyor: {reason}',
     queue: 'Üretim kuyruğu',
     queueSlotEmpty: 'Boş kutu',
-    queueSlotProducing: 'Üretimde: {name}, %{pct}',
-    queueSlotCancel: 'Siparişi iptal et: {name} (iade {refund} altın)',
-    queueSlotCancelTip: 'Tıkla: iptal et, {refund} altın iade',
+    queueSlotProducing: 'Üretimde: {name} ({role}), %{pct}',
+    queueSlotCancel: 'Siparişi iptal et: {name} ({role}), iade {refund} altın',
+    queueSlotCancelTip: '{name} ({role}) — tıkla: iptal et, {refund} altın iade',
+    queueSlotProducingTip: '{name} ({role}) — {reason}',
     controls: 'Birlik komutları',
   },
   pause: {

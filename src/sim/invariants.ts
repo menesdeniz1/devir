@@ -1,5 +1,5 @@
 import { WORLD, ECONOMY } from '../data/world';
-import { EPS, mustGetUnit } from './compile';
+import { EPS, getUnit, mustGetUnit } from './compile';
 import type { GameState, SimEvent, UnitState } from './types';
 
 /** Her tick sonunda geçerli olması gereken değişmezler (TDD §10). İhlal metinlerini döndürür; boşsa sorun yok. */
@@ -9,6 +9,7 @@ export function checkInvariants(state: GameState): string[] {
     const s = state.sides[side];
     if (!Number.isInteger(s.gold) || s.gold < 0) problems.push(`taraf ${side}: altın geçersiz (${s.gold})`);
     if (!Number.isInteger(s.xp) || s.xp < 0) problems.push(`taraf ${side}: deneyim geçersiz (${s.xp})`);
+    if (!Number.isInteger(s.baseHp) || !Number.isInteger(s.baseMaxHp)) problems.push(`taraf ${side}: üs canı tamsayı değil (${s.baseHp}/${s.baseMaxHp})`);
     if (!(s.baseHp >= 0 && s.baseHp <= s.baseMaxHp)) problems.push(`taraf ${side}: üs canı sınır dışı (${s.baseHp}/${s.baseMaxHp})`);
     if (s.queue.length > ECONOMY.maxQueue) problems.push(`taraf ${side}: kuyruk ${s.queue.length} > ${ECONOMY.maxQueue}`);
     // Yalnızca kuyruğun başındaki sipariş üretimdedir; diğerlerinin ilerlemesi sıfırdır.
@@ -28,6 +29,7 @@ export function checkInvariants(state: GameState): string[] {
     if (u.id >= state.nextId) problems.push(`birlik kimliği nextId'den büyük: ${u.id}`);
     const def = mustGetUnit(u.type).def;
     if (!Number.isFinite(u.x) || !Number.isFinite(u.hp)) problems.push(`birlik ${u.id}: sayı sonlu değil`);
+    if (!Number.isInteger(u.hp)) problems.push(`birlik ${u.id}: can tamsayı değil (${u.hp})`);
     if (!(u.hp >= 0 && u.hp <= def.hp)) problems.push(`birlik ${u.id}: can sınır dışı (${u.hp}/${def.hp})`);
     const interval = mustGetUnit(u.type).attackIntervalTicks;
     if (!(u.cooldown >= 0 && u.cooldown <= interval)) problems.push(`birlik ${u.id}: bekleme sınır dışı (${u.cooldown}/${interval})`);
@@ -38,6 +40,17 @@ export function checkInvariants(state: GameState): string[] {
       problems.push(`birlik ${u.id}: rakip üssünün içine girdi`);
     }
     perSide[u.side].push(u);
+  }
+
+  const projectileIds = new Set<number>();
+  for (const p of state.projectiles) {
+    if (seen.has(p.id) || projectileIds.has(p.id)) problems.push(`mermi kimliği tekrar ediyor: ${p.id}`);
+    projectileIds.add(p.id);
+    if (p.id >= state.nextId) problems.push(`mermi kimliği nextId'den büyük: ${p.id}`);
+    if (getUnit(p.sourceType) === undefined) problems.push(`mermi ${p.id}: bilinmeyen kaynak türü ${p.sourceType}`);
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.targetX)) problems.push(`mermi ${p.id}: sayı sonlu değil`);
+    if (!(p.x >= 0 && p.x <= WORLD.worldWidth)) problems.push(`mermi ${p.id}: koridor dışında (${p.x})`);
+    if (p.targetId === null && p.targetLost) problems.push(`mermi ${p.id}: üs hedefli mermi 'hedef kayıp' olamaz`);
   }
 
   for (const side of [0, 1] as const) {
@@ -116,7 +129,14 @@ export class StallDetector {
   observe(state: GameState, events: readonly SimEvent[]): boolean {
     let active = false;
     for (const e of events) {
-      if (e.type === 'attack' || e.type === 'baseDamaged' || e.type === 'unitSpawned' || e.type === 'unitDied') {
+      if (
+        e.type === 'attack' ||
+        e.type === 'baseDamaged' ||
+        e.type === 'unitSpawned' ||
+        e.type === 'unitDied' ||
+        e.type === 'projectileFired' ||
+        e.type === 'projectileImpact'
+      ) {
         active = true;
       }
     }

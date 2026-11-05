@@ -1,0 +1,53 @@
+/**
+ * Renk belirteçleri (GDD §14). Görsel değerdir; oyun kuralı değildir.
+ * Her şekil iki tonla boyanır: düz (`base`) + gölge (`shade`). Kontur her yerde aynı koyu mürekkep.
+ */
+
+export type ArtSide = 0 | 1;
+
+export interface Tone {
+  base: number;
+  shade: number;
+}
+
+/** Kontur rengi ve kalınlığı (mantıksal px, 1080p'de ≈ 3 px). */
+export const INK = 0x1d1b2b;
+export const INK_WIDTH = 3;
+/** İnce iç çizgiler (dikiş, damar, halka). */
+export const INK_THIN = 1.6;
+
+/** Malzemeler: İlkel Çağ (toprak, okr, yosun yeşili; ahşap, deri, taş). */
+export const MAT = {
+  skin: { base: 0xf1c08e, shade: 0xcc9162 },
+  hair: { base: 0x4d3022, shade: 0x2f1d15 },
+  hide: { base: 0xcf9f63, shade: 0xa0703f },
+  fur: { base: 0x8c6b4b, shade: 0x664b31 },
+  wood: { base: 0xa56b35, shade: 0x764a22 },
+  woodCut: { base: 0xe2b77a, shade: 0xc0915a },
+  stone: { base: 0xb0aea7, shade: 0x817f7a },
+  rope: { base: 0xe6d199, shade: 0xb79f67 },
+  bone: { base: 0xf6eed6, shade: 0xcfc29e },
+  spark: { base: 0xfff4b0, shade: 0xffc247 },
+  flame: { base: 0xffd35a, shade: 0xf0782a },
+} satisfies Record<string, Tone>;
+
+/** Amblem dolgusu (takım şekli üzerinde açık krem). */
+export const EMBLEM_FILL = 0xfff3c4;
+
+export interface TeamTones {
+  /** Giysi, kalkan yüzü, sancak: takımın ana rengi. */
+  cloth: Tone;
+  /** Saç bandı, tüy, boya şeridi: takımın vurgu rengi. */
+  trim: Tone;
+}
+
+/** Oyuncu: mavi–camgöbeği. Rakip: turuncu–kızıl (renk körlüğüne dayanıklı çift). */
+export const TEAM: Record<ArtSide, TeamTones> = {
+  0: { cloth: { base: 0x2f8fe0, shade: 0x1d5ea6 }, trim: { base: 0x2ad3c6, shade: 0x16958b } },
+  1: { cloth: { base: 0xf07a2a, shade: 0xb2461a }, trim: { base: 0xe8432d, shade: 0x9e2518 } },
+};
+
+/** Arka uzuvlar için çarpma tonu (derinlik). */
+export const BACK_LIMB_TINT = 0xbdb3c4;
+/** Zemin gölgesi. */
+export const GROUND_SHADOW = { color: 0x2a1d12, alpha: 0.24 };

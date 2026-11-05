@@ -64,6 +64,7 @@ export class Session {
   private loop: FixedStepLoop;
   private commandQueue: QueuedCommand[] = [];
   private prevX = new Map<number, number>();
+  private prevProjectileX = new Map<number, number>();
   private frameEvents: SimEvent[] = [];
   private endedAnnounced = false;
 
@@ -114,6 +115,11 @@ export class Session {
   /** Birliğin bir önceki tick'teki konumu; yoksa undefined. */
   previousX(unitId: number): number | undefined {
     return this.prevX.get(unitId);
+  }
+
+  /** Merminin bir önceki tick'teki konumu; yoksa (bu tick'te atıldı) undefined. */
+  previousProjectileX(projectileId: number): number | undefined {
+    return this.prevProjectileX.get(projectileId);
   }
 
   // ---- Komutlar ------------------------------------------------------------
@@ -196,6 +202,8 @@ export class Session {
   private snapshotPrev(): void {
     this.prevX.clear();
     for (const unit of this.gameState.units) this.prevX.set(unit.id, unit.x);
+    this.prevProjectileX.clear();
+    for (const projectile of this.gameState.projectiles) this.prevProjectileX.set(projectile.id, projectile.x);
   }
 
   private newLoop(): FixedStepLoop {
@@ -211,6 +219,7 @@ export class Session {
     this.loop = this.newLoop();
     this.commandQueue = [];
     this.prevX = new Map();
+    this.prevProjectileX = new Map();
     this.frameEvents = [];
     this.endedAnnounced = false;
     this.emit({ type: 'reset' });

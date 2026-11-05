@@ -1,6 +1,6 @@
 import type { AgeDef } from './types';
 
-/** Çağ verisi (GDD §4). Aşama 1: yalnızca İlkel Çağ. Diğer çağlar Aşama 3'te eklenir. */
+/** Çağ verisi (GDD §4). Aşama 2: yalnızca İlkel Çağ. Diğer çağlar Aşama 3'te eklenir. */
 export const AGES: readonly AgeDef[] = [
   {
     age: 1,
@@ -8,6 +8,6 @@ export const AGES: readonly AgeDef[] = [
     ageUpCost: 0,
     baseMaxHp: 4000,
     incomePerSec: 4,
-    unitIds: ['primitive_front'],
+    unitIds: ['primitive_front', 'primitive_ranged', 'primitive_heavy'],
   },
 ];

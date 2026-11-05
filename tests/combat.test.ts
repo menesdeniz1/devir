@@ -17,9 +17,9 @@ const FACE_1 = WORLD.worldWidth - WORLD.baseWidth;
 
 describe('K-02: menzil ve saldırı aralığı', () => {
   it('K-02: saldırılar yalnız mesafe <= menzil iken olur ve ardışık saldırılar >= aralık tick aralıklıdır', () => {
-    const def = mustGetUnit(FRONT_ID);
     let attacks = 0;
     let baseAttacks = 0;
+    const attackerTypes = new Set<string>();
     for (let g = 0; g < 24; g++) {
       const seed = 500 + g;
       const s = newState(seed);
@@ -32,17 +32,20 @@ describe('K-02: menzil ve saldırı aralığı', () => {
       const lastAttack = new Map<number, number>();
       for (let t = 0; t < 4000 && s.outcome === null; t++) {
         if (rngInt(rng, 300) === 0) s.sides[rngInt(rng, 2) as SideId].gold += 500;
-        const pre = new Map(s.units.map((u) => [u.id, { side: u.side, x: u.x }]));
+        const pre = new Map(s.units.map((u) => [u.id, { side: u.side, x: u.x, type: u.type }]));
         const tickBefore = s.tick;
         const events = stepMatch(s, [], controllers);
         for (const e of events) {
-          if (e.type === 'unitSpawned') pre.set(e.id, { side: e.side, x: spawnX(e.side) });
+          if (e.type === 'unitSpawned') pre.set(e.id, { side: e.side, x: spawnX(e.side, e.unitType), type: e.unitType });
         }
         for (const e of events) {
           if (e.type !== 'attack') continue;
           attacks += 1;
           const a = pre.get(e.attackerId);
           expect(a).toBeDefined();
+          // Her birlik kendi rolünün menzil ve aralığına uyar (menzilli/ağır dahil: mermi başlatma anı).
+          const def = mustGetUnit(a!.type);
+          attackerTypes.add(a!.type);
           const dir = a!.side === 0 ? 1 : -1;
           let gap: number;
           if (e.target === 'base') {
@@ -52,7 +55,7 @@ describe('K-02: menzil ve saldırı aralığı', () => {
           } else {
             const target = pre.get(e.target);
             expect(target).toBeDefined();
-            gap = dir * (target!.x - a!.x) - def.def.width;
+            gap = dir * (target!.x - a!.x) - (def.def.width + mustGetUnit(target!.type).def.width) / 2;
           }
           expect(gap).toBeLessThanOrEqual(def.def.range + 1e-9);
           const last = lastAttack.get(e.attackerId);
@@ -62,6 +65,8 @@ describe('K-02: menzil ve saldırı aralığı', () => {
       }
     }
     expect(attacks).toBeGreaterThan(200);
+    // Üç rol de saldırmış olmalı (mermili saldırılar da aynı menzil ve aralık kuralına uyar).
+    expect([...attackerTypes].sort()).toEqual(['primitive_front', 'primitive_heavy', 'primitive_ranged']);
     // Üsse saldırı yolu da gerçekten sınanmış olmalı (bu tohumlarda ölçülen ~180).
     expect(baseAttacks).toBeGreaterThan(50);
   });

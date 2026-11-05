@@ -150,6 +150,28 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
 .queue-slot[data-kind="producing"] { border-color: var(--c-player-hi); }
 .queue-slot__progress { position: absolute; left: 0; bottom: 0; height: 8px; background: var(--c-player-hi); width: 0; }
 .queue-slot__glyph { position: relative; }
+.queue-slot__mark {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 2px 3px;
+  border-radius: 4px;
+  background: var(--c-bg);
+  color: var(--c-text);
+  border: 1px solid #5b5478;
+}
+.queue-slot[data-role="front"] .queue-slot__mark { border-color: var(--c-player-hi); }
+.queue-slot[data-role="ranged"] .queue-slot__mark { border-color: var(--c-gold); }
+.queue-slot[data-role="heavy"] .queue-slot__mark { border-color: #c79bff; }
+.queue-slot[data-role="ranged"] { border-bottom-color: var(--c-gold); }
+.queue-slot[data-role="heavy"] { border-bottom-color: #c79bff; }
+.btn--unit[data-role="front"] { border-left: 6px solid var(--c-player-hi); }
+.btn--unit[data-role="ranged"] { border-left: 6px solid var(--c-gold); }
+.btn--unit[data-role="heavy"] { border-left: 6px solid #c79bff; }
 
 /* ---- Katmanlar ---- */
 .overlay {
