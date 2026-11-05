@@ -1,4 +1,7 @@
+import { createAbilityOnlyBot } from '../ai/strategy';
+import type { Controller } from '../ai/controller';
 import { mustGetUnit } from '../sim/compile';
+import { stepMatch } from './runner';
 import { createMatch } from '../sim/create';
 import { WORLD } from '../data/world';
 import { step } from '../sim/step';
@@ -49,12 +52,24 @@ export function deployArmy(state: GameState, side: SideId, army: readonly string
   return placed;
 }
 
+/** Senaryo seçenekleri. */
+export interface BattleOptions {
+  maxMinutes?: number;
+  onStep?: (state: GameState) => void;
+  /**
+   * Yetenekli senaryo: verilen taraflar bekleme sıfırdan başlayarak çağının yeteneğini Zor yapay zekânın yetenek
+   * modülüyle kullanır (birlik/kule/çağ kararı yok). Varsayılan: yeteneksiz.
+   */
+  abilities?: readonly [boolean, boolean];
+}
+
 /** İki ordunun savaş durumunu kurar (tohum 1, kimse sipariş vermez, üsler yüksek canlı). */
-export function createBattle(armyA: readonly string[], armyB: readonly string[], seed = 1): GameState {
+export function createBattle(armyA: readonly string[], armyB: readonly string[], seed = 1, abilities: readonly [boolean, boolean] = [false, false]): GameState {
   const state = createMatch({ seed, opponent: 'none' });
   for (const side of [0, 1] as const) {
     state.sides[side].baseHp = SCENARIO_BASE_HP;
     state.sides[side].baseMaxHp = SCENARIO_BASE_HP;
+    if (abilities[side]) state.sides[side].abilityCooldown = 0;
   }
   deployArmy(state, 0, armyA);
   deployArmy(state, 1, armyB);
@@ -84,14 +99,18 @@ function summarize(state: GameState, timedOut: boolean): BattleResult {
  * Savaşı oynatır: bir tarafın birliği ve havada mermisi kalmayana kadar (ya da zaman aşımına kadar) adımlar.
  * `onStep` her adımdan sonra çağrılır (testlerde değişmez denetimi için).
  */
-export function playBattle(
-  state: GameState,
-  options: { maxMinutes?: number; onStep?: (state: GameState) => void } = {},
-): BattleResult {
+export function playBattle(state: GameState, options: BattleOptions = {}): BattleResult {
   const maxTicks = Math.round((options.maxMinutes ?? DEFAULT_MAX_MINUTES) * 60 * WORLD.tickRate);
+  const abilities = options.abilities ?? [false, false];
+  const controllers: [Controller | null, Controller | null] = [
+    abilities[0] ? createAbilityOnlyBot('hard', state.config.seed, 0) : null,
+    abilities[1] ? createAbilityOnlyBot('hard', state.config.seed, 1) : null,
+  ];
+  const useControllers = abilities[0] || abilities[1];
   while (state.outcome === null && state.tick < maxTicks) {
     if (!sideAlive(state, 0) || !sideAlive(state, 1)) break;
-    step(state, []);
+    if (useControllers) stepMatch(state, [], controllers);
+    else step(state, []);
     options.onStep?.(state);
   }
   const timedOut = state.outcome === null && sideAlive(state, 0) && sideAlive(state, 1);
@@ -99,12 +118,8 @@ export function playBattle(
 }
 
 /** Kısa yol: iki orduyu kurup oynatır. */
-export function runBattle(
-  armyA: readonly string[],
-  armyB: readonly string[],
-  options: { maxMinutes?: number; onStep?: (state: GameState) => void } = {},
-): BattleResult {
-  return playBattle(createBattle(armyA, armyB), options);
+export function runBattle(armyA: readonly string[], armyB: readonly string[], options: BattleOptions = {}): BattleResult {
+  return playBattle(createBattle(armyA, armyB, 1, options.abilities), options);
 }
 
 /** `unitId`'den `count` adetlik ordu. */

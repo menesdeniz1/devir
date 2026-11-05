@@ -264,14 +264,22 @@ export interface AiTuningDef {
   /** İleri itme: güç oranı (kendi / düşman) bunun üstündeyse. */
   pushRatio: number;
   /**
-   * Ordu duruşları: rol başına hedef sayı payı (toplamı 1). Sıradaki rol, sahadaki + kuyruktaki kendi birliklerinin
-   * sayı payına göre en çok eksik olandır. Karşılık döngüsü (GDD §3) dizilişle birlikte okunur: ön hat + arkasında
-   * menzilli düzeni ön hat yığınını, uzun menzilli ağır yığını menzilli + ön hat karışımını, ön hat ağırlıklı düzen
-   * ağır yığınını yener.
+   * Ordu duruşları: döngüsel üretim dizisi (rol sırası). Tek şeritte birlikler birbirini geçemediği için sipariş
+   * sırası dizilişi belirler; dizi, ön hattın menzilli/ağırı önden korumasını sağlar (GDD §3 karşılık döngüsü).
    */
-  stances: Record<AiStance, Record<Role, number>>;
+  stances: Record<AiStance, Role[]>;
+  /**
+   * Açılış dizileri: maç başında (bellekteki üreteçle) biri seçilir ve görünür düşman bileşimi okunana kadar
+   * 'opening' duruşunun dizisi olur. Karışık açılış, tek bir sabit açılışı yenen sabit stratejiyi önler.
+   */
+  openings: Role[][];
   /** Duruş seçimi (görünür düşman birliklerinin sayı payı): ağır payı ≥ heavy → antiHeavy; menzilli payı ≥ ranged → antiRanged. */
   stanceShare: { heavy: number; ranged: number };
+  /**
+   * Karar zamanlaması dağılımı: her karar aralığı ±decisionJitter oranında rastgele uzar/kısalır; ilk karar
+   * [0, aralık) içinde rastgele tick'tedir. Aynı tohumlu iki yapay zekânın birebir aynı oyunu oynamasını önler.
+   */
+  decisionJitter: number;
   /** Yetenek merkezi tarama adımı (birim). */
   abilityScanStep: number;
   /** Görünür düşman birliği sayısı bunun altındaysa varsayılan duruş. */

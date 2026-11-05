@@ -11,7 +11,7 @@ export const ABILITY_RULES = {
 
 export const ABILITIES: readonly AbilityDef[] = [
   // Sürü Hücumu: yaban hayvanı sürüsü alandan geçer.
-  { id: 'primitive_stampede', age: 1, width: 240, cooldownSec: 50, impactDamage: 120, status: { kind: 'stun', durationSec: 1 } },
+  { id: 'primitive_stampede', age: 1, width: 240, cooldownSec: 50, impactDamage: 60, status: { kind: 'stun', durationSec: 1 } },
   // Ateş Hendeği: alan 6 sn yanar.
   { id: 'ancient_fire_trench', age: 2, width: 220, cooldownSec: 55, zone: { durationSec: 6, damagePerSec: 50 } },
   // Çivi Kapanı: alan 10 sn yavaşlatır ve yaralar.

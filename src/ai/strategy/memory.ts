@@ -21,6 +21,10 @@ export interface AiMemory {
   hpLoss: number;
   /** Yetenek: bekleme bitince kullanılabilecek en erken tick (tepki gecikmesi); −1: henüz çekilmedi. */
   abilityWait: number;
+  /** Seçilen açılış dizisinin indeksi (AI_TUNING.openings); −1: henüz seçilmedi. */
+  opening: number;
+  /** Üretim dizisindeki sıra (sınırsız artar; kullanırken dizi uzunluğuna göre mod alınır). */
+  seq: number;
   /** Ordu duruşu: son başarılı karşılık değerlendirmesinin sonucu (GDD §9 "doğru karşılık seçme"). */
   stance: AiStance;
 }
@@ -31,7 +35,7 @@ const STANCES: readonly AiStance[] = ['opening', 'antiFront', 'antiRanged', 'ant
 const RNG_SALT = 0x5a17;
 
 export function initialMemory(configSeed: number, side: SideId): AiMemory {
-  return { rng: rngFromSeed(mixSeed(configSeed, RNG_SALT + side)), next: 0, ageReadyTick: -1, ageDelay: 0, hpMark: 1, hpMarkTick: 0, hpLoss: 0, abilityWait: -1, stance: 'opening' };
+  return { rng: rngFromSeed(mixSeed(configSeed, RNG_SALT + side)), next: 0, ageReadyTick: -1, ageDelay: 0, hpMark: 1, hpMarkTick: 0, hpLoss: 0, abilityWait: -1, opening: -1, seq: 0, stance: 'opening' };
 }
 
 function num(obj: { [key: string]: JsonValue }, key: string, fallback: number): number {
@@ -54,6 +58,8 @@ export function readMemory(memory: JsonValue, configSeed: number, side: SideId):
     hpMarkTick: num(memory, 'hpMarkTick', init.hpMarkTick),
     hpLoss: num(memory, 'hpLoss', init.hpLoss),
     abilityWait: num(memory, 'abilityWait', init.abilityWait),
+    opening: num(memory, 'opening', init.opening),
+    seq: num(memory, 'seq', init.seq),
     stance: STANCES.find((x) => x === memory['stance']) ?? init.stance,
   };
 }
@@ -68,6 +74,8 @@ export function writeMemory(mem: AiMemory): JsonValue {
     hpMarkTick: mem.hpMarkTick,
     hpLoss: mem.hpLoss,
     abilityWait: mem.abilityWait,
+    opening: mem.opening,
+    seq: mem.seq,
     stance: mem.stance,
   };
 }

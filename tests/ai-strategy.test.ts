@@ -21,7 +21,12 @@ function placeRole(s: GameState, side: SideId, role: 'front' | 'ranged' | 'heavy
   for (let i = 0; i < n; i++) addUnit(s, side, startX + (side === 0 ? -i * 70 : i * 70), {}, type);
 }
 
-function decide(s: GameState, side: SideId, difficulty: AiDifficulty, memory: JsonValue = null) {
+/** Hemen karar verecek bellek (boş bellekte ilk karar rastgele bir tick'e kayar; AI_TUNING.decisionJitter). */
+function ready(seed: number, side: SideId): JsonValue {
+  return writeMemory(initialMemory(seed, side));
+}
+
+function decide(s: GameState, side: SideId, difficulty: AiDifficulty, memory: JsonValue = ready(s.config.seed, side)) {
   return createAiBot(difficulty, s.config.seed, side).decide(buildObservation(s, side), memory, s.tick);
 }
 
@@ -114,13 +119,23 @@ describe('Yapay zekâ belleği', () => {
   it("wantsDecision yalnız karar tick'inde true; arada decide boş komut ve aynı bellek döndürür", () => {
     const s = createMatch({ seed: 1, opponent: 'normal' });
     const bot = createAiBot('normal', 1, 1);
-    const first = bot.decide(buildObservation(s, 1), null, 0);
     const interval = secToTicks(AI_PROFILES.normal.decisionIntervalSec);
-    expect(bot.wantsDecision!(first.memory, 0)).toBe(false);
-    expect(bot.wantsDecision!(first.memory, interval - 1)).toBe(false);
-    expect(bot.wantsDecision!(first.memory, interval)).toBe(true);
-    const between = bot.decide(buildObservation(s, 1), first.memory, interval - 1);
-    expect(between).toEqual({ commands: [], memory: first.memory });
+    const nextOf = (m: JsonValue): number => (m as { next: number }).next;
+    // Boş bellek: ilk karar [0, aralık] içinde rastgele bir tick'e kayar.
+    const first = bot.decide(buildObservation(s, 1), null, 0);
+    expect(nextOf(first.memory)).toBeGreaterThanOrEqual(0);
+    expect(nextOf(first.memory)).toBeLessThanOrEqual(Math.round(interval * (1 + AI_TUNING.decisionJitter)));
+    // Karar tick'inde karar verilir; sonraki aralık ±decisionJitter içindedir.
+    const t0 = Math.max(1, nextOf(first.memory));
+    const second = bot.decide(buildObservation(s, 1), { ...(first.memory as Record<string, JsonValue>), next: t0 }, t0);
+    const gap = nextOf(second.memory) - t0;
+    expect(gap).toBeGreaterThanOrEqual(Math.round(interval * (1 - AI_TUNING.decisionJitter)));
+    expect(gap).toBeLessThanOrEqual(Math.round(interval * (1 + AI_TUNING.decisionJitter)));
+    const t1 = nextOf(second.memory);
+    expect(bot.wantsDecision!(second.memory, t1 - 1)).toBe(false);
+    expect(bot.wantsDecision!(second.memory, t1)).toBe(true);
+    const between = bot.decide(buildObservation(s, 1), second.memory, t1 - 1);
+    expect(between).toEqual({ commands: [], memory: second.memory });
   });
 });
 
@@ -150,7 +165,7 @@ describe('Karar modülleri (GDD §9)', () => {
     expect(stanceVs((s) => (placeRole(s, 0, 'front', 1, 900), placeRole(s, 0, 'heavy', 3, 800)))).toBe('antiHeavy');
     expect(
       stanceVs((s) => {
-        s.sides[0].slots[0]!.tower = { type: 'primitive_tower_fast', paid: 120, cooldown: 0 };
+        for (let i = 0; i < AI_TUNING.siege.towers; i++) s.sides[0].slots[i] = { unlocked: true, tower: { type: 'primitive_tower_fast', paid: 120, cooldown: 0 } };
         placeRole(s, 0, 'front', AI_TUNING.siege.fewUnits - 1, 400);
       }),
     ).toBe('antiTower');
@@ -167,7 +182,8 @@ describe('Karar modülleri (GDD §9)', () => {
     };
     const vsFront = roles((s) => placeRole(s, 0, 'front', 5, 900));
     expect(vsFront.length).toBeGreaterThan(0);
-    for (const role of vsFront) expect(AI_TUNING.stances.antiFront[role as 'front']).toBeGreaterThan(0);
+    expect(vsFront).toContain('ranged');
+    for (const role of vsFront) expect(AI_TUNING.stances.antiFront).toContain(role);
     const vsHeavy = roles((s) => placeRole(s, 0, 'heavy', 4, 900));
     expect(vsHeavy).toContain('front');
     expect(vsHeavy).not.toContain('ranged');
@@ -261,7 +277,7 @@ describe('Karar modülleri (GDD §9)', () => {
     const s = createMatch({ seed: 1, opponent: 'none' });
     s.sides[1].gold = 3000;
     placeRole(s, 0, 'heavy', 3, 900);
-    const cmds = createAiBot('normal', 1, 1, { roleLock: 'ranged' }).decide(buildObservation(s, 1), null, 0).commands;
+    const cmds = createAiBot('normal', 1, 1, { roleLock: 'ranged' }).decide(buildObservation(s, 1), ready(1, 1), 0).commands;
     const queued = cmds.filter((c): c is Extract<Command, { type: 'queueUnit' }> => c.type === 'queueUnit');
     expect(queued.length).toBeGreaterThan(0);
     for (const c of queued) expect(mustGetUnit(c.unitId).role).toBe('ranged');

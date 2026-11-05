@@ -319,6 +319,8 @@ interface BotTally {
   ageUps: number[][];
   /** Rol başına üretilen birlik sayısı. */
   produced: Record<Role, number>;
+  /** Rol başına üretime harcanan altın. */
+  producedGold: Record<Role, number>;
   towersBuilt: number;
   abilityCasts: number;
   rejected: number;
@@ -327,7 +329,7 @@ interface BotTally {
 }
 
 function newTally(): BotTally {
-  return { ageUps: [[], [], [], []], produced: { front: 0, ranged: 0, heavy: 0 }, towersBuilt: 0, abilityCasts: 0, rejected: 0, finalAgeSum: 0 };
+  return { ageUps: [[], [], [], []], produced: { front: 0, ranged: 0, heavy: 0 }, producedGold: { front: 0, ranged: 0, heavy: 0 }, towersBuilt: 0, abilityCasts: 0, rejected: 0, finalAgeSum: 0 };
 }
 
 function describeTally(name: string, t: BotTally, games: number): string {
@@ -336,9 +338,12 @@ function describeTally(name: string, t: BotTally, games: number): string {
     .join(', ');
   const total = t.produced.front + t.produced.ranged + t.produced.heavy;
   const share = (r: Role): string => percent(t.produced[r], total);
+  const goldTotal = t.producedGold.front + t.producedGold.ranged + t.producedGold.heavy;
+  const goldShare = (r: Role): string => percent(t.producedGold[r], goldTotal);
   return (
     `  ${name}: medyan çağ geçişleri ${ages}; ort. son çağ ${(t.finalAgeSum / games).toFixed(2)}; ` +
-    `rol payı ön ${share('front')} / menzilli ${share('ranged')} / ağır ${share('heavy')}; ` +
+    `rol payı (adet) ön ${share('front')} / menzilli ${share('ranged')} / ağır ${share('heavy')}, ` +
+    `(altın) ${goldShare('front')} / ${goldShare('ranged')} / ${goldShare('heavy')}; ` +
     `kule kurma/maç ${(t.towersBuilt / games).toFixed(1)}; yetenek/maç ${(t.abilityCasts / games).toFixed(1)}; reddedilen komut ${t.rejected}`
   );
 }
@@ -385,8 +390,11 @@ function runTournament(opts: Record<string, string>): number {
       s.stats.ageUpTicks.forEach((tick, i) => t.ageUps[i]?.push(tick));
       t.finalAgeSum += s.age;
       for (const [unitId, count] of Object.entries(s.stats.produced)) {
-        const role = UNITS.find((u) => u.id === unitId)?.role;
-        if (role !== undefined) t.produced[role] += count;
+        const unit = UNITS.find((u) => u.id === unitId);
+        if (unit !== undefined) {
+          t.produced[unit.role] += count;
+          t.producedGold[unit.role] += count * unit.cost;
+        }
       }
     }
     if (state.outcome === null) {
@@ -409,7 +417,7 @@ function runTournament(opts: Record<string, string>): number {
   console.log(`A'nın taraf 0'daki galibiyeti: ${winsAAsSide0}/${Math.ceil(games / 2)}, taraf 1'deki: ${winsA - winsAAsSide0}/${Math.floor(games / 2)}`);
   console.log(
     `Biten maçların medyan süresi: ${finishedTicks.length === 0 ? '-' : formatTime(median(finishedTicks))} (${finishedTicks.length} maç; ` +
-      `%10 ${quantile(0.1)}, %90 ${quantile(0.9)})`,
+      `%10 ${quantile(0.1)}, %90 ${quantile(0.9)}); zaman aşımı üst süre sayılırsa medyan ${formatTime(median([...finishedTicks, ...Array.from({ length: timeouts }, () => maxTicks)]))}`,
   );
   console.log(
     `Çağa ulaşan maç (en az bir taraf): ${[2, 3, 4, 5].map((age) => `${age}. çağ ${percent(reachedAge[age]!, games)}`).join(', ')}`,
@@ -487,6 +495,18 @@ function runMatchup(): number {
     console.log(`  ${ok ? 'TUTTU ' : 'TUTMADI'} ${check.label}: ${describeBattle(asLeft)} | taraflar değişince: ${describeBattle(asRight)}`);
   }
   console.log(failed === 0 ? 'Üç kontrol de tuttu.' : `${failed} kontrol tutmadı (denge kararı lead'e aittir).`);
+
+  // Yetenekli ölçüm (bilgi amaçlı): iki taraf da bekleme sıfırdan başlayarak İlkel Çağ yeteneğini Zor yapay zekânın
+  // yetenek modülüyle kullanır. Aşama 6 bulgusu: Sürü Hücumu menzilli canını tek vuruşta aşınca (c) bozuluyordu.
+  console.log('');
+  console.log('Aynı kontroller, iki taraf da yetenek kullanırken (bilgi)');
+  const withAbilities = { abilities: [true, true] as const };
+  for (const check of [...checks, { label: '(d) 6 ön hat + 2 menzilli > 9 ön hat', left: army('6+2', [['front', 6], ['ranged', 2]]), right: monos[0]! }]) {
+    const asLeft = runBattle(check.left.units, check.right.units, withAbilities);
+    const asRight = runBattle(check.right.units, check.left.units, withAbilities);
+    const ok = asLeft.winner === 0 && asRight.winner === 1;
+    console.log(`  ${ok ? 'TUTTU ' : 'TUTMADI'} ${check.label}: ${describeBattle(asLeft)} | taraflar değişince: ${describeBattle(asRight)}`);
+  }
   return 0;
 }
 

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createBattle, playBattle, repeatUnit, runBattle, type BattleResult } from '../src/match/matchup';
+import { ABILITIES } from '../src/data/abilities';
+import { AGES } from '../src/data/ages';
+import { unitOfRole } from '../src/sim/compile';
 import { checkInvariants } from '../src/sim/invariants';
 import { stateHash } from '../src/sim/hash';
 import type { SideId } from '../src/sim/types';
@@ -93,5 +96,30 @@ describe('Karşılık ilişkileri (Aşama 2)', () => {
     const result = playBattle(state);
     expect(state.outcome).toBeNull();
     expect(result.timedOut).toBe(false);
+  });
+});
+
+describe('Karşılık ilişkileri yeteneklerle (Aşama 6 denge bulgusu)', () => {
+  it('İlkel Çağ yeteneği tek vuruşta aynı çağın menzillisini öldürmez (arka sıra tek yetenekle silinmez)', () => {
+    // Kök neden: Sürü Hücumu 120 hasarla 90 canlı Mızrak Savuran'ı tek vuruşta öldürüyordu; ön hat + menzilli
+    // düzeni yalnız ön hatta kaybediyordu (PRD B-07, GDD §3).
+    const stampede = ABILITIES.find((a) => a.id === AGES[0]!.abilityId)!;
+    const ranged = unitOfRole(1, 'ranged')!.def;
+    expect(stampede.impactDamage!).toBeLessThan(ranged.hp);
+  });
+
+  it('iki taraf da yetenek kullanırken: (a) 9 ön hat > 3 ağır, (b) 3 ağır > 7 menzilli, sırayla dizili ön hat + menzilli > 9 ön hat', () => {
+    const abilities = { abilities: [true, true] as const };
+    const alternating = [F, R, F, R, F, R, F, R];
+    for (const [a, b] of [
+      [nineFront, threeHeavy],
+      [threeHeavy, sevenRanged],
+      [alternating, nineFront],
+    ] as const) {
+      const asLeft = runBattle(a, b, abilities);
+      const asRight = runBattle(b, a, abilities);
+      expect(asLeft.winner, describeResult('A solda', asLeft)).toBe(0);
+      expect(asRight.winner, describeResult('A sağda', asRight)).toBe(1);
+    }
   });
 });

@@ -284,7 +284,7 @@ describe('Y-03: yetenek etkileri', () => {
     const impact = events.find((ev) => ev.type === 'abilityImpact');
     expect(impact).toMatchObject({ side: 0, abilityId: 'primitive_stampede', hits: 1 });
     // Hasar aynı adımda.
-    expect(e.hp).toBe(mustGetUnit(FRONT_ID).def.hp - 120);
+    expect(e.hp).toBe(mustGetUnit(FRONT_ID).def.hp - ability(1).def.impactDamage!);
     expect(e.stunTicks).toBe(secToTicks(1));
     const stunned = e.stunTicks;
     expect(stunned).toBe(TICK);
@@ -495,8 +495,8 @@ describe('Y-03: yetenek etkileri', () => {
     const s = readyState(1);
     const e = addUnit(s, 1, 1200, { hp: 5000, vulnTicks: 5, vulnPct: 33 });
     cast(s, 1200);
-    // 120 × 1,33 = 159,6 → 160
-    expect(5000 - e.hp).toBe(Math.round((120 * 133) / 100));
+    // hasar × 1,33, tamsayıya yuvarlanır (ör. 60 × 1,33 = 79,8 → 80)
+    expect(5000 - e.hp).toBe(Math.round((ability(1).def.impactDamage! * 133) / 100));
     expect(Number.isInteger(e.hp)).toBe(true);
     run(s, 5);
     expect(e.vulnTicks).toBe(0);
@@ -507,7 +507,8 @@ describe('Y-03: yetenek etkileri', () => {
 describe('K-03 / Y-08: yeteneğin öldürdüğü birliğin ödülü bir kez verilir', () => {
   it('Y-08/K-03: yetenekle ölen birlik ödül verir; kill istatistiği yetenek kimliğine; ödül tek', () => {
     const s = readyState(1);
-    const victim = addUnit(s, 1, 1200, { hp: 100 });
+    // Vuruş hasarından az canlı kurban (veriden: tek vuruşta ölür).
+    const victim = addUnit(s, 1, 1200, { hp: ability(1).def.impactDamage! - 10 });
     const def = mustGetUnit(FRONT_ID).def;
     const gold0 = s.sides[0].gold;
     const xp0 = s.sides[0].xp;
@@ -523,7 +524,8 @@ describe('K-03 / Y-08: yeteneğin öldürdüğü birliğin ödülü bir kez veri
 
   it('K-03: aynı adımda birden çok yetenek vuruşu ve birlik saldırısı aynı birliği öldürse de ödül tek; kill ilk ölümcül vuruşa', () => {
     const s = readyState(1);
-    const victim = addUnit(s, 1, 1200, { hp: 100 });
+    // Vuruş hasarından az canlı kurban (veriden: tek vuruşta ölür).
+    const victim = addUnit(s, 1, 1200, { hp: ability(1).def.impactDamage! - 10 });
     const friend = addUnit(s, 0, 1200 - 36 - 10, {});
     // İki gecikmesiz vuruş daha: aynı adımda patlar.
     const abilityDef = ability(1).def;

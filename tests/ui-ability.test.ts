@@ -415,7 +415,7 @@ describe('Metinler ve araç ipuçları (EK-03, EK-04, Y-06)', () => {
       expect(abilityTooltip(ability, 'Q', 'Bekleme: 12 sn').startsWith('Bekleme: 12 sn\n')).toBe(true);
       session.dispose();
     }
-    expect(abilityDescription(playerAbilityOf('primitive_stampede'))).toContain('120');
+    expect(abilityDescription(playerAbilityOf('primitive_stampede'))).toContain(String(ABILITIES[0]!.impactDamage));
     expect(abilityDescription(playerAbilityOf('medieval_caltrops'))).toContain('%50');
     expect(abilityDescription(playerAbilityOf('future_stasis'))).toContain('%30');
     expect(abilityDescription(playerAbilityOf('industrial_barrage'))).toContain('1,5');

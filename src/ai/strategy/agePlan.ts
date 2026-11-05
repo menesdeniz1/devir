@@ -22,7 +22,8 @@ export function planAge(obs: Observation, mem: AiMemory, profile: AiProfileDef, 
     mem.ageReadyTick = -1;
     return { ageUp: false, reserve: 0 };
   }
-  const threatened = profile.ageThreatCheck && threat.high;
+  // Düşman bir çağ öndeyse çağ atlamak tek geri dönüş yoludur: tehdit altında da biriktirilir.
+  const threatened = profile.ageThreatCheck && threat.high && obs.enemy.age <= obs.self.age;
   const pre = profile.agePreReserve;
   const preReserve = pre === null || threatened ? 0 : Math.round(next.ageUpCost * pre.goldFraction);
   if (obs.self.xp < next.xpThreshold) {
