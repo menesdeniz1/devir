@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Session } from '../src/game/session';
-import { tr } from '../src/i18n/tr';
+import { tr } from '../src/i18n';
 import { battlefieldBounds } from '../src/sim/geometry';
 import { TARGET_KEY_STEP } from '../src/ui/constants';
 import { mountKeyboard } from '../src/ui/keyboard';

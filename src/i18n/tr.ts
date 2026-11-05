@@ -1,6 +1,9 @@
 import type { RejectReason } from '../sim/types';
 
-/** Tüm arayüz metinleri burada tutulur (TDD §7). `{ad}` biçimli yer tutucular `fmt` ile doldurulur. */
+/**
+ * Türkçe metin tablosu (kaynak; TDD §7). Anahtar yapısı buradan türetilir: `en.ts` aynı yapıda olmak zorundadır.
+ * `{ad}` biçimli yer tutucular `fmt` ile doldurulur. Etkin tabloya `src/i18n/index.ts` üzerinden erişilir.
+ */
 
 /** Simülasyonun ret nedenlerine döngü/oturum katmanının 'paused' nedeni eklenir (TDD §3). */
 export type UiRejectReason = RejectReason | 'paused';
@@ -37,6 +40,8 @@ const rejectBare: Partial<Record<UiRejectReason, string>> = {
 
 export const tr = {
   appTitle: 'Devir',
+  /** Sayı biçimi: ondalık ayracı. */
+  format: { decimal: ',' },
   reject,
   rejectBare,
   unit: {
@@ -149,6 +154,9 @@ export const tr = {
     you: 'Sen',
     enemy: 'Rakip',
     baseHp: 'Üs canı',
+    /** Ekran okuyucu: "{side}" = Sen / Rakip. */
+    baseHpAria: '{side}: üs canı',
+    ageAria: '{side}: {age}',
     time: 'Süre',
     gold: 'Altın',
     incomePerSec: '+{n}/sn',
@@ -326,6 +334,10 @@ export const tr = {
     volumeValue: '{n}',
     shortcuts: 'Kısayollar',
     version: 'Oyun sürümü',
+    language: 'Dil',
+    /** Her dil kendi adıyla yazılır (iki tabloda aynıdır). */
+    languageOptions: { tr: 'Türkçe', en: 'English' },
+    languageLocked: 'Öğretici sırasında dil değiştirilemez.',
     back: 'Geri',
     backAria: 'Ayarlardan çık',
   },
@@ -408,6 +420,7 @@ export const tr = {
     noWebglDetail:
       'Tarayıcın WebGL2 desteklemiyor veya devre dışı. Donanım hızlandırmayı açmayı ya da güncel bir Chrome, Edge veya Firefox kullanmayı dene.',
     noWebglTech: 'Ayrıntı: {message}',
+    webglContext: 'WebGL2 bağlamı oluşturulamadı',
     noRoot: 'Sayfada uygulama kök öğesi bulunamadı.',
     runtime: 'Oyun beklenmedik bir hatayla durdu',
     runtimeDetail: 'Sayfayı yenileyerek devam edebilirsin; kayıtlı maçın varsa Devam et ile kaldığın yerden sürer.',
@@ -429,44 +442,6 @@ export const tr = {
   },
 } as const;
 
-/** `{ad}` yer tutucularını doldurur. */
-export function fmt(template: string, vars: Record<string, string | number>): string {
-  return template.replace(/\{(\w+)\}/g, (whole, key: string) => {
-    const value = vars[key];
-    return value === undefined ? whole : String(value);
-  });
-}
-
-/** Ret nedeninin görünen metni (eksik altın varsa doldurulur). */
-export function rejectText(
-  reason: UiRejectReason,
-  missingGold?: number,
-  xpInfo?: { xp: number; xpRequired: number },
-  cooldownSec?: number,
-): string {
-  return fmt(tr.reject[reason], { missing: missingGold ?? 0, xp: xpInfo?.xp ?? 0, required: xpInfo?.xpRequired ?? 0, sec: cooldownSec ?? 0 });
-}
-
-export function ageNameTo(age: number): string {
-  return tr.ageTo[age] ?? tr.ageFallback;
-}
-
-export function ageName(age: number): string {
-  return tr.age[age] ?? tr.ageFallback;
-}
-
-export function towerName(towerId: string): string {
-  return tr.tower[towerId] ?? tr.towerFallback;
-}
-
-export function abilityName(abilityId: string): string {
-  return tr.ability[abilityId] ?? tr.abilityFallback;
-}
-
-export function difficultyName(difficulty: string): string {
-  return tr.difficulty[difficulty] ?? tr.difficultyFallback;
-}
-
-export function unitName(unitId: string): string {
-  return tr.unit[unitId] ?? tr.unitFallback;
-}
+/** Metin tablosunun türü: Türkçe tablodan türetilir, değişmez dizgiler `string`e genişletilir (en.ts bu türe uymak zorundadır). */
+type Widen<T> = T extends string ? string : { [K in keyof T]: Widen<T[K]> };
+export type Strings = Widen<typeof tr>;

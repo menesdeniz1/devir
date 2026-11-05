@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AGES } from '../src/data/ages';
 import { UNITS } from '../src/data/units';
 import { Session } from '../src/game/session';
-import { ageName, ageNameTo, fmt, rejectText, tr, unitName } from '../src/i18n/tr';
+import { ageName, ageNameTo, fmt, rejectText, tr, unitName } from '../src/i18n';
 import { mustGetAge } from '../src/sim/compile';
 import { ageUp, ageUpCommand, availableUnitIds } from '../src/ui/actions';
 import { KEY_AGE_UP } from '../src/ui/constants';

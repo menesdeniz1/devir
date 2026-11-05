@@ -1,6 +1,6 @@
 import { cooldownSeconds } from './ability';
 import type { Check } from '../game/session';
-import { rejectText, tr } from '../i18n/tr';
+import { rejectText, tr } from '../i18n';
 import type { RejectReason } from '../sim/types';
 
 /** Bildirim süresi sayacı: duraklatılmışken azalmaz (oyun zamanı gibi). */

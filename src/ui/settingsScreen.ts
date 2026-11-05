@@ -1,15 +1,22 @@
 import type { Flow } from '../game/flow';
 import { VOLUME_MAX, VOLUME_MIN } from '../game/constants';
 import { versionLabel } from '../game/version';
-import { fmt, tr } from '../i18n/tr';
+import { fmt, getLanguage, isLanguage, LANGUAGES, tr } from '../i18n';
 import { VOLUME_STEP } from './constants';
 import { el } from './dom';
 import { fallbackLabel, loadKeyLabeler, shortcutRows, type KeyLabeler } from './shortcuts';
 import type { MountedScreen } from './menuScreens';
 import { actionButton, createScreen, heading, visibilityToggle } from './widgets';
 
-/** Ayarlar (PRD EK-07): değişiklik anında uygulanır ve saklanır; kısayol listesi salt görüntülemedir. */
-export function mountSettings(root: HTMLElement, flow: Flow): MountedScreen & { dismiss(): boolean } {
+/**
+ * Ayarlar (PRD EK-07): değişiklik anında uygulanır ve saklanır; kısayol listesi salt görüntülemedir.
+ * Dil değişince (PRD G-04) ayar saklanır ve sayfa yeniden yüklenir: süren maç önce kaydedilir, böylece "Devam et" sürdürür.
+ */
+export function mountSettings(
+  root: HTMLElement,
+  flow: Flow,
+  reloadPage: () => void = () => globalThis.location.reload(),
+): MountedScreen & { dismiss(): boolean } {
   const { root: screen, card } = createScreen(root, 'screen--settings', true);
   screen.dataset['screen'] = 'settings';
   heading(card, tr.settings.title, 'settings-title');
@@ -45,6 +52,34 @@ export function mountSettings(root: HTMLElement, flow: Flow): MountedScreen & { 
   const shakeValue = el('output', 'settings__value', shakeRow);
   shakeValue.htmlFor = 'setting-shake';
   shake.addEventListener('change', () => flow.settings.update({ screenShake: shake.checked }));
+
+  const languageRow = el('div', 'settings__row', form);
+  const languageLabel = el('label', 'settings__label', languageRow);
+  languageLabel.htmlFor = 'setting-language';
+  languageLabel.textContent = tr.settings.language;
+  const language = el('select', 'settings__select', languageRow);
+  language.id = 'setting-language';
+  for (const code of LANGUAGES) {
+    const option = el('option', undefined, language);
+    option.value = code;
+    option.textContent = tr.settings.languageOptions[code];
+  }
+  language.value = getLanguage();
+  const languageHint = el('p', 'settings__hint', form);
+  languageHint.id = 'setting-language-hint';
+  languageHint.textContent = tr.settings.languageLocked;
+  languageHint.hidden = true;
+  language.addEventListener('change', () => {
+    const next = language.value;
+    if (!isLanguage(next) || next === getLanguage() || flow.tutorial !== null) {
+      language.value = getLanguage();
+      return;
+    }
+    // Süren maç kaydedilir (öğretici maçı kaydedilmez ve zaten kilitlidir); yenilemeden sonra "Devam et" sürdürür.
+    flow.saveNow();
+    flow.settings.update({ language: next });
+    reloadPage();
+  });
 
   const shortcutsTitle = el('h3', 'settings__subtitle', card);
   shortcutsTitle.textContent = tr.settings.shortcuts;
@@ -87,6 +122,14 @@ export function mountSettings(root: HTMLElement, flow: Flow): MountedScreen & { 
   const toggle = visibilityToggle(screen, () => music.input, true);
   function update(): void {
     toggle(flow.settingsOpen);
+    // Öğretici sırasında dil seçicisi kilitlidir (öğretici maçı kaydedilmez, yenileme onu kaybettirirdi).
+    const locked = flow.tutorial !== null;
+    if (language.disabled !== locked) {
+      language.disabled = locked;
+      languageHint.hidden = !locked;
+      if (locked) language.setAttribute('aria-describedby', languageHint.id);
+      else language.removeAttribute('aria-describedby');
+    }
   }
   update();
 

@@ -2,7 +2,7 @@ import { WORLD } from '../data/world';
 import { PLAYER_SIDE } from '../game/constants';
 import type { Flow } from '../game/flow';
 import { summarizeMatch, type MatchSummary } from '../game/summary';
-import { ageName, fmt, tr, unitName } from '../i18n/tr';
+import { ageName, fmt, tr, unitName } from '../i18n';
 import { el, formatClock, textWriter } from './dom';
 import { actionButton, createScreen, heading, visibilityToggle } from './widgets';
 

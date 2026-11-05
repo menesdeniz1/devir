@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UNITS } from '../src/data/units';
 import { Session } from '../src/game/session';
-import { fmt, rejectText, tr, unitName } from '../src/i18n/tr';
+import { fmt, rejectText, tr, unitName } from '../src/i18n';
 import { getUnit } from '../src/sim/compile';
 import { availableUnitIds, produceUnit, queueCommand } from '../src/ui/actions';
 import { UNIT_SHORTCUT_CODES, UNIT_SHORTCUT_LABELS } from '../src/ui/constants';

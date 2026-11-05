@@ -1,7 +1,7 @@
 import { Container, Text } from 'pixi.js';
 import { STONE } from '../data/stone';
 import type { SideId } from '../sim/types';
-import { fmt, tr } from '../i18n/tr';
+import { fmt, tr } from '../i18n';
 import { INK } from '../art/palette';
 import { UNIT_FEET_Y } from './constants';
 

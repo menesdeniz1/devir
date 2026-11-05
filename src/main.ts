@@ -4,8 +4,9 @@ import { browserClock } from './game/browserClock';
 import { Flow } from './game/flow';
 import { startFrameLoop } from './game/loop';
 import { Session } from './game/session';
-import type { KeyValueStorage } from './game/storage';
-import { fmt, tr } from './i18n/tr';
+import { loadSettings } from './game/settings';
+import { SafeStorage, type KeyValueStorage } from './game/storage';
+import { fmt, resolveLanguage, setLanguage, tr } from './i18n';
 import { createRenderer, type Renderer } from './render/renderer';
 import { el } from './ui/dom';
 import { mountHud } from './ui/hud';
@@ -16,7 +17,17 @@ import { mountTargetingPointer } from './ui/targetingPointer';
 import { probeWebgl2 } from './ui/webgl';
 import './ui/style.css';
 
-function showFatal(root: HTMLElement, detail: string, texts: { title: string; text: string; tech: string } = noWebglTexts): void {
+interface FatalTexts {
+  title: string;
+  text: string;
+  tech: string;
+}
+
+// Metinler çağrı anında okunur: dil açılışta (modül değerlendirmesinden sonra) seçilir.
+const noWebglTexts = (): FatalTexts => ({ title: tr.errors.noWebgl, text: tr.errors.noWebglDetail, tech: tr.errors.noWebglTech });
+const runtimeTexts = (): FatalTexts => ({ title: tr.errors.runtime, text: tr.errors.runtimeDetail, tech: tr.errors.runtimeTech });
+
+function showFatal(root: HTMLElement, detail: string, texts: FatalTexts = noWebglTexts()): void {
   root.replaceChildren();
   const box = el('div', 'fatal', root);
   box.setAttribute('role', 'alert');
@@ -28,9 +39,6 @@ function showFatal(root: HTMLElement, detail: string, texts: { title: string; te
   tech.textContent = fmt(texts.tech, { message: detail });
 }
 
-const noWebglTexts = { title: tr.errors.noWebgl, text: tr.errors.noWebglDetail, tech: tr.errors.noWebglTech };
-const runtimeTexts = { title: tr.errors.runtime, text: tr.errors.runtimeDetail, tech: tr.errors.runtimeTech };
-
 /** localStorage'a erişim bile özel durum fırlatabilir (engellenmiş site verisi); o durumda oyun kayıtsız sürer. */
 function pickStorage(): KeyValueStorage | null {
   try {
@@ -40,7 +48,19 @@ function pickStorage(): KeyValueStorage | null {
   }
 }
 
+/**
+ * Etkin dili arayüz kurulmadan önce bir kez seçer (PRD G-04, TDD §7): kayıtlı ayar, yoksa tarayıcı dili.
+ * Tarayıcıya (`navigator`) yalnız burada, uygulama katmanında dokunulur.
+ */
+function chooseLanguage(storage: KeyValueStorage | null): void {
+  const stored = loadSettings(new SafeStorage(storage)).language;
+  const language = resolveLanguage(stored, globalThis.navigator?.language);
+  setLanguage(language);
+  document.documentElement.lang = language;
+}
+
 async function boot(): Promise<void> {
+  chooseLanguage(pickStorage());
   const root = document.getElementById('app');
   if (root === null) {
     document.body.textContent = tr.errors.noRoot;
@@ -129,7 +149,7 @@ async function boot(): Promise<void> {
     debugUpdate?.();
   }, {
     // Ardışık karelerde hata sürerse döngü durur; oyuncuya açıklayıcı hata ekranı gösterilir (kayıt bozulmaz).
-    onFatal: (error) => showFatal(root, error instanceof Error ? error.message : String(error), runtimeTexts),
+    onFatal: (error) => showFatal(root, error instanceof Error ? error.message : String(error), runtimeTexts()),
   });
 }
 

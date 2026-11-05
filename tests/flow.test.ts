@@ -4,7 +4,7 @@ import { SAVE_INTERVAL_SEC, STORAGE_KEYS } from '../src/game/constants';
 import { Flow, type FlowEvent, type FlowNotice } from '../src/game/flow';
 import type { SaveFailure } from '../src/game/save';
 import { Session, type VisibilitySource } from '../src/game/session';
-import { tr } from '../src/i18n/tr';
+import { tr } from '../src/i18n';
 import { stateHash } from '../src/sim/hash';
 import { noticeText } from '../src/ui/screens';
 import { MemoryStorage } from './persistence-helpers';

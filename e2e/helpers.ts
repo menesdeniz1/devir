@@ -42,7 +42,7 @@ export async function shot(page: Page, name: string): Promise<void> {
 /** Geliştirme panelindeki tick ve durum karması. */
 export async function debugInfo(page: Page): Promise<{ tick: number; hash: string }> {
   const text = (await page.locator('.debug__info').textContent()) ?? '';
-  const match = /Tick:\s*(\d+)\s+Karma:\s*([0-9a-f]{8})/.exec(text);
+  const match = /Tick:\s*(\d+)\s+(?:Karma|Hash):\s*([0-9a-f]{8})/.exec(text);
   if (match === null) throw new Error(`Geliştirme paneli okunamadı: "${text}"`);
   return { tick: Number(match[1]), hash: match[2]! };
 }

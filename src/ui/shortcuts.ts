@@ -1,4 +1,4 @@
-import { tr } from '../i18n/tr';
+import { activeLocale, tr } from '../i18n';
 import { KEY_ABILITY, KEY_AGE_UP, KEY_CANCEL_LAST, KEY_CLOSE_MENU, UNIT_SHORTCUT_CODES } from './constants';
 
 /**
@@ -47,7 +47,7 @@ export async function loadKeyLabeler(nav: unknown = globalThis.navigator): Promi
     return (code) => {
       const key = map.get(code);
       if (key === undefined || key.length === 0) return fallbackLabel(code);
-      return key.length === 1 ? key.toLocaleUpperCase('tr') : key;
+      return key.length === 1 ? key.toLocaleUpperCase(activeLocale()) : key;
     };
   } catch {
     return fallbackLabel;

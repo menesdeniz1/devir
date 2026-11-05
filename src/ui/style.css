@@ -421,7 +421,8 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
   .hud-age > .btn--age { grid-area: btn; width: 116px; }
   .hud-age > .unit-cell__reason { grid-area: reason; }
   .unit-cell { width: 150px; gap: 2px; }
-  .btn--unit { min-height: 50px; }
+  /* Yan boşluk daraltılır: tek sözcüklü uzun adlar (ör. "Crossbowman") 150 px'lik düğmeye sığsın. */
+  .btn--unit { min-height: 50px; padding-left: 10px; padding-right: 10px; }
   .btn--ability { min-height: 50px; }
   .unit-cell__reason { min-height: 1.1em; font-size: 11px; line-height: 1.15; }
   .queue-slot { width: 46px; height: 46px; font-size: 18px; }
@@ -510,6 +511,10 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
 .settings__row { display: grid; grid-template-columns: 11rem 1fr 4.5rem; align-items: center; gap: 12px; }
 .settings__label { font-weight: 700; }
 .settings__slider { width: 100%; accent-color: var(--c-player-hi); }
+.settings__select { grid-column: 2 / 4; justify-self: start; min-width: 12rem; padding: 6px 10px; font: inherit; color: inherit; background: #2a2438; border: 2px solid #5b5478; border-radius: 8px; }
+.settings__select:disabled { opacity: 0.55; }
+.settings__select:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
+.settings__hint { margin: -4px 0 0; font-size: 13px; color: var(--c-muted); }
 .settings__check { width: 22px; height: 22px; justify-self: start; accent-color: var(--c-player-hi); }
 .settings__value { font-variant-numeric: tabular-nums; color: var(--c-muted); }
 .settings__subtitle { margin: 6px 0 0; font-size: 14px; color: var(--c-muted); text-align: left; }

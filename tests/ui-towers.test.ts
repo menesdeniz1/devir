@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TOWERS } from '../src/data/towers';
 import { Session } from '../src/game/session';
-import { rejectText, tr, towerName, type UiRejectReason } from '../src/i18n/tr';
+import { rejectText, tr, towerName, type UiRejectReason } from '../src/i18n';
 import { sellRefund } from '../src/sim/compile';
 import { mountKeyboard } from '../src/ui/keyboard';
 import {

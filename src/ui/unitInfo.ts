@@ -1,10 +1,10 @@
-import { fmt, tr, unitName } from '../i18n/tr';
+import { fmt, tr, unitName } from '../i18n';
 import { getUnit, TARGET_CLASSES } from '../sim/compile';
 
-/** Sayıyı Türkçe gösterir: tamsayı olduğu gibi, ondalıklı değer virgülle (3,5). */
+/** Sayıyı etkin dile göre gösterir: tamsayı olduğu gibi, ondalıklı değer dilin ayracıyla (3,5 / 3.5). */
 export function formatNumber(value: number): string {
   if (Number.isInteger(value)) return String(value);
-  return value.toFixed(1).replace('.', ',');
+  return value.toFixed(1).replace('.', tr.format.decimal);
 }
 
 /**

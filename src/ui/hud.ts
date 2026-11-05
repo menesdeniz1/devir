@@ -2,7 +2,7 @@ import { STONE } from '../data/stone';
 import { ECONOMY, WORLD } from '../data/world';
 import { PLAYER_SIDE } from '../game/constants';
 import type { Session } from '../game/session';
-import { abilityName, ageName, ageNameTo, fmt, rejectText, towerName, tr, unitName } from '../i18n/tr';
+import { abilityName, ageName, ageNameTo, fmt, rejectText, towerName, tr, unitName } from '../i18n';
 import { getAge, getUnit } from '../sim/compile';
 import type { SideId } from '../sim/types';
 import { abilityDescription, abilityReasonText, abilityTooltip, checkAbility, cooldownSeconds, playerAbility } from './ability';
@@ -54,7 +54,7 @@ function buildBase(parent: HTMLElement, side: SideId, label: string): BaseBar {
   const ageAria = attrWriter(ageEl, 'aria-label');
   const bar = el('div', 'bar', wrap);
   bar.setAttribute('role', 'progressbar');
-  bar.setAttribute('aria-label', `${label} ${tr.hud.baseHp}`);
+  bar.setAttribute('aria-label', fmt(tr.hud.baseHpAria, { side: label }));
   bar.setAttribute('aria-valuemin', '0');
   const fill = el('div', 'bar__fill', bar);
   const text = el('span', 'hud-base__hp', wrap);
@@ -74,7 +74,7 @@ function buildBase(parent: HTMLElement, side: SideId, label: string): BaseBar {
     // Erişilebilir ad görünen metni ezmesin: etiket güncel çağ adını da içerir.
     setAge: (age) => {
       ageWrite(ageName(age));
-      ageAria(`${label} ${tr.hud.ageName}: ${ageName(age)}`);
+      ageAria(fmt(tr.hud.ageAria, { side: label, age: ageName(age) }));
     },
   };
 }

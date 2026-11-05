@@ -1,7 +1,7 @@
 import { DEFENSE } from '../data/towers';
 import { PLAYER_SIDE } from '../game/constants';
 import type { Check, Session } from '../game/session';
-import { fmt, tr, towerName } from '../i18n/tr';
+import { fmt, tr, towerName } from '../i18n';
 import { getAge, getTower, sellRefund } from '../sim/compile';
 import type { Command } from '../sim/types';
 import { formatNumber } from './unitInfo';

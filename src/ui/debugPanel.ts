@@ -1,6 +1,6 @@
 import { DEBUG_BASE_HIT, DEBUG_GOLD_GRANT, DEBUG_LOW_BASE_HP, DEBUG_XP_GRANT, DEBUG_SPEEDS, PLAYER_SIDE } from '../game/constants';
 import type { Session } from '../game/session';
-import { fmt, tr } from '../i18n/tr';
+import { fmt, tr } from '../i18n';
 import { stateHash } from '../sim/hash';
 import { attrWriter, el, textWriter } from './dom';
 

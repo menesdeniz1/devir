@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { UNITS } from '../src/data/units';
 import { ECONOMY } from '../src/data/world';
 import { Session } from '../src/game/session';
-import { rejectText, tr, unitName, type UiRejectReason } from '../src/i18n/tr';
+import { rejectText, tr, unitName, type UiRejectReason } from '../src/i18n';
 import type { RejectReason } from '../src/sim/types';
 import { FRONT_ID } from './helpers';
 

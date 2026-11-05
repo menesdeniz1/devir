@@ -67,7 +67,8 @@ devir/
     ui/                  ekranlar (menü, kurulum, HUD, duraklatma, sonuç, ayarlar, öğretici katmanı)
     i18n/tr.ts           Türkçe metin tablosu (kaynak; anahtar yapısı buradan türetilir)
     i18n/en.ts           İngilizce metin tablosu (aynı anahtarlar)
-    i18n/index.ts        etkin dilin seçimi ve tablo erişimi
+    i18n/language.ts     dil türü ve saf dil seçimi (kayıtlı ayar, tarayıcı dili)
+    i18n/index.ts        etkin tablo (`tr`) ve yardımcılar (fmt, ad biçimleri)
     main.ts
   tools/sim-cli.ts       headless maç, turnuva ve denge raporu
   e2e/                   Playwright testleri (Aşama 7+)
@@ -209,7 +210,7 @@ varken 30 sn oyun süresi boyunca hiçbir birlik konum değiştirmez ve hiç has
 
 | Anahtar | İçerik |
 |---|---|
-| `devir.settings.v1` | Ses düzeyleri, ekran sarsıntısı |
+| `devir.settings.v1` | Ses düzeyleri, ekran sarsıntısı, dil (`language`: `tr`/`en`; yoksa tarayıcı dilinden seçilir) |
 | `devir.results.v1` | Son 20 sonuç, zorluk başına toplamlar |
 | `devir.tutorial.v1` | Öğretici tamamlandı mı |
 | `devir.save.v1` | Aktif maç kaydı (tek yuva) |

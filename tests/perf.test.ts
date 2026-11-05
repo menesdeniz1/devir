@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computePerf, PERF_WINDOW_MS, PerfMeter, type PerfSample } from '../src/game/perf';
-import { tr } from '../src/i18n/tr';
+import { tr } from '../src/i18n';
 
 const steady = (fps: number, ms: number, stepMs = 1): PerfSample[] => {
   const out: PerfSample[] = [];

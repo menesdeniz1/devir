@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS, STORAGE_KEYS, VOLUME_MAX, VOLUME_MIN } from './constants';
+import { isLanguage, type Language } from '../i18n/language';
 import type { SafeStorage } from './storage';
 
 /** Kalıcı kullanıcı ayarları (PRD EK-07). */
@@ -8,6 +9,8 @@ export interface Settings {
   /** 0..100 */
   sfxVolume: number;
   screenShake: boolean;
+  /** Arayüz dili (PRD G-04). Yoksa otomatik: tarayıcı dili uygulama katmanında çözülür; bu katman tarayıcıya dokunmaz. */
+  language?: Language;
 }
 
 export function defaultSettings(): Settings {
@@ -27,6 +30,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   out.musicVolume = volume(r['musicVolume'], out.musicVolume);
   out.sfxVolume = volume(r['sfxVolume'], out.sfxVolume);
   if (typeof r['screenShake'] === 'boolean') out.screenShake = r['screenShake'];
+  if (isLanguage(r['language'])) out.language = r['language'];
   return out;
 }
 

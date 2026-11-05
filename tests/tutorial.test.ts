@@ -7,7 +7,7 @@ import { Session } from '../src/game/session';
 import { TUTORIAL, TUTORIAL_STEP_IDS, TUTORIAL_STEPS, type TutorialStepId } from '../src/game/tutorial';
 import { loadTutorialStatus, saveTutorialStatus } from '../src/game/tutorialStatus';
 import { SafeStorage } from '../src/game/storage';
-import { tr } from '../src/i18n/tr';
+import { tr } from '../src/i18n';
 import { unitOfRole } from '../src/sim/compile';
 import { checkInvariants } from '../src/sim/invariants';
 import { MemoryStorage } from './persistence-helpers';

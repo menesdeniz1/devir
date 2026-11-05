@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Session } from '../src/game/session';
-import { tr } from '../src/i18n/tr';
+import { tr } from '../src/i18n';
 import type { SimEvent } from '../src/sim/types';
 import { cancelLastWaiting, cancelOrderAt } from '../src/ui/actions';
 import { NoticeTimer, rejectNoticeText } from '../src/ui/notice';

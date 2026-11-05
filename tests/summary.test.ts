@@ -5,7 +5,7 @@ import { UNITS } from '../src/data/units';
 import { WORLD } from '../src/data/world';
 import { summarizeMatch } from '../src/game/summary';
 import { versionLabel } from '../src/game/version';
-import { tr } from '../src/i18n/tr';
+import { tr } from '../src/i18n';
 import { createMatch } from '../src/sim/create';
 import { fallbackLabel, loadKeyLabeler, shortcutRows } from '../src/ui/shortcuts';
 

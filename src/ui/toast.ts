@@ -1,4 +1,4 @@
-import { tr } from '../i18n/tr';
+import { tr } from '../i18n';
 import { TOAST_MS } from './constants';
 import { el } from './dom';
 

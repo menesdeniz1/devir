@@ -2,7 +2,7 @@ import { createBasicBot } from '../ai/basicBot';
 import type { Controller } from '../ai/controller';
 import { createAiBot } from '../ai/strategy';
 import { WORLD } from '../data/world';
-import type { UiRejectReason } from '../i18n/tr';
+import type { UiRejectReason } from '../i18n';
 import { stepMatch } from '../match/runner';
 import { createMatch } from '../sim/create';
 import type { Command, GameState, MatchConfig, SimEvent } from '../sim/types';
@@ -10,7 +10,7 @@ import { validate } from '../sim/validate';
 import { DEFAULT_SEED } from './constants';
 import { createLoopConfig, FixedStepLoop } from './loop';
 
-export type { UiRejectReason } from '../i18n/tr';
+export type { UiRejectReason } from '../i18n';
 
 /** Komut denetiminin sonucu: simülasyonun `validate` sonucu ya da oturum katmanının 'paused' reddi (TDD §3). */
 export type Check =

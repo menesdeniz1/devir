@@ -14,6 +14,11 @@ export default defineConfig({
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     viewport: { width: 1280, height: 720 },
+    /**
+     * Dil otomatik seçilir (PRD G-04): varsayılan tarayıcı dili en-US olurdu ve mevcut Türkçe testler İngilizce açılırdı.
+     * Tüm projeler tr-TR'de sabitlenir; İngilizce testler (e2e/english.spec.ts) kendi dosyasında en-US'a geçer.
+     */
+    locale: 'tr-TR',
     trace: 'off',
   },
   projects: [

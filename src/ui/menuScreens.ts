@@ -3,7 +3,7 @@ import type { Flow } from '../game/flow';
 import { DIFFICULTIES, type Difficulty, type ResultKind } from '../game/results';
 import { versionLabel } from '../game/version';
 import { WORLD } from '../data/world';
-import { ageName, difficultyName, fmt, tr } from '../i18n/tr';
+import { ageName, difficultyName, fmt, tr } from '../i18n';
 import { el, formatClock, textWriter } from './dom';
 import { actionButton, createScreen, heading, visibilityToggle } from './widgets';
 
@@ -67,7 +67,7 @@ export function mountMenu(root: HTMLElement, flow: Flow): MountedScreen {
 
 // ---- Maç kurulumu (PRD EK-02) -----------------------------------------------------
 
-const RESULT_TEXT: Record<ResultKind, string> = { win: tr.result.win, loss: tr.result.loss, draw: tr.result.draw };
+const resultText = (kind: ResultKind): string => tr.result[kind];
 
 export function mountSetup(root: HTMLElement, flow: Flow): MountedScreen & { dismiss(): boolean } {
   const { root: screen, card } = createScreen(root, 'screen--setup', true);
@@ -164,7 +164,7 @@ export function mountSetup(root: HTMLElement, flow: Flow): MountedScreen & { dis
       const row = el('li', 'history__row', historyList);
       row.dataset['result'] = entry.result;
       row.textContent = fmt(tr.setup.historyRow, {
-        result: RESULT_TEXT[entry.result],
+        result: resultText(entry.result),
         difficulty: difficultyName(entry.opponent),
         time: formatClock(entry.durationTicks / WORLD.tickRate),
         age: ageName(entry.playerAge),

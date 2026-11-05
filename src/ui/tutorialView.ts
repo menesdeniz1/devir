@@ -1,6 +1,6 @@
 import type { Flow } from '../game/flow';
 import type { TutorialStepId } from '../game/tutorialConfig';
-import { fmt, tr } from '../i18n/tr';
+import { fmt, tr } from '../i18n';
 import { attrWriter, el, textWriter } from './dom';
 import type { MountedScreen } from './menuScreens';
 import { TUTORIAL_TARGETS } from './tutorialTargets';

@@ -19,7 +19,8 @@ Bir bilgi yalnızca sahibi olan belgede yazılır; diğerleri bölüm numarasıy
 - Denge ve içerik sayıları yalnızca `src/data/` içinde. Mantık kodunda sihirli sayı yok.
 - `src/data`, `src/sim`, `src/ai`: DOM, Pixi, `Math.random`, `Date`, zamanlayıcı kullanmaz; deterministiktir.
 - Oyun durumu düz, JSON'a serileştirilebilir veridir.
-- Arayüz metinleri yalnızca `src/i18n/tr.ts`.
+- Arayüz metinleri yalnızca `src/i18n/` metin tablolarında (`tr.ts` kaynak, `en.ts` aynı anahtarlar). Modül
+  düzeyinde `tr.…` okunmaz: dil, içe aktarmalardan sonra açılışta seçilir.
 - Her oynanış kuralı değişikliği bir testle gelir; önceki aşamaların testleri yeşil kalır.
 - Kapsam dışı büyük özellik eklenmez; önce PRD/GDD'de karara bağlanır.
 - Kalite kapısı: `npm run check` (typecheck + Vitest + build); arayüz akışları için `npm run e2e` (Playwright).

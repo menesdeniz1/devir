@@ -1,6 +1,6 @@
 import type { Flow, FlowNotice } from '../game/flow';
 import type { SaveFailure } from '../game/save';
-import { tr } from '../i18n/tr';
+import { tr } from '../i18n';
 import { mountMenu, mountSetup } from './menuScreens';
 import { mountOverlays } from './overlays';
 import { mountSettings } from './settingsScreen';

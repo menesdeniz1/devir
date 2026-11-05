@@ -1,7 +1,7 @@
 import { WORLD } from '../data/world';
 import { PLAYER_SIDE } from '../game/constants';
 import type { Check, Session } from '../game/session';
-import { abilityName, fmt, rejectText, tr } from '../i18n/tr';
+import { abilityName, fmt, rejectText, tr } from '../i18n';
 import { abilityOfAge, type CompiledAbility } from '../sim/compile';
 import { battlefieldBounds } from '../sim/geometry';
 import type { Command } from '../sim/types';

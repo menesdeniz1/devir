@@ -5,7 +5,7 @@ import { ABILITIES } from '../src/data/abilities';
 import { AGES } from '../src/data/ages';
 import { WORLD } from '../src/data/world';
 import { Session, type SessionEvent } from '../src/game/session';
-import { abilityName, fmt, rejectText, tr } from '../src/i18n/tr';
+import { abilityName, fmt, rejectText, tr } from '../src/i18n';
 import { battlefieldBounds } from '../src/sim/geometry';
 import { abilityDescription, abilityReasonText, abilityTooltip, castAbilityAt, castCommand, checkAbility, cooldownSeconds, playerAbility } from '../src/ui/ability';
 import { KEY_ABILITY } from '../src/ui/constants';
