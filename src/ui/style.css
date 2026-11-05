@@ -90,6 +90,18 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
 .hud-center__row { display: flex; align-items: center; gap: 12px; }
 .hud-base__age { font-size: 13px; font-weight: 700; color: var(--c-gold); white-space: nowrap; }
 
+/*
+ * Desteklenen en küçük çözünürlük 1280×720'dir; daha dar pencerelerde (ör. dikey bölünmüş ekran) üst şeridin
+ * yan sütunları orta sütunun altına taşmasın: sayısal can ve çağ etiketi gizlenir, çubuk daralır.
+ */
+.hud-base { overflow: hidden; }
+@media (max-width: 899px) {
+  .hud-top { gap: 8px; padding: 6px 8px; }
+  .hud-base__hp, .hud-base__age { display: none; }
+  .bar { min-width: 40px; }
+  .hud-stone__track { width: 80px; }
+}
+
 /* Sınır Taşı göstergesi */
 .hud-stone { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--c-muted); }
 .hud-stone__label { font-weight: 700; }
