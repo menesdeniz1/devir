@@ -21,3 +21,9 @@ export const KEYS_TOGGLE_PAUSE = ['KeyP', 'Escape'] as const;
 export const TOAST_MS = 9000;
 /** Ses düzeyi kaydırıcısı adımı. */
 export const VOLUME_STEP = 5;
+
+/** Klavyeyle yetenek hedeflemede ←/→ tuşunun imleci kaydırdığı mesafe (dünya birimi). */
+export const TARGET_KEY_STEP = 40;
+export const KEY_TARGET_LEFT = 'ArrowLeft';
+export const KEY_TARGET_RIGHT = 'ArrowRight';
+export const KEY_TARGET_APPLY = 'Enter';

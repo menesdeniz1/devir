@@ -6,6 +6,7 @@ import { mountOverlays } from './overlays';
 import { mountSettings } from './settingsScreen';
 import { mountToasts } from './toast';
 import { mountTutorialView } from './tutorialView';
+import { installModalFocusTrap } from './widgets';
 
 export interface Screens {
   /** Her karede: ekran görünürlüğü ve bildirim süreleri. */
@@ -37,6 +38,7 @@ export function mountScreens(root: HTMLElement, flow: Flow, hooks: ScreenHooks =
   const tutorial = mountTutorialView(root, flow);
   const toasts = mountToasts(root, hooks.onNotice);
 
+  const removeTrap = installModalFocusTrap(document);
   const all = [menu, setup, overlays, settings, tutorial];
   const refresh = (): void => {
     root.dataset['screen'] = flow.screen;
@@ -65,6 +67,7 @@ export function mountScreens(root: HTMLElement, flow: Flow, hooks: ScreenHooks =
       return flow.screen === 'menu';
     },
     destroy(): void {
+      removeTrap();
       unsubscribeFlow();
       unsubscribeNotices();
       unsubscribeSession();

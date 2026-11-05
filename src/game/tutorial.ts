@@ -86,6 +86,16 @@ export const TUTORIAL_STEPS: readonly TutorialStepDef[] = [
       if (def === undefined) return;
       ctx.session.submit({ type: 'queueUnit', side: ENEMY_SIDE, unitId: def.def.id });
     },
+    // Sipariş duraklatma yüzünden atılmışsa (kuyruk boş ve rakip birliği yok) yeniden verilir.
+    check(ctx) {
+      const enemy = ctx.state.sides[ENEMY_SIDE];
+      const def = unitOfRole(enemy.age, 'front');
+      const none = enemy.queue.length === 0 && !ctx.state.units.some((u) => u.side === ENEMY_SIDE);
+      if (def !== undefined && none && !ctx.session.hasPendingCommand((c) => c.type === 'queueUnit' && c.side === ENEMY_SIDE)) {
+        ctx.session.submit({ type: 'queueUnit', side: ENEMY_SIDE, unitId: def.def.id });
+      }
+      return false;
+    },
     onEvent(e, ctx) {
       // Bu adımda rakibin doğan tek birliği zayıflatılır (canı azami canın weakUnitHpFraction'ı).
       if (e.type === 'unitSpawned' && e.side === ENEMY_SIDE) {

@@ -119,7 +119,8 @@ export function mountOverlays(root: HTMLElement, flow: Flow): Overlays {
     const outcome = session.state.outcome;
     const inBattle = flow.screen === 'battle';
 
-    togglePause(inBattle && session.paused && outcome === null);
+    // Aynı anda tek modal: ayarlar açıkken duraklatma katmanı gizlenir (ayarlar kapanınca geri gelir).
+    togglePause(inBattle && session.paused && outcome === null && !flow.settingsOpen);
 
     writeHint(`${tr.pause.hint} ${flow.tutorial !== null ? tr.tutorial.pauseHint : tr.pause.savedHint}`);
 

@@ -20,11 +20,18 @@ import {
   slotView,
   towerKindText,
   towerTooltip,
+  menuNeedsRebuild,
   unlockSlot,
   unlockSlotCommand,
   type SlotView,
 } from './towers';
+import { NoticeTimer, rejectNoticeText } from './notice';
 import { roleMarkOf, roleNameOf, unitTooltip } from './unitInfo';
+
+export interface HudHooks {
+  /** Oyuncunun komutu simülasyonda reddedilip bildirim gösterildiğinde (karede en çok bir kez); bildirim sesi için. */
+  onReject?: () => void;
+}
 
 export interface Hud {
   /** Her karede çağrılır; yalnızca değişen değerler DOM'a yazılır. frameMs: bildirim süresi için gerçek kare süresi. */
@@ -44,7 +51,7 @@ function buildBase(parent: HTMLElement, side: SideId, label: string): BaseBar {
   const name = el('span', 'hud-base__name', wrap);
   name.textContent = label;
   const ageEl = el('span', 'hud-base__age', wrap);
-  ageEl.setAttribute('aria-label', `${label} ${tr.hud.ageName}`);
+  const ageAria = attrWriter(ageEl, 'aria-label');
   const bar = el('div', 'bar', wrap);
   bar.setAttribute('role', 'progressbar');
   bar.setAttribute('aria-label', `${label} ${tr.hud.baseHp}`);
@@ -64,7 +71,11 @@ function buildBase(parent: HTMLElement, side: SideId, label: string): BaseBar {
       ariaNow(String(shown));
       ariaMax(String(maxHp));
     },
-    setAge: (age) => ageWrite(ageName(age)),
+    // Erişilebilir ad görünen metni ezmesin: etiket güncel çağ adını da içerir.
+    setAge: (age) => {
+      ageWrite(ageName(age));
+      ageAria(`${label} ${tr.hud.ageName}: ${ageName(age)}`);
+    },
   };
 }
 
@@ -93,7 +104,7 @@ interface QueueSlot {
  * Alt panel ve üst şerit. `targeting`: yetenek hedefleme durumu (renderer ve klavye ile paylaşılır); verilmezse HUD kendi
  * durumunu kurar.
  */
-export function mountHud(root: HTMLElement, session: Session, targeting: Targeting = createTargeting(session)): Hud {
+export function mountHud(root: HTMLElement, session: Session, targeting: Targeting = createTargeting(session), hooks: HudHooks = {}): Hud {
   const top = el('header', 'hud-top', root);
   const bottom = el('section', 'hud-bottom', root);
   bottom.setAttribute('aria-label', tr.hud.controls);
@@ -103,7 +114,6 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
   const center = el('div', 'hud-center', top);
   const clockRow = el('div', 'hud-center__row', center);
   const clock = el('span', 'hud-clock', clockRow);
-  clock.setAttribute('aria-label', tr.hud.time);
   const pauseButton = el('button', 'btn btn--pause', clockRow);
   pauseButton.type = 'button';
   pauseButton.textContent = tr.hud.pause;
@@ -130,7 +140,13 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
   const writeStoneNow = attrWriter(stoneTrack, 'aria-valuenow');
   const writeStoneAria = attrWriter(stoneTrack, 'aria-valuetext');
 
-  const writeClock = textWriter(clock);
+  const writeClockText = textWriter(clock);
+  const writeClockAria = attrWriter(clock, 'aria-label');
+  const writeClock = (value: string): void => {
+    writeClockText(value);
+    // Erişilebilir ad değeri de içerir (yalnız etiket yazılırsa süre okunmaz).
+    writeClockAria(`${tr.hud.time}: ${value}`);
+  };
   const writePauseDisabled = boolWriter((v) => {
     pauseButton.disabled = v;
   });
@@ -217,7 +233,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
   // Hedefleme ipucu (koridorun üstünde; hedefleme açıkken görünür).
   const targetHint = el('div', 'hud-target-hint', root);
   targetHint.setAttribute('role', 'status');
-  targetHint.textContent = tr.abilityUi.targetHint;
+  targetHint.textContent = `${tr.abilityUi.targetHint} · ${tr.abilityUi.targetHintKeys}`;
   targetHint.hidden = true;
 
   // ---- Bildirim (çağ geçişi, Sınır Taşı) ----
@@ -225,22 +241,30 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
   notice.setAttribute('role', 'status');
   notice.setAttribute('aria-live', 'polite');
   notice.hidden = true;
-  let noticeLeft = 0;
+  const noticeTimer = new NoticeTimer();
   const showNotice = (text: string): void => {
     notice.textContent = text;
     notice.hidden = false;
-    noticeLeft = NOTICE_MS;
+    noticeTimer.show(NOTICE_MS);
   };
   const unsubscribe = session.subscribe((event) => {
     if (event.type === 'reset') {
       closeMenu();
-      noticeLeft = 0;
+      noticeTimer.clear();
       notice.hidden = true;
       return;
     }
     if (event.type !== 'sim') return;
+    let rejectShown = false;
     for (const e of event.events) {
-      if (e.type === 'agedUp') {
+      if (e.type === 'commandRejected') {
+        // Aynı tick'te sıralı komutlardan biri simülasyonda reddedildi: oyuncu nedeni görsün (K-16). Karede tek bildirim ve ses.
+        if (e.command.side === PLAYER_SIDE && !rejectShown) {
+          rejectShown = true;
+          showNotice(rejectNoticeText(e.reason, session.check(e.command)));
+          hooks.onReject?.();
+        }
+      } else if (e.type === 'agedUp') {
         showNotice(fmt(e.side === PLAYER_SIDE ? tr.hud.ageUpNotice : tr.hud.ageUpNoticeFoe, { dative: ageNameTo(e.age) }));
       } else if (e.type === 'stoneCaptured') {
         showNotice(e.side === PLAYER_SIDE ? tr.hud.noticeStoneCaptured : tr.hud.noticeStoneCapturedFoe);
@@ -339,6 +363,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
   const slotMenu = el('div', 'slot-menu', root);
   slotMenu.hidden = true;
   slotMenu.setAttribute('role', 'group');
+  slotMenu.tabIndex = -1;
   let openSlot: number | null = null;
   let openKind: SlotView['kind'] | null = null;
   interface MenuOption {
@@ -350,14 +375,23 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     towerId: string | null;
   }
   let menuOptions: MenuOption[] = [];
+  /** Menü açıldığında odak bir sonraki güncellemede (seçenekler etkinliği hesaplanınca) ilk etkin seçeneğe taşınır. */
+  let focusMenuPending = false;
 
   function closeMenu(): boolean {
     const wasOpen = openSlot !== null;
+    // Odak menünün içindeyse (ya da öğe kaldırılınca gövdeye düştüyse) yuva düğmesine geri verilir; başka bir yere
+    // tıklayarak kapatılıyorsa odak çalınmaz.
+    const opener = openSlot === null ? undefined : slotCells[openSlot]?.button;
+    const active = document.activeElement;
+    const restore = wasOpen && (slotMenu.contains(active) || active === document.body || active === null);
     openSlot = null;
     openKind = null;
     menuOptions = [];
+    focusMenuPending = false;
     slotMenu.hidden = true;
     slotMenu.replaceChildren();
+    if (restore) opener?.focus();
     return wasOpen;
   }
 
@@ -444,6 +478,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
       );
     }
     slotMenu.hidden = false;
+    focusMenuPending = true;
     placeMenu(slot);
   }
 
@@ -540,6 +575,11 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
         closeMenu();
         return;
       }
+      // Menü açıkken çağ atlandıysa kule listesi değişir: menüyü güncel kulelerle yeniden kur.
+      if (view.kind === 'empty' && menuNeedsRebuild(menuOptions.map((o) => o.towerId), availableTowerIds(session))) {
+        openMenu(openSlot);
+        return;
+      }
       for (const option of menuOptions) {
         const check = option.check();
         option.setDisabled(!check.ok);
@@ -556,6 +596,11 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
           option.setTitle(reason === undefined ? tip : `${reason}\n${tip}`);
           option.setAria(fmt(tr.defense.sellAria, { name, refund: view.refund }));
         }
+      }
+      if (focusMenuPending) {
+        focusMenuPending = false;
+        const first = slotMenu.querySelector<HTMLButtonElement>('button:not(:disabled)');
+        (first ?? slotMenu).focus();
       }
     }
   }
@@ -672,10 +717,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     updateStone();
 
     // Bildirim süresi.
-    if (noticeLeft > 0) {
-      noticeLeft -= frameMs;
-      if (noticeLeft <= 0) notice.hidden = true;
-    }
+    if (noticeTimer.tick(frameMs, session.paused)) notice.hidden = true;
 
     // Altın.
     writeGold(String(me.gold));

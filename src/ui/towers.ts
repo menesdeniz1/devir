@@ -81,3 +81,12 @@ export function towerKindText(towerId: string): string {
   const kind = getTower(towerId)?.def.kind;
   return kind === undefined ? '' : tr.towerKind[kind];
 }
+
+/**
+ * Açık kule kurma menüsü bayat mı? Menüdeki kule kimlikleri (sırayla) güncel çağın kulelerinden farklıysa
+ * (ör. menü açıkken çağ atlandı) menü yeniden kurulmalıdır.
+ */
+export function menuNeedsRebuild(openTowerIds: readonly (string | null)[], availableIds: readonly string[]): boolean {
+  const open = openTowerIds.filter((id): id is string => id !== null);
+  return open.length !== availableIds.length || open.some((id, i) => id !== availableIds[i]);
+}

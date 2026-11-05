@@ -20,8 +20,9 @@ export function connectAudio(audio: AudioEngine, flow: Flow, target: Pick<Docume
   const stopSession = session.subscribe((event) => {
     switch (event.type) {
       case 'sim': {
-        const sides = session.state.sides;
-        audio.handleEvents(event.events, { playerSide: PLAYER_SIDE, ages: [sides[0].age, sides[1].age] });
+        const { sides, units } = session.state;
+        // units: kayıttan devamda doğma olayını görmemiş birliklerin türü (doğru çağ ve perde) için yedek.
+        audio.handleEvents(event.events, { playerSide: PLAYER_SIDE, ages: [sides[0].age, sides[1].age], units });
         for (const e of event.events) if (e.type === 'agedUp' && e.side === PLAYER_SIDE) audio.setAge(e.age);
         break;
       }

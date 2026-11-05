@@ -5,6 +5,7 @@ import { UNITS } from '../src/data/units';
 import { WORLD } from '../src/data/world';
 import { summarizeMatch } from '../src/game/summary';
 import { versionLabel } from '../src/game/version';
+import { tr } from '../src/i18n/tr';
 import { createMatch } from '../src/sim/create';
 import { fallbackLabel, loadKeyLabeler, shortcutRows } from '../src/ui/shortcuts';
 
@@ -30,6 +31,7 @@ describe('Sonuç özeti (EK-06, GDD §13)', () => {
     a.stats.kills[ABILITIES[0]!.id] = 7;
     a.stats.goldEarned = 900;
     a.stats.goldSpent = 800;
+    a.stats.goldRefunded = 125;
     a.stats.baseDamageDealt = 250;
     a.stats.ageUpTicks = [WORLD.tickRate * 90];
     a.age = 2;
@@ -44,8 +46,14 @@ describe('Sonuç özeti (EK-06, GDD §13)', () => {
       { unitId: front, produced: 5, lost: 2, kills: 3 },
       { unitId: heavy, produced: 0, lost: 0, kills: 1 },
     ]);
-    expect(summary.sides[0]).toMatchObject({ age: 2, goldEarned: 900, goldSpent: 800, baseDamageDealt: 250, towerKills: 5, abilityKills: 7, ageUpSeconds: [90] });
+    expect(summary.sides[0]).toMatchObject({ age: 2, goldEarned: 900, goldSpent: 675, baseDamageDealt: 250, towerKills: 5, abilityKills: 7, ageUpSeconds: [90] });
     expect(summary.sides[1]).toMatchObject({ goldEarned: 400, abilityKills: 2, towerKills: 0, age: 1 });
+  });
+});
+
+describe('Sonuç ekranı etiketi', () => {
+  it('harcanan altın net olarak etiketlenir', () => {
+    expect(tr.result.goldSpent).toBe('Harcanan (net)');
   });
 });
 

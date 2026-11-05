@@ -127,6 +127,11 @@ export class Session {
     return this.gameState.outcome !== null;
   }
 
+  /** Henüz uygulanmamış kabul edilmiş bir komut verilen koşulu sağlıyor mu (ör. aynı tick'te çift iptal engeli). */
+  hasPendingCommand(predicate: (command: Command) => boolean): boolean {
+    return this.commandQueue.some((item) => predicate(item.command));
+  }
+
   /** Henüz uygulanmamış kabul edilmiş komut sayısı. */
   get pendingCommandCount(): number {
     return this.commandQueue.length;
@@ -181,6 +186,11 @@ export class Session {
 
   pause(): void {
     if (this.paused || this.ended) return;
+    // Sıradaki adımda uygulanacak, kabul edilmiş ama henüz uygulanmamış komutlar atılır (ücretleri düşülmemiştir):
+    // böylece duraklatmada alınan kayıt, kesintisiz devam eden maçla aynı durumdan sürer (K-07). İleri bir tick'e
+    // damgalı komutlar (yalnız testlerde kullanılır) korunur.
+    const tick = this.gameState.tick;
+    this.commandQueue = this.commandQueue.filter((item) => item.tick > tick);
     this.loop.pause();
     this.snapshotPrev();
     this.emit({ type: 'paused', paused: true });

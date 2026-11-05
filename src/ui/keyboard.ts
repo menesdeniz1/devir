@@ -1,6 +1,16 @@
 import type { Session } from '../game/session';
 import { ageUp, cancelLastWaiting, produceUnit } from './actions';
-import { KEY_ABILITY, KEY_AGE_UP, KEY_CANCEL_LAST, KEY_CLOSE_MENU, KEYS_TOGGLE_PAUSE, UNIT_SHORTCUT_CODES } from './constants';
+import {
+  KEY_ABILITY,
+  KEY_AGE_UP,
+  KEY_CANCEL_LAST,
+  KEY_CLOSE_MENU,
+  KEY_TARGET_APPLY,
+  KEY_TARGET_LEFT,
+  KEY_TARGET_RIGHT,
+  KEYS_TOGGLE_PAUSE,
+  UNIT_SHORTCUT_CODES,
+} from './constants';
 import type { Targeting } from './targeting';
 
 /** Metin girilen öğeler kısayolları yutar; kaydırıcı, onay kutusu ve seçenek düğmesi yutmaz (Esc/P çalışmalı). */
@@ -28,7 +38,7 @@ export function mountKeyboard(
   /** Esc'e öncelikli açık bir menü varsa: `dismiss` onu kapatır ve true döner (o zaman duraklatma yapılmaz). */
   menu: { dismiss(): boolean } | null = null,
   /** Q kısayolu için yetenek hedeflemesi (verilmezse Q işlenmez). */
-  targeting: Pick<Targeting, 'pressKey'> | null = null,
+  targeting: (Pick<Targeting, 'pressKey'> & Partial<Pick<Targeting, 'active' | 'nudge' | 'applyFromKeyboard'>>) | null = null,
   /** Ekran akışı: oyun dışı ekran açıkken tüm oyun kısayolları kapalıdır, yalnız Esc ekrana gider. */
   screens: ScreenGate | null = null,
 ): () => void {
@@ -42,6 +52,20 @@ export function mountKeyboard(
         if (!event.repeat) screens.dismiss();
       }
       return;
+    }
+
+    // Hedefleme açıkken klavye imleci: ←/→ kaydırır, Enter uygular (Q ve Esc aşağıda/dismiss'te).
+    if (targeting?.active === true) {
+      if (code === KEY_TARGET_LEFT || code === KEY_TARGET_RIGHT) {
+        event.preventDefault();
+        targeting.nudge?.(code === KEY_TARGET_LEFT ? -1 : 1);
+        return;
+      }
+      if (code === KEY_TARGET_APPLY) {
+        event.preventDefault();
+        if (!event.repeat) targeting.applyFromKeyboard?.();
+        return;
+      }
     }
 
     const unitIndex = (UNIT_SHORTCUT_CODES as readonly string[]).indexOf(code);

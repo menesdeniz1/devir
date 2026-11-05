@@ -1,6 +1,7 @@
 import type { Session } from '../game/session';
-import { abilityArea } from '../sim/geometry';
+import { abilityArea, battlefieldBounds } from '../sim/geometry';
 import { castAbilityAt, checkAbility, playerAbility } from './ability';
+import { TARGET_KEY_STEP } from './constants';
 
 /**
  * Yetenek hedefleme durumu (PRD Y-02): Q ya da düğme ile açılır; imleç koridordaysa alan önizlenir; sol tık uygular,
@@ -18,6 +19,13 @@ export interface Targeting {
   /** Hedeflemeyi kapatır; açıksa true (Esc önce bunu kapatır, duraklatmaz). */
   cancel(): boolean;
   setCursor(x: number | null): void;
+  /**
+   * Klavye: hedeflemede imleci koridorda `TARGET_KEY_STEP` kadar sola/sağa taşır; imleç yoksa (koridor dışı)
+   * savaş alanının ortasında başlatır. Hedefleme kapalıysa false.
+   */
+  nudge(direction: -1 | 1): boolean;
+  /** Klavye (Enter): imleç yoksa alan merkezinde uygular. Kabul edildiyse true. */
+  applyFromKeyboard(): boolean;
   /** İmleç konumunda uygular (imleç koridorda değilse hiçbir şey yapmaz); kabul edildiyse hedefleme kapanır. */
   applyAtCursor(): boolean;
   /** Etkin hedeflemede, imleç koridordaysa önizlenecek (savaş alanına kırpılmış) alan. */
@@ -53,6 +61,21 @@ export function createTargeting(session: Session): Targeting {
     },
     setCursor(x) {
       cursorX = x;
+    },
+    nudge(direction) {
+      if (!active) return false;
+      const field = battlefieldBounds();
+      if (cursorX === null) cursorX = (field.x0 + field.x1) / 2;
+      else cursorX = Math.min(field.x1, Math.max(field.x0, cursorX + direction * TARGET_KEY_STEP));
+      return true;
+    },
+    applyFromKeyboard() {
+      if (!active) return false;
+      if (cursorX === null) {
+        const field = battlefieldBounds();
+        cursorX = (field.x0 + field.x1) / 2;
+      }
+      return self.applyAtCursor();
     },
     applyAtCursor() {
       if (!active || cursorX === null) return false;

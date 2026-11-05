@@ -254,8 +254,9 @@ export class Flow {
     const state = this.session.state;
     const savedAt = this.now();
     const ok = this.slot.write(state, savedAt);
-    if (!ok) return false;
+    // Sonuçtan bağımsız: yazma başarısızsa (kota) her karede yeniden denenip tam serileştirme yapılmasın.
     this.lastSaveTick = state.tick;
+    if (!ok) return false;
     this.currentSave = { opponent: state.config.opponent, tick: state.tick, playerAge: state.sides[0].age, savedAt };
     this.emit({ type: 'save' });
     return true;

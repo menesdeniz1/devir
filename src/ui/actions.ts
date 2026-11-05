@@ -33,6 +33,9 @@ export function produceUnit(session: Session, index: number): Check | null {
 }
 
 export function cancelOrderAt(session: Session, index: number): Check {
+  // Aynı tick içinde ikinci iptal: ilki uygulanınca kuyruk indisleri kayar, ikinci tıklama yanlış siparişi iptal ederdi.
+  // Bir sonraki adıma dek yok sayılır.
+  if (session.hasPendingCommand((c) => c.type === 'cancelOrder' && c.side === PLAYER_SIDE)) return { ok: false, reason: 'invalidCommand' };
   return session.submit(cancelCommand(index));
 }
 

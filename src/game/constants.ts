@@ -6,6 +6,12 @@
 /** Tek karede biriktirilebilecek en uzun süre (ms): uzun duraksamalardan sonra "ölüm sarmalı" olmasın (TDD §4). */
 export const MAX_FRAME_MS = 250;
 
+/** Ardışık bu kadar karede hata olursa oyun döngüsü durur ve hata ekranı gösterilir. */
+export const MAX_CONSECUTIVE_FRAME_ERRORS = 30;
+
+/** Konsola yazılan farklı kare hatası sayısının üst sınırı (aynı hata her karede tekrarlanabilir). */
+export const MAX_LOGGED_FRAME_ERRORS = 5;
+
 /** Oyuncunun oynadığı taraf. */
 export const PLAYER_SIDE = 0 as const;
 

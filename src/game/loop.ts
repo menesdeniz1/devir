@@ -1,4 +1,4 @@
-import { MAX_FRAME_MS } from './constants';
+import { MAX_CONSECUTIVE_FRAME_ERRORS, MAX_FRAME_MS, MAX_LOGGED_FRAME_ERRORS } from './constants';
 
 /**
  * Sabit adımlı döngü (TDD §4). Saf mantık `FixedStepLoop.advance(frameMs)`: saat ve requestAnimationFrame
@@ -90,21 +90,58 @@ export interface FrameClock {
   cancelFrame(id: number): void;
 }
 
+export interface FrameLoopOptions {
+  /** Karede istisna atıldığında çağrılır (ardışık hata sayısıyla). Varsayılan: console.error (sınırlı). */
+  onError?(error: unknown, consecutive: number): void;
+  /** Bu kadar ardışık karede hata olursa döngü durur ve `onFatal` çağrılır. */
+  maxConsecutiveErrors?: number;
+  onFatal?(error: unknown): void;
+}
+
 /**
  * Kare akışını başlatır. `onFrame(frameMs)` her karede çağrılır; ilk karede frameMs = 0.
+ * Sonraki kare, `onFrame`'den ÖNCE istenir ve `onFrame` try/catch içinde çalışır: tek bir karedeki hata döngüyü
+ * kalıcı durdurmaz. Ardışık `maxConsecutiveErrors` karede hata olursa döngü durur ve `onFatal` çağrılır.
  * Döndürülen işlev döngüyü durdurur.
  */
-export function startFrameLoop(clock: FrameClock, onFrame: (frameMs: number) => void): () => void {
+export function startFrameLoop(clock: FrameClock, onFrame: (frameMs: number) => void, options: FrameLoopOptions = {}): () => void {
+  const maxErrors = options.maxConsecutiveErrors ?? MAX_CONSECUTIVE_FRAME_ERRORS;
+  const reported = new Set<string>();
   let last: number | null = null;
   let id = 0;
   let stopped = false;
+  let consecutive = 0;
+
+  const report = (error: unknown): void => {
+    if (options.onError !== undefined) {
+      options.onError(error, consecutive);
+      return;
+    }
+    // Aynı hata her karede tekrarlanırsa konsol dolmasın: her ayrı ileti bir kez, toplamda sınırlı sayıda.
+    const key = error instanceof Error ? error.message : String(error);
+    if (reported.has(key) || reported.size >= MAX_LOGGED_FRAME_ERRORS) return;
+    reported.add(key);
+    console.error('Kare hatası:', error);
+  };
+
   const tick = (): void => {
     if (stopped) return;
+    id = clock.requestFrame(tick);
     const now = clock.now();
     const frameMs = last === null ? 0 : now - last;
     last = now;
-    onFrame(frameMs);
-    if (!stopped) id = clock.requestFrame(tick);
+    try {
+      onFrame(frameMs);
+      consecutive = 0;
+    } catch (error) {
+      consecutive += 1;
+      report(error);
+      if (consecutive >= maxErrors) {
+        stopped = true;
+        clock.cancelFrame(id);
+        options.onFatal?.(error);
+      }
+    }
   };
   id = clock.requestFrame(tick);
   return () => {

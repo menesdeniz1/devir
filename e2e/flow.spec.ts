@@ -147,6 +147,8 @@ test.describe('Ekran akışı ve kayıt', () => {
     await action(page, 'start').click();
     await action(page, 'begin').click();
     await expect(screen(page, 'confirm')).toBeVisible();
+    // Aynı anda tek modal: onay açıkken kurulum gizlidir.
+    await expect(screen(page, 'setup')).toBeHidden();
     await shot(page, 'confirm-1280x720');
     await action(page, 'confirm-no').click();
     await expect(screen(page, 'confirm')).toBeHidden();

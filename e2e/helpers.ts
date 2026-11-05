@@ -18,6 +18,13 @@ export const SIZES = [
   { name: '1920x1080', width: 1920, height: 1080 },
 ] as const;
 
+/** İlk açılış öğretici önerisi tıklamaları örtmesin: öneri daha önce yanıtlanmış sayılır (her sayfa yüklemesinde). */
+export async function dismissTutorialOfferInit(page: Page): Promise<void> {
+  await page.addInitScript((key) => {
+    if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify({ status: 'dismissed' }));
+  }, KEYS.tutorial);
+}
+
 export const screen = (page: Page, name: string): Locator => page.locator(`.screen[data-screen="${name}"]`);
 export const action = (page: Page, name: string): Locator => page.locator(`[data-action="${name}"]`);
 

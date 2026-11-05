@@ -15,17 +15,20 @@ import { createTargeting } from './ui/targeting';
 import { mountTargetingPointer } from './ui/targetingPointer';
 import './ui/style.css';
 
-function showFatal(root: HTMLElement, detail: string): void {
+function showFatal(root: HTMLElement, detail: string, texts: { title: string; text: string; tech: string } = noWebglTexts): void {
   root.replaceChildren();
   const box = el('div', 'fatal', root);
   box.setAttribute('role', 'alert');
   const title = el('h1', undefined, box);
-  title.textContent = tr.errors.noWebgl;
+  title.textContent = texts.title;
   const text = el('p', undefined, box);
-  text.textContent = tr.errors.noWebglDetail;
+  text.textContent = texts.text;
   const tech = el('p', undefined, box);
-  tech.textContent = fmt(tr.errors.noWebglTech, { message: detail });
+  tech.textContent = fmt(texts.tech, { message: detail });
 }
+
+const noWebglTexts = { title: tr.errors.noWebgl, text: tr.errors.noWebglDetail, tech: tr.errors.noWebglTech };
+const runtimeTexts = { title: tr.errors.runtime, text: tr.errors.runtimeDetail, tech: tr.errors.runtimeTech };
 
 /** localStorage'a erişim bile özel durum fırlatabilir (engellenmiş site verisi); o durumda oyun kayıtsız sürer. */
 function pickStorage(): KeyValueStorage | null {
@@ -62,7 +65,7 @@ async function boot(): Promise<void> {
   flow.settings.subscribe((s) => renderer.setScreenShake(s.screenShake));
 
   const uiLayer = el('div', 'ui-layer', root);
-  const hud = mountHud(uiLayer, session, targeting);
+  const hud = mountHud(uiLayer, session, targeting, { onReject: () => audio.playUi('notice') });
   const screens = mountScreens(uiLayer, flow, { onNotice: () => audio.playUi('notice') });
   flow.subscribe((event) => {
     if (event.type === 'screen' && flow.screen !== 'battle') targeting.cancel();
@@ -105,6 +108,9 @@ async function boot(): Promise<void> {
     }
     screens.update(frameMs);
     debugUpdate?.();
+  }, {
+    // Ardışık karelerde hata sürerse döngü durur; oyuncuya açıklayıcı hata ekranı gösterilir (kayıt bozulmaz).
+    onFatal: (error) => showFatal(root, error instanceof Error ? error.message : String(error), runtimeTexts),
   });
 }
 

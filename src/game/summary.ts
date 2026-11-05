@@ -15,6 +15,7 @@ export interface UnitRow {
 export interface SideSummary {
   age: number;
   goldEarned: number;
+  /** Net: harcanan − iade edilen. */
   goldSpent: number;
   baseDamageDealt: number;
   towerKills: number;
@@ -41,7 +42,8 @@ function summarizeSide(state: GameState, side: SideId): SideSummary {
   return {
     age: s.age,
     goldEarned: s.stats.goldEarned,
-    goldSpent: s.stats.goldSpent,
+    // Net harcama: iptal ve satış iadeleri düşülür.
+    goldSpent: s.stats.goldSpent - s.stats.goldRefunded,
     baseDamageDealt: s.stats.baseDamageDealt,
     towerKills: sumKills(
       s.stats.kills,

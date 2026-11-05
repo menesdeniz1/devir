@@ -26,6 +26,8 @@ export function shortcutRows(label: KeyLabeler = fallbackLabel): ShortcutRow[] {
     { action: tr.shortcuts.produce, keys: UNIT_SHORTCUT_CODES.map((code) => label(code)) },
     { action: tr.shortcuts.cancelLast, keys: [label(KEY_CANCEL_LAST)] },
     { action: tr.shortcuts.ability, keys: [label(KEY_ABILITY)] },
+    { action: tr.shortcuts.targetMove, keys: ['←', '→'] },
+    { action: tr.shortcuts.targetApply, keys: [label('Enter'), label(KEY_ABILITY)] },
     { action: tr.shortcuts.ageUp, keys: [label(KEY_AGE_UP)] },
     { action: tr.shortcuts.pause, keys: [label('KeyP'), label(KEY_CLOSE_MENU)] },
     { action: tr.shortcuts.cancelTarget, keys: [label(KEY_CLOSE_MENU)] },

@@ -27,7 +27,7 @@ export function mountMenu(root: HTMLElement, flow: Flow): MountedScreen {
   const start = actionButton(nav, tr.menu.start, { ariaLabel: tr.menu.startAria, primary: true, onClick: () => flow.openSetup() });
   start.dataset['action'] = 'start';
 
-  const resume = actionButton(nav, '', { ariaLabel: tr.menu.continueAria, onClick: () => void flow.continueSaved() });
+  const resume = actionButton(nav, '', { onClick: () => void flow.continueSaved() });
   resume.dataset['action'] = 'continue';
   resume.classList.add('menu__continue');
   const resumeLabel = el('span', 'menu__continue-label', resume);
@@ -175,7 +175,8 @@ export function mountSetup(root: HTMLElement, flow: Flow): MountedScreen & { dis
   function update(): void {
     const visible = flow.screen === 'setup';
     if (!visible && confirming) closeConfirm();
-    toggle(visible);
+    // Onay açıkken kurulum gizlenir: aynı anda tek modal.
+    toggle(visible && !confirming);
     if (visible) renderHistory();
   }
   update();

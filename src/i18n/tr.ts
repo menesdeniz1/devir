@@ -28,9 +28,17 @@ const reject: Record<UiRejectReason, string> = {
   paused: 'Oyun duraklatıldı',
 };
 
+/** Ayrıntı (eksik miktar, bekleme) bilinmediğinde kullanılan kısa ret metinleri. */
+const rejectBare: Partial<Record<UiRejectReason, string>> = {
+  notEnoughGold: 'Yetersiz altın',
+  notEnoughXp: 'Deneyim yetersiz',
+  abilityCooldown: 'Yetenek beklemede',
+};
+
 export const tr = {
   appTitle: 'Devir',
   reject,
+  rejectBare,
   unit: {
     primitive_front: 'Taşbaltacı',
     primitive_ranged: 'Mızrak Savuran',
@@ -190,6 +198,7 @@ export const tr = {
     ariaBlocked: 'Yetenek: {name}, kısayol {key}. Kullanılamıyor: {reason}',
     tip: '{name} [{key}]\n{desc}\n{stats}',
     targetHint: 'Hedef seç: sol tık uygula, sağ tık veya Esc iptal',
+    targetHintKeys: '← → ile kaydır, Enter veya Q ile uygula',
     targeting: 'Hedef seç',
     castFoe: 'Rakip {name} kullandı',
   },
@@ -250,7 +259,7 @@ export const tr = {
     colFoe: 'Rakip',
     summaryTitle: 'Özet',
     goldEarned: 'Kazanılan altın',
-    goldSpent: 'Harcanan altın',
+    goldSpent: 'Harcanan (net)',
     baseDamage: 'Üsse verilen hasar',
     towerKills: 'Kule öldürmeleri',
     abilityKills: 'Yetenek öldürmeleri',
@@ -264,7 +273,6 @@ export const tr = {
     start: 'Oyuna başla',
     startAria: 'Yeni maç kur',
     continue: 'Devam et',
-    continueAria: 'Kayıtlı maça devam et',
     continueNone: 'Kayıtlı maç yok',
     continueInfo: '{difficulty} · {time} · {age}',
     tutorial: 'Öğretici',
@@ -319,6 +327,8 @@ export const tr = {
     produce: 'Ön hat / menzilli / ağır birlik üret',
     cancelLast: 'Son bekleyen siparişi iptal et',
     ability: 'Özel yetenek: hedefle, tekrar basınca uygula',
+    targetMove: 'Hedeflemede imleci kaydır',
+    targetApply: 'Hedeflemede uygula',
     ageUp: 'Çağ atla',
     pause: 'Duraklat / devam et',
     cancelTarget: 'Hedeflemeyi ya da açık menüyü kapat',
@@ -393,6 +403,9 @@ export const tr = {
       'Tarayıcın WebGL2 desteklemiyor veya devre dışı. Donanım hızlandırmayı açmayı ya da güncel bir Chrome, Edge veya Firefox kullanmayı dene.',
     noWebglTech: 'Ayrıntı: {message}',
     noRoot: 'Sayfada uygulama kök öğesi bulunamadı.',
+    runtime: 'Oyun beklenmedik bir hatayla durdu',
+    runtimeDetail: 'Sayfayı yenileyerek devam edebilirsin; kayıtlı maçın varsa Devam et ile kaldığın yerden sürer.',
+    runtimeTech: 'Ayrıntı: {message}',
   },
   debug: {
     title: 'Geliştirici paneli',

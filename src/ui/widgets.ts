@@ -15,6 +15,7 @@ export function createScreen(parent: HTMLElement, className: string, modal: bool
   if (modal) {
     card.setAttribute('role', 'dialog');
     card.setAttribute('aria-modal', 'true');
+    card.tabIndex = -1;
   }
   return { root, card };
 }
@@ -64,4 +65,59 @@ export function visibilityToggle(
       previous = null;
     }
   };
+}
+
+const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])';
+
+/** Odaklanabilir ve görünür öğeler (sırayla). */
+export function focusableIn(container: HTMLElement): HTMLElement[] {
+  return [...container.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((node) => node.offsetParent !== null || node.getClientRects().length > 0);
+}
+
+/** Görünür modal kartlar arasında en üstteki (en yüksek z-index; eşitse DOM'da sonraki). */
+function topModal(doc: Document): HTMLElement | null {
+  let best: HTMLElement | null = null;
+  let bestZ = -Infinity;
+  for (const card of doc.querySelectorAll<HTMLElement>('.screen:not([hidden]) > [aria-modal="true"]')) {
+    const parent = card.parentElement;
+    if (parent === null) continue;
+    const z = Number.parseInt(getComputedStyle(parent).zIndex, 10);
+    const value = Number.isFinite(z) ? z : 0;
+    if (value >= bestZ) {
+      bestZ = value;
+      best = card;
+    }
+  }
+  return best;
+}
+
+/**
+ * Modal katmanlarda Tab odağı tuzağı: görünür en üstteki modal varken Tab/Shift+Tab yalnız onun içinde döner;
+ * odak modalın dışındaysa içeri alınır. Döndürülen işlev dinleyiciyi kaldırır.
+ */
+export function installModalFocusTrap(doc: Document = document): () => void {
+  const onKeyDown = (event: KeyboardEvent): void => {
+    if (event.key !== 'Tab') return;
+    const modal = topModal(doc);
+    if (modal === null) return;
+    const items = focusableIn(modal);
+    if (items.length === 0) {
+      event.preventDefault();
+      modal.focus();
+      return;
+    }
+    const first = items[0]!;
+    const last = items[items.length - 1]!;
+    const active = doc.activeElement;
+    const inside = active instanceof Node && modal.contains(active);
+    if (event.shiftKey && (!inside || active === first)) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (!inside || active === last)) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+  doc.addEventListener('keydown', onKeyDown, true);
+  return () => doc.removeEventListener('keydown', onKeyDown, true);
 }
