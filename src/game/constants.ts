@@ -18,5 +18,8 @@ export const DEBUG_SPEEDS = [1, 4, 16] as const;
 /** Geliştirme panelindeki "altın ver" miktarı. */
 export const DEBUG_GOLD_GRANT = 500;
 
+/** Geliştirme panelindeki "deneyim ver" miktarı. */
+export const DEBUG_XP_GRANT = 1000;
+
 /** Geliştirme panelinde üs canının ayarlandığı değer. */
 export const DEBUG_LOW_BASE_HP = 1;

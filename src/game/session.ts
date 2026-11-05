@@ -12,7 +12,7 @@ import { createLoopConfig, FixedStepLoop } from './loop';
 export type { UiRejectReason } from '../i18n/tr';
 
 /** Komut denetiminin sonucu: simülasyonun `validate` sonucu ya da oturum katmanının 'paused' reddi (TDD §3). */
-export type Check = { ok: true } | { ok: false; reason: UiRejectReason; missingGold?: number };
+export type Check = { ok: true } | { ok: false; reason: UiRejectReason; missingGold?: number; xp?: number; xpRequired?: number };
 
 /** Görünürlük olaylarını dinleyebilen kaynak (tarayıcıda `document`; testte sahte). */
 export interface VisibilitySource {
@@ -132,9 +132,11 @@ export class Session {
     if (this.paused) return { ok: false, reason: 'paused' };
     const result = validate(this.gameState, command);
     if (result.ok) return { ok: true };
-    return result.missingGold === undefined
-      ? { ok: false, reason: result.reason }
-      : { ok: false, reason: result.reason, missingGold: result.missingGold };
+    const rejected: Check = { ok: false, reason: result.reason };
+    if (result.missingGold !== undefined) rejected.missingGold = result.missingGold;
+    if (result.xp !== undefined) rejected.xp = result.xp;
+    if (result.xpRequired !== undefined) rejected.xpRequired = result.xpRequired;
+    return rejected;
   }
 
   /**

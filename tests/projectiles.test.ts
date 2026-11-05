@@ -33,7 +33,7 @@ describe('Hasar tablosu (compile)', () => {
     for (const def of UNITS) {
       const compiled = mustGetUnit(def.id);
       for (const cls of TARGET_CLASSES) {
-        const expected = Math.max(1, Math.round(def.damage * COMBAT.roleMultipliers[def.role][cls]));
+        const expected = Math.max(1, Math.round(def.damage * (def.multiplierOverrides?.[cls] ?? COMBAT.roleMultipliers[def.role][cls])));
         expect(compiled.damageVs[cls], `${def.id} → ${cls}`).toBe(expected);
         expect(Number.isInteger(compiled.damageVs[cls])).toBe(true);
         expect(compiled.damageVs[cls]).toBeGreaterThanOrEqual(1);

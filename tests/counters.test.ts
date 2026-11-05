@@ -73,7 +73,7 @@ describe('Karşılık ilişkileri (Aşama 2)', () => {
       const state = createBattle(a, b);
       playBattle(state, {
         onStep: (s) => {
-          const problems = checkInvariants(s);
+          const problems = checkInvariants(s, { allowCustomBaseHp: true });
           if (problems.length > 0) throw new Error(`tick ${s.tick}: ${problems.join('; ')}`);
         },
       });
@@ -89,7 +89,7 @@ describe('Karşılık ilişkileri (Aşama 2)', () => {
     }
     expect(state.units.filter((u) => u.side === 0)).toHaveLength(9);
     expect(state.units.filter((u) => u.side === 1)).toHaveLength(3);
-    expect(checkInvariants(state)).toEqual([]);
+    expect(checkInvariants(state, { allowCustomBaseHp: true })).toEqual([]);
     const result = playBattle(state);
     expect(state.outcome).toBeNull();
     expect(result.timedOut).toBe(false);

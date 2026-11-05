@@ -21,7 +21,7 @@ Her aşama **çalıştırılabilir** bir sürümle ve **komutla doğrulanabilir*
 | 0 | Planlama ve dokümanlar | Tamamlandı (2026-11-05): kararlar verildi, çapraz kontrol bulguları işlendi |
 | 1 | Uçtan uca minimum maç | Tamamlandı (2026-11-05): 80 test, soak 500 ihlalsiz, tarayıcıda kazanma/kaybetme doğrulandı |
 | 2 | Roller, savaş derinliği, stil prototipi | Tamamlandı (2026-11-05): 136 test, karşılık senaryoları geçti, stil kullanıcı onaylı |
-| 3 | Çağlar (+ Sınır Taşı) | Bekliyor |
+| 3 | Çağlar (+ Sınır Taşı) | Tamamlandı (2026-11-05): 180 test, soak 500 ihlalsiz, tarayıcıda 1→5 çağ geçişi doğrulandı |
 | 4 | Savunmalar | Bekliyor |
 | 5 | Özel yetenekler | Bekliyor |
 | 6 | Bilgisayar rakibi ve ilk denge turu | Bekliyor |
@@ -125,7 +125,7 @@ tarayıcıda baştan sona oynanabilir.
 |---|---|
 | O | Gözlem katmanı, karar modülleri, üç zorluk profili (GDD §9) |
 | S | Turnuva aracı, denge raporu, tek tip ve savunmacı test botları |
-| L | Denge ayarı — yalnızca `src/data/` değişir. Aşama 2 gözlemleri: önceden dizilmiş 480 altınlık çatışmalarda 3 ağır tüm karma dizilişleri yeniyor (alan hasarı + 300 menzil); sınırlı üretimli basit bota karşı yalnız ön hat üreten bot kazanıyor. İkisi de gerçek yapay zekâyla yeniden ölçülecek (`npm run sim -- matchup`, turnuva) |
+| L | Denge ayarı — yalnızca `src/data/` değişir. Aşama 2 gözlemleri: önceden dizilmiş 480 altınlık çatışmalarda 3 ağır tüm karma dizilişleri yeniyor (alan hasarı + 300 menzil); sınırlı üretimli basit bota karşı yalnız ön hat üreten bot kazanıyor. İkisi de gerçek yapay zekâyla yeniden ölçülecek (`npm run sim -- matchup`, turnuva). Aşama 3 gözlemi: aynalı basit botlarla her çağ ≈4,5–6 dk sürüyor ve 5. çağa ≈20. dakikada ulaşılıyor (GDD §4 tahmini ≈11. dk); aynalı çıkmazda iki taraf da bölgede olduğu için taş donuyor |
 | K | Oyun testi: Normal'i yenmek mümkün ama zahmetli mi? |
 
 - **Testler:** K-13 (gizli bilgi); yapay zekâ tüm eylem türlerini kullanır; soak.
@@ -157,7 +157,7 @@ tarayıcıda baştan sona oynanabilir.
 
 | Sahip | İş |
 |---|---|
-| O / S | Kalan 12 birlik, 10 kule, 4 üs, 5 yetenek efekti, çağ arka planları, vuruş/ölüm/üs hasarı efektleri, çağ geçişi animasyonu |
+| O / S | 12 birliğin ve 4 üssün Aşama 3 çağ varyantlarından (palet + aksesuar) özgün tasarımlara geçişi, 10 kule, 5 yetenek efekti, çağa özgü mermiler (ok, cıvata, mermi, plazma), çağ arka planları, vuruş/ölüm/üs hasarı efektleri |
 | S | Sentez efektleri, çağ müzikleri, mikser; arayüz görsel cilası |
 | K | Görsel ve ses onayı |
 

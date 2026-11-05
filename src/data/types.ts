@@ -61,6 +61,16 @@ export interface UnitDef {
   bountyXp: number;
   splash?: SplashDef;
   pierce?: PierceDef;
+  /** Rol çarpanının bu birlik için değiştirilen değerleri (ör. Arbaletçi'nin ön hata karşı 1,5'i). */
+  multiplierOverrides?: Partial<Record<TargetClass, number>>;
+}
+
+export interface StoneDef {
+  /** Bölgenin dünya koordinatı aralığı (GDD §8). */
+  zoneStart: number;
+  zoneEnd: number;
+  /** Sayaç sınırı; tarafsızdan tam kontrole counterMax tick. */
+  counterMax: number;
 }
 
 export interface AgeDef {
@@ -73,6 +83,9 @@ export interface AgeDef {
   baseMaxHp: number;
   /** Saniyelik temel gelir; tamsayı. */
   incomePerSec: number;
+  /** Sınır Taşı sahibine bu çağda saniyede verilen ek altın ve deneyim (tamsayı; GDD §8). */
+  stoneGoldPerSec: number;
+  stoneXpPerSec: number;
   /** Bu çağda sipariş verilebilen birlikler. */
   unitIds: string[];
 }

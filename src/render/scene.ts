@@ -1,8 +1,10 @@
 import { Container, Graphics } from 'pixi.js';
-import { BaseRig } from '../art/primitiveBase';
-import { prewarmUnitArt } from '../art/unitArt';
+import { BaseRig } from '../art/baseRig';
+import { StoneRig } from '../art/stoneArt';
+import { artAge, prewarmUnitArt } from '../art/unitArt';
+import { STONE } from '../data/stone';
 import { WORLD } from '../data/world';
-import type { SideId } from '../sim/types';
+import type { SideId, StoneState } from '../sim/types';
 import {
   BASE_BOTTOM_Y,
   BASE_FLASH_ALPHA,
@@ -224,4 +226,43 @@ export function updateBaseFlash(view: BaseView, animMs: number): void {
 
 export function triggerBaseFlash(view: BaseView): void {
   view.flashMs = BASE_FLASH_MS;
+}
+
+// ---- Aşama 3 sözleşmesi (lead): renderer bunları çağırır ----
+
+/**
+ * Üssü sahibinin çağına göre giydirir (1..5). Aynı çağ için tekrar çağrılırsa bir şey yapmaz (her kare
+ * çağrılabilir). Çağ değişince 1 sn'lik yeniden inşa + ışık dalgası oynar ve o çağın birlik atlası
+ * şimdi pişirilir (ilk birlik doğarken takılma olmasın; geçiş animasyonu bunu örter).
+ */
+export function setBaseAge(view: BaseView, age: number, animate = true): void {
+  const a = artAge(age);
+  if (a === view.rig.currentAge) return;
+  prewarmUnitArt(a);
+  // Yeni maçta (yeniden oyna) çağ geri döner; o zaman yeniden inşa animasyonu oynatılmaz.
+  view.rig.setAge(a, animate);
+}
+
+/** Koridorun ortasındaki Sınır Taşı görünümü. Kapsayıcı dünya koordinatındadır (arka plan ile birlikler arası katman). */
+export interface StoneView {
+  container: Container;
+  rig: StoneRig;
+}
+
+/** Taşın tabanı yürüme yolunun arka kenarına yakın durur; birlikler önünden geçer. */
+const STONE_FOOT_Y = UNIT_FEET_Y - 22;
+const PATH_TOP_Y = UNIT_FEET_Y - 34;
+const PATH_BOTTOM_Y = UNIT_FEET_Y + 26;
+
+export function createStoneView(): StoneView {
+  const half = (STONE.zoneEnd - STONE.zoneStart) / 2;
+  const rig = new StoneRig({ halfWidth: half, pathTop: PATH_TOP_Y - STONE_FOOT_Y, pathBottom: PATH_BOTTOM_Y - STONE_FOOT_Y });
+  rig.root.position.set(STONE.zoneStart + half, STONE_FOOT_Y);
+  rig.update(0, null, STONE.counterMax, 0);
+  return { container: rig.root, rig };
+}
+
+/** Taşı durumuna göre çizer: sahibin amblemi/rengi ve ele geçirme ilerlemesi (counter / counterMax). */
+export function updateStoneView(view: StoneView, stone: StoneState, animMs: number): void {
+  view.rig.update(stone.counter, stone.owner, STONE.counterMax, animMs);
 }

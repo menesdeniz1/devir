@@ -16,6 +16,8 @@ export function isWellFormedCommand(raw: unknown): raw is Command {
       return typeof c['unitId'] === 'string';
     case 'cancelOrder':
       return typeof c['index'] === 'number';
+    case 'ageUp':
+      return true;
     default:
       return false;
   }
@@ -47,6 +49,14 @@ export function validate(state: GameState, cmd: Command): Validation {
       if (side.gold < unit.def.cost) {
         return { ok: false, reason: 'notEnoughGold', missingGold: unit.def.cost - side.gold };
       }
+      return { ok: true };
+    }
+    case 'ageUp': {
+      // Sıra: maxAge → notEnoughXp → notEnoughGold (PRD Ç-02, E-08).
+      const next = getAge(side.age + 1);
+      if (next === undefined) return { ok: false, reason: 'maxAge' };
+      if (side.xp < next.xpThreshold) return { ok: false, reason: 'notEnoughXp', xp: side.xp, xpRequired: next.xpThreshold };
+      if (side.gold < next.ageUpCost) return { ok: false, reason: 'notEnoughGold', missingGold: next.ageUpCost - side.gold };
       return { ok: true };
     }
     case 'cancelOrder': {

@@ -91,13 +91,10 @@ Amaçlanan karşılık döngüsü:
 
 ## 4. Ekonomi ve çağlar
 
-| Çağ | Deneyim eşiği (toplam) | Geçiş ücreti (altın) | Üs azami canı | Temel gelir (altın/sn) |
-|---|---|---|---|---|
-| 1 İlkel | 0 | — | 4.000 | 4 |
-| 2 Antik | 800 | 400 | 6.400 | 7 |
-| 3 Orta | 2.200 | 750 | 10.200 | 12 |
-| 4 Endüstri | 4.800 | 1.400 | 16.400 | 21 |
-| 5 Gelecek | 9.500 | 2.600 | 26.200 | 37 |
+Çağ başına deneyim eşiği (toplam), geçiş ücreti, üs azami canı, temel gelir ve Sınır Taşı bonusları
+`src/data/ages.ts`'tedir (tek kaynak). Tasarım niyeti: eşikler her çağın ≈ 2,5–3 dk sürmesine göre, gelir ve
+maliyetler çağ başına ×1,75, üs canı çağ başına ×1,6 büyür (üs, birlik hasarından yavaş büyüdüğü için geç oyunda
+maçlar hızlanır).
 
 - **Başlangıç:** 150 altın, 0 deneyim, İlkel Çağ, tam üs canı, yuva 1 açık ve boş, yetenek 30 sn beklemede.
 - **Geri dönüş hedefi (PRD E-06):** Sıfır altından, temel gelirle güncel çağın ön hat birliği **≤ 13 sn**'de
@@ -186,7 +183,8 @@ kırpılır. Yalnızca düşman birliklerini etkiler; üsse ve dost birliklere e
   kesişen birlikler bölgede sayılır. Bölgede yalnız bir tarafın birliği varsa sayaç her tick o tarafa doğru 1
   ilerler (tarafsızdan tam kontrole 100 tick = 5 sn). İki taraf da varsa veya kimse yoksa sayaç değişmez.
   Sayaç ±100'e ulaşınca o taraf **sahip** olur; sayaç sıfırı geçince sahiplik düşer.
-- **Ödül (sahip tarafa):** temel gelir ×1,3 ve saniyede 1,5 × 1,75^(çağ−1) deneyim.
+- **Ödül (sahip tarafa):** sahibin çağına göre saniyede ek altın (temel gelirin ≈%30'u) ve deneyim
+  (≈ 1,5 × 1,75^(çağ−1)); tamsayı değerler `src/data/ages.ts`'te, bölge `src/data/stone.ts`'te.
 - **Görsel:** taş, sahibinin amblemini ve rengini taşır; ilerleme halkası gösterilir.
 - **Yedek plan:** Denge testlerinde taş, yalnız savunma stratejisini önlemekte yetersiz kalırsa üsse verilen
   her 100 hasar 15 deneyim kazandırır (PRD E-10). Varsayılan olarak kapalıdır (veride 0).

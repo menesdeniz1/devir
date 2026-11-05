@@ -1,6 +1,4 @@
-import { Container, Sprite, type Texture } from 'pixi.js';
-import { clamp01, easeOutCubic } from './anim';
-import { buildAtlas, mustTexture, type PartSpec } from './atlas';
+import type { PartSpec } from './atlas';
 import { circle, detail, emblem, eye, lashing, line, rr, shape, soft, stick, stroke, type Ctx, type PathFn } from './paint';
 import { INK, MAT, TEAM, type ArtSide, type Tone } from './palette';
 
@@ -8,19 +6,14 @@ import { INK, MAT, TEAM, type ArtSide, type Tone } from './palette';
  * İlkel Çağ üssü: deri çadır (tipi) + oyma totem + palisat + fildişi kemer + ateş ve duman.
  * Yerel koordinat: (0,0) üs tabanının arka-alt köşesi, x 0…160 üs ayak izi, sağa (düşmana) bakar; y yukarı eksi.
  * Rakip üssü aynı dokunun aynalanmasıdır. Amblem çadırda ve totemin tepesinde.
+ * Çizim yalnızdır; iskelet (alev, duman, çağ geçişi) `baseRig.ts`'tedir.
  */
-
-export const BASE_ART_RESOLUTION = 2;
 
 const EARTH: Tone = { base: 0xa27a4a, shade: 0x7d5a33 };
 const SMOKE: Tone = { base: 0xeae3d6, shade: 0xc9bfb0 };
 
 /** Ateş çukurunun yerel konumu (alev ve duman buradan çıkar). */
 const FIRE = { x: 14, y: -8 } as const;
-const SMOKE_PUFFS = 5;
-const SMOKE_LIFE_MS = 2800;
-const SMOKE_RISE_PX = 170;
-const FLAME_FLICKER_MS = 90;
 
 // ---- Çizim ----
 
@@ -159,12 +152,12 @@ function drawBase(side: ArtSide) {
   };
 }
 
-function flameDraw(c: Ctx): void {
+export function flameDraw(c: Ctx): void {
   shape(c, soft([-7, 0, 7, 0, 5, -10, 1, -22, -2, -13, -5, -16], 3.5), MAT.flame, { line: 2.2, shadePath: soft([-7, 0, 7, 0, 5, -10, 0, -6], 2) });
   shape(c, soft([-3, -1, 3, -1, 1, -9, -1, -7], 1.5), 0xfff6d0, { line: 0 });
 }
 
-function smokeDraw(c: Ctx): void {
+export function smokeDraw(c: Ctx): void {
   const puff: PathFn = (p) => {
     p.arc(-5, 1, 8, 0, Math.PI * 2);
     p.moveTo(14, 0);
@@ -175,7 +168,8 @@ function smokeDraw(c: Ctx): void {
   shape(c, puff, SMOKE, { line: 0, shadeOffset: [2, -3] });
 }
 
-function baseParts(): PartSpec[] {
+/** İlkel Çağ üs parçaları (iki taraf + vuruş siluetleri + alev/duman). */
+export function primitiveBaseParts(): PartSpec[] {
   const parts: PartSpec[] = [
     { name: 'flame', x0: -8, y0: -23, x1: 8, y1: 1, draw: flameDraw },
     { name: 'smoke', x0: -14, y0: -16, x1: 15, y1: 10, draw: smokeDraw },
@@ -188,56 +182,24 @@ function baseParts(): PartSpec[] {
   return parts;
 }
 
-let baseAtlas: Map<string, Texture> | null = null;
-
-function textures(): Map<string, Texture> {
-  baseAtlas ??= buildAtlas('art.base.primitive', baseParts(), BASE_ART_RESOLUTION, 1024);
-  return baseAtlas;
+/** Üs efekt yerleşimi (yerel koordinat): alev/ışık ve duman/zerre kaynağı. */
+export interface BaseFx {
+  /** Alev (veya Gelecek'te işaret ışığı) konumu. */
+  readonly flame: { readonly x: number; readonly y: number };
+  /** `flame` titrer; `pulse` yumuşak nabız (işaret ışığı). */
+  readonly flicker: 'flame' | 'pulse';
+  /** Duman/zerre çıkış noktası. */
+  readonly smoke: { readonly x: number; readonly y: number };
+  readonly rise: number;
+  readonly drift: number;
+  readonly puffScale: number;
 }
 
-interface Puff {
-  sprite: Sprite;
-  offsetMs: number;
-}
-
-/** Üs görünümü: sabit doku + titreyen alev + yükselen duman + vuruş silueti. Kök sağa bakar. */
-export class BaseRig {
-  readonly root = new Container();
-  readonly flash: Sprite;
-  private readonly flame: Sprite;
-  private readonly puffs: Puff[] = [];
-  private clockMs = 0;
-
-  constructor(side: ArtSide) {
-    const map = textures();
-    const tex = (n: string): Texture => mustTexture(map, n);
-    for (let i = 0; i < SMOKE_PUFFS; i++) {
-      const s = new Sprite(tex('smoke'));
-      this.root.addChild(s);
-      this.puffs.push({ sprite: s, offsetMs: (i * SMOKE_LIFE_MS) / SMOKE_PUFFS });
-    }
-    this.root.addChild(new Sprite(tex(`base.${side}`)));
-    this.flame = new Sprite(tex('flame'));
-    this.flame.position.set(FIRE.x, FIRE.y + 2);
-    this.root.addChild(this.flame);
-    this.flash = new Sprite(tex(`base.flash.${side}`));
-    this.flash.alpha = 0;
-    this.root.addChild(this.flash);
-  }
-
-  update(animMs: number): void {
-    this.clockMs += animMs;
-    const t = this.clockMs;
-    const step = Math.floor(t / FLAME_FLICKER_MS);
-    const flick = ((step * 7919) % 13) / 13;
-    this.flame.scale.set(0.9 + flick * 0.25, 0.85 + ((step * 104729) % 11) / 11 * 0.45);
-    this.flame.skew.x = (flick - 0.5) * 0.25;
-    for (const p of this.puffs) {
-      const k = ((t + p.offsetMs) % SMOKE_LIFE_MS) / SMOKE_LIFE_MS;
-      const e = easeOutCubic(k);
-      p.sprite.position.set(FIRE.x - 2 - e * 26 + Math.sin(k * 6 + p.offsetMs) * 4, FIRE.y - 18 - k * SMOKE_RISE_PX);
-      p.sprite.scale.set(0.45 + k * 1.1);
-      p.sprite.alpha = clamp01(k * 6) * (1 - k) * 0.85;
-    }
-  }
-}
+export const PRIMITIVE_BASE_FX: BaseFx = {
+  flame: { x: FIRE.x, y: FIRE.y + 2 },
+  flicker: 'flame',
+  smoke: { x: FIRE.x - 2, y: FIRE.y - 18 },
+  rise: 170,
+  drift: -26,
+  puffScale: 1,
+};

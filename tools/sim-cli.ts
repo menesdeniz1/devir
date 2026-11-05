@@ -49,7 +49,10 @@ function sum(record: Record<string, number>): number {
   return Object.values(record).reduce((a, b) => a + b, 0);
 }
 
-function printSummary(state: GameState): void {
+/** Maç boyunca Sınır Taşı sahipliği tick sayıları: [taraf 0, taraf 1]. */
+type StoneTicks = [number, number];
+
+function printSummary(state: GameState, stoneTicks?: StoneTicks): void {
   console.log(`Sonuç: ${describeOutcome(state.outcome)}`);
   console.log(`Süre: ${formatTime(state.tick)} (${state.tick} tick)`);
   for (const side of [0, 1] as const) {
@@ -57,6 +60,17 @@ function printSummary(state: GameState): void {
     console.log(
       `Taraf ${side}: kazanılan altın ${s.stats.goldEarned}, harcanan ${s.stats.goldSpent}, ` +
         `üretilen ${sum(s.stats.produced)}, kaybedilen ${sum(s.stats.lost)}, üs canı ${s.baseHp}/${s.baseMaxHp}`,
+    );
+  }
+  for (const side of [0, 1] as const) {
+    const s = state.sides[side];
+    const times = s.stats.ageUpTicks.map((tick, i) => `${i + 2}. çağ ${formatTime(tick)}`);
+    console.log(`Taraf ${side}: çağ ${s.age}, deneyim ${s.xp}, çağ geçişleri: ${times.length > 0 ? times.join(', ') : 'yok'}`);
+  }
+  if (stoneTicks !== undefined) {
+    const neutral = state.tick - stoneTicks[0] - stoneTicks[1];
+    console.log(
+      `Sınır Taşı sahipliği: taraf 0 ${formatTime(stoneTicks[0])}, taraf 1 ${formatTime(stoneTicks[1])}, sahipsiz ${formatTime(neutral)}`,
     );
   }
   console.log(`Son karma: ${stateHash(state)}`);
@@ -93,10 +107,12 @@ function runMatch(opts: Record<string, string>): number {
   const state = createMatch({ seed, opponent: nameB === 'basic' ? 'basic-bot' : 'none' });
   const controllers: [Controller | null, Controller | null] = [makeBot(nameA, state.config.seed, 0), makeBot(nameB, state.config.seed, 1)];
   console.log(`Taraf 0: ${nameA}, taraf 1: ${nameB}, tohum ${seed}`);
+  const stoneTicks: StoneTicks = [0, 0];
   while (state.outcome === null && state.tick < maxTicks) {
     stepMatch(state, [], controllers);
+    if (state.stone.owner !== null) stoneTicks[state.stone.owner] += 1;
   }
-  printSummary(state);
+  printSummary(state, stoneTicks);
   return 0;
 }
 
@@ -121,9 +137,14 @@ const KINDS: readonly Kind[] = [
   ['mono-heavy', 'idle'],
   ['mono-heavy', 'mono-ranged'],
   ['mono-front', 'mono-heavy'],
+  ['basic', 'basic'],
+  ['stacker', 'stacker'],
+  ['mono-front', 'mono-ranged'],
 ];
 /** Soak maçlarında başlangıç altınına eklenen en büyük rastgele ek (büyük orduları, dolu kuyruğu ve doğma engelini zorlar). */
 const SOAK_MAX_EXTRA_GOLD = 3000;
+/** Soak maçlarında başlangıç deneyimine eklenen en büyük rastgele ek (çağ atlamayı ve geç çağ birliklerini erken zorlar). */
+const SOAK_MAX_EXTRA_XP = 12000;
 
 function runSoak(opts: Record<string, string>): number {
   const games = numOpt(opts, 'games', 500);
@@ -133,6 +154,9 @@ function runSoak(opts: Record<string, string>): number {
   let draws = 0;
   let timeouts = 0;
   let violations = 0;
+  let agedGames = 0;
+  let maxAgeGames = 0;
+  let stoneCaptures = 0;
   const perKind: Record<string, number> = {};
   const timeoutsByKind: Record<string, number> = {};
   const started = Date.now();
@@ -147,6 +171,8 @@ function runSoak(opts: Record<string, string>): number {
     if (g % 3 !== 0) {
       state.sides[0].gold += rngInt(setup, SOAK_MAX_EXTRA_GOLD + 1);
       state.sides[1].gold += rngInt(setup, SOAK_MAX_EXTRA_GOLD + 1);
+      state.sides[0].xp += rngInt(setup, SOAK_MAX_EXTRA_XP + 1);
+      state.sides[1].xp += rngInt(setup, SOAK_MAX_EXTRA_XP + 1);
     }
     const controllers: [Controller | null, Controller | null] = [
       makeBot(kindDef[0], state.config.seed, 0),
@@ -161,6 +187,7 @@ function runSoak(opts: Record<string, string>): number {
     while (state.outcome === null && state.tick < maxTicks) {
       const goldBefore: [number, number] = [state.sides[0].gold, state.sides[1].gold];
       const events = stepMatch(state, [], controllers);
+      for (const e of events) if (e.type === 'stoneCaptured') stoneCaptures += 1;
       for (const p of checkInvariants(state)) report(p);
       for (const p of goldBalanceProblems(goldBefore, state, events)) report(p);
       if (stall.observe(state, events)) {
@@ -169,6 +196,8 @@ function runSoak(opts: Record<string, string>): number {
         break;
       }
     }
+    if (state.sides[0].age > 1 || state.sides[1].age > 1) agedGames += 1;
+    if (state.sides[0].age === 5 || state.sides[1].age === 5) maxAgeGames += 1;
     if (state.outcome === null && !stalled) {
       timeouts += 1;
       timeoutsByKind[kind] = (timeoutsByKind[kind] ?? 0) + 1;
@@ -181,6 +210,7 @@ function runSoak(opts: Record<string, string>): number {
 
   console.log(`Soak: ${games} oyun (${Object.entries(perKind).map(([k, v]) => `${k}: ${v}`).join(', ')})`);
   console.log(`Galibiyet: ${wins}, beraberlik: ${draws}, zaman aşımı: ${timeouts}`);
+  console.log(`Çağ atlanan oyun: ${agedGames}, 5. çağa ulaşılan oyun: ${maxAgeGames}, Sınır Taşı ele geçirme: ${stoneCaptures}`);
   console.log('Zaman aşımı dökümü (türe göre):');
   for (const kindDef of KINDS) {
     const kind = kindName(kindDef);

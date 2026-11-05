@@ -1,9 +1,10 @@
 import { createBasicBot } from '../src/ai/basicBot';
 import type { Controller } from '../src/ai/controller';
 import { createRandomBot, createStackerBot } from '../src/ai/testBots';
+import { STONE } from '../src/data/stone';
 import { UNITS } from '../src/data/units';
 import { WORLD } from '../src/data/world';
-import { mustGetUnit } from '../src/sim/compile';
+import { mustGetAge, mustGetUnit } from '../src/sim/compile';
 import { createMatch } from '../src/sim/create';
 import { rngFromSeed, rngInt, rngNext, type RngState } from '../src/sim/rng';
 import type { Command, GameState, SideId, UnitState } from '../src/sim/types';
@@ -60,6 +61,7 @@ export function makeControllers(kind: BotKind, configSeed: number): [Controller,
 /** Test amaçlı rastgele dış komut: geçersiz kimlik ve dizinler dahil. */
 export function randomCommand(rng: RngState): Command {
   const side = rngInt(rng, 2) as SideId;
+  if (rngNext(rng) < 0.12) return { type: 'ageUp', side };
   if (rngNext(rng) < 0.6) {
     const ids = [FRONT_ID, FRONT_ID, FRONT_ID, 'no_such_unit'];
     return { type: 'queueUnit', side, unitId: ids[rngInt(rng, ids.length)]! };
@@ -72,3 +74,16 @@ export function unitDef(type = FRONT_ID) {
   if (found === undefined) throw new Error('birlik yok');
   return found;
 }
+
+/** Bir tarafı doğrudan n. çağa koyar (durum tutarlı kalır: azami üs canı tam, geçiş kayıtları sıfır tick'li). */
+export function setAge(state: GameState, side: SideId, age: number): void {
+  const s = state.sides[side];
+  const def = mustGetAge(age);
+  s.age = age;
+  s.baseMaxHp = def.baseMaxHp;
+  s.baseHp = def.baseMaxHp;
+  s.stats.ageUpTicks = Array.from({ length: age - 1 }, () => 0);
+}
+
+/** Gövdesi taş bölgesinin tam ortasında duran birlik için x (taş testleri). */
+export const ZONE_MID_X = (STONE.zoneStart + STONE.zoneEnd) / 2;

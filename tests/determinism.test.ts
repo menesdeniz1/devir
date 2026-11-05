@@ -241,7 +241,7 @@ describe('K-13 (erken): gizli bilgi', () => {
       expect(Object.keys(real).sort()).toEqual(['cooldown', 'hp', 'id', 'mode', 'side', 'type', 'x']);
       expect(Object.keys(obs.units[0]!).every((k) => k in real)).toBe(true);
       // Gözlemin tamamında karşı tarafın altın/deneyim/kuyruk bilgisi yok.
-      expect(Object.keys(obs).sort()).toEqual(['enemy', 'self', 'side', 'tick', 'units']);
+      expect(Object.keys(obs).sort()).toEqual(['enemy', 'self', 'side', 'stone', 'tick', 'units']);
       const enemyJson = JSON.stringify(obs.enemy);
       for (const key of ['gold', 'xp', 'queue', 'stats']) expect(enemyJson).not.toContain(key);
     }

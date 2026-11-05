@@ -1,5 +1,5 @@
 import { fmt, tr, unitName } from '../i18n/tr';
-import { getUnit } from '../sim/compile';
+import { getUnit, TARGET_CLASSES } from '../sim/compile';
 
 /** Sayıyı Türkçe gösterir: tamsayı olduğu gibi, ondalıklı değer virgülle (3,5). */
 export function formatNumber(value: number): string {
@@ -32,6 +32,12 @@ export function unitTooltipLines(unitId: string, key: string, reason?: string): 
   );
   if (def.splash !== undefined) lines.push(fmt(tr.unitStats.splash, { radius: def.splash.radius }));
   if (def.pierce !== undefined) lines.push(fmt(tr.unitStats.pierce, { count: def.pierce.count }));
+  if (def.multiplierOverrides !== undefined) {
+    for (const cls of TARGET_CLASSES) {
+      const value = def.multiplierOverrides[cls];
+      if (value !== undefined) lines.push(fmt(tr.unitStats.override, { target: tr.targetClass[cls] ?? cls, value: formatNumber(value) }));
+    }
+  }
   lines.push(`${tr.role[def.role]}: ${tr.roleHint[def.role]}`);
   return lines;
 }

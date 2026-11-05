@@ -1,5 +1,6 @@
 import { BASIC_BOT } from '../data/ai';
 import { secToTicks, unitOfRole } from '../sim/compile';
+import { planAgeUp } from './ageUpPlan';
 import type { Command, JsonValue } from '../sim/types';
 import type { Controller } from './controller';
 import type { Observation } from './observation';
@@ -8,20 +9,24 @@ interface BasicBotMemory {
   nextDecisionTick: number;
   /** BASIC_BOT.composition içindeki bir sonraki sıra (sınırsız artar; kullanırken uzunluğa göre mod alınır). */
   sequenceIndex: number;
+  /** Çağ ücreti için altın biriktiriyor (her tick karar verir; yetince çağ atlar). */
+  saving: boolean;
 }
 
 function readMemory(memory: JsonValue): BasicBotMemory {
-  const result: BasicBotMemory = { nextDecisionTick: 0, sequenceIndex: 0 };
+  const result: BasicBotMemory = { nextDecisionTick: 0, sequenceIndex: 0, saving: false };
   if (memory !== null && typeof memory === 'object' && !Array.isArray(memory)) {
     const next = memory['nextDecisionTick'];
     if (typeof next === 'number') result.nextDecisionTick = next;
     const index = memory['sequenceIndex'];
     if (typeof index === 'number' && Number.isInteger(index) && index >= 0) result.sequenceIndex = index;
+    result.saving = memory['saving'] === true;
   }
   return result;
 }
 
 /**
+ * Çağ: deneyim sonraki eşiği geçince üretimi durdurup çağ ücretini biriktirir, yetince `ageUp` verir.
  * Basit rakip botu (GDD §9 öncesi). Karar aralığında, kuyruk hedef uzunluğun altındayken `BASIC_BOT.composition`
  * sırasını döngüsel izler: sıradaki rolün güncel çağdaki birliğini sipariş eder. Altın yetmezse sırayı atlamadan
  * bekler. Yalnızca gözlemi kullanır; sıra indeksi bellektedir.
@@ -30,13 +35,23 @@ export function createBasicBot(): Controller {
   return {
     id: 'basic-bot',
     wantsDecision(memory: JsonValue, tick: number) {
-      return tick >= readMemory(memory).nextDecisionTick;
+      const mem = readMemory(memory);
+      return mem.saving || tick >= mem.nextDecisionTick;
     },
     decide(obs: Observation, memory: JsonValue, tick: number) {
       const mem = readMemory(memory);
       const commands: Command[] = [];
+      // Çağ eşiği geçildiyse üretim durur; altın yetince çağ atlanır (sonraki tick yeni çağın birlikleriyle sürer).
+      const plan = planAgeUp(obs.self);
+      if (plan === 'ageUp') {
+        commands.push({ type: 'ageUp', side: obs.side });
+        return { commands, memory: { nextDecisionTick: tick + 1, sequenceIndex: mem.sequenceIndex, saving: false } };
+      }
+      if (plan === 'save') {
+        return { commands, memory: { nextDecisionTick: mem.nextDecisionTick, sequenceIndex: mem.sequenceIndex, saving: true } };
+      }
       if (tick < mem.nextDecisionTick) {
-        return { commands, memory: { nextDecisionTick: mem.nextDecisionTick, sequenceIndex: mem.sequenceIndex } };
+        return { commands, memory: { nextDecisionTick: mem.nextDecisionTick, sequenceIndex: mem.sequenceIndex, saving: false } };
       }
       const sequence = BASIC_BOT.composition;
       let index = mem.sequenceIndex;
@@ -57,7 +72,7 @@ export function createBasicBot(): Controller {
         queued += 1;
         index += 1;
       }
-      return { commands, memory: { nextDecisionTick: tick + secToTicks(BASIC_BOT.decisionIntervalSec), sequenceIndex: index } };
+      return { commands, memory: { nextDecisionTick: tick + secToTicks(BASIC_BOT.decisionIntervalSec), sequenceIndex: index, saving: false } };
     },
   };
 }

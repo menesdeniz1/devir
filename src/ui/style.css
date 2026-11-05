@@ -86,7 +86,37 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
     repeating-linear-gradient(90deg, transparent 0 24%, rgba(29, 27, 43, 0.85) 24% 26%),
     linear-gradient(90deg, var(--c-enemy), var(--c-enemy-hi));
 }
-.hud-center { display: flex; align-items: center; gap: 12px; }
+.hud-center { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.hud-center__row { display: flex; align-items: center; gap: 12px; }
+.hud-base__age { font-size: 13px; font-weight: 700; color: var(--c-gold); white-space: nowrap; }
+
+/* Sınır Taşı göstergesi */
+.hud-stone { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--c-muted); }
+.hud-stone__label { font-weight: 700; }
+.hud-stone__track { position: relative; width: 120px; height: 10px; background: #2a2438; border: 2px solid var(--c-bg); border-radius: 6px; overflow: hidden; }
+.hud-stone__track::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--c-muted); opacity: 0.7; }
+.hud-stone__fill { position: absolute; top: 0; bottom: 0; width: 0; left: 50%; background: var(--c-muted); }
+.hud-stone[data-owner="player"] .hud-stone__fill { background: linear-gradient(90deg, var(--c-player), var(--c-player-hi)); }
+.hud-stone[data-owner="enemy"] .hud-stone__fill { background: linear-gradient(90deg, var(--c-enemy), var(--c-enemy-hi)); }
+.hud-stone[data-owner="player"] .hud-stone__value { color: var(--c-player-hi); }
+.hud-stone[data-owner="enemy"] .hud-stone__value { color: var(--c-enemy); }
+.hud-stone__value { min-width: 11ch; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Bildirim */
+.hud-notice {
+  position: absolute;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 20px;
+  font-size: 20px;
+  font-weight: 700;
+  background: var(--c-panel);
+  border: 2px solid var(--c-gold);
+  border-radius: var(--radius);
+  pointer-events: none;
+  z-index: 4;
+}
 .hud-clock { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 4ch; text-align: center; }
 
 /* ---- Alt panel ---- */
@@ -105,6 +135,22 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
 .hud-gold__value { font-size: 32px; font-weight: 800; color: var(--c-gold); font-variant-numeric: tabular-nums; line-height: 1.1; }
 .hud-gold__income { font-size: 13px; color: var(--c-muted); }
 
+/* Deneyim ve çağ atlama */
+.hud-age { display: flex; flex-direction: column; gap: 4px; width: 190px; }
+.hud-xp__head { display: flex; justify-content: space-between; font-size: 13px; color: var(--c-muted); }
+.hud-xp__text { font-variant-numeric: tabular-nums; }
+.bar--xp { flex: none; height: 12px; min-width: 0; }
+.bar--xp .bar__fill { background: linear-gradient(90deg, #7a5cd6, #c79bff); }
+.btn--age {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "name key" "cost key";
+  align-items: center;
+  text-align: left;
+  padding: 4px 12px;
+}
+.btn--age[data-ready="true"] { border-color: var(--c-gold); box-shadow: 0 0 10px rgba(255, 210, 90, 0.6); }
+
 .hud-units { display: flex; gap: 12px; }
 .unit-cell { display: flex; flex-direction: column; align-items: stretch; gap: 4px; width: 170px; }
 .btn--unit {
@@ -118,6 +164,8 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
 .btn__name { grid-area: name; }
 .btn__cost { grid-area: cost; color: var(--c-gold); font-size: 14px; }
 .btn__cost::after { content: " \25CF"; font-size: 10px; }
+/* Son çağda ücret yazılmaz; altın işareti de görünmesin. */
+.btn__cost:empty { display: none; }
 .btn__key {
   grid-area: key;
   font: 700 16px/1 var(--font);

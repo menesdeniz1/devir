@@ -18,6 +18,7 @@ function createStats(): SideStats {
     goldSpent: 0,
     goldRefunded: 0,
     baseDamageDealt: 0,
+    ageUpTicks: [],
   };
 }
 
@@ -48,6 +49,7 @@ export function createMatch(config: MatchConfig): GameState {
     sides: [createSide(), createSide()],
     units: [],
     projectiles: [],
+    stone: { counter: 0, owner: null },
     ai: [null, null],
   };
 }

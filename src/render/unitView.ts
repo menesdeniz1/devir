@@ -54,7 +54,7 @@ export class UnitView {
     this.maxHp = def.hp;
     this.lastHp = unit.hp;
 
-    this.rig = createUnitRig(unit.type, def.role, unit.side);
+    this.rig = createUnitRig(unit.type, def.role, unit.side, def.age);
     this.rig.root.scale.set(this.dir * UNIT_ART_SCALE, UNIT_ART_SCALE);
     this.container.addChild(this.rig.root);
     this.container.addChild(this.hpBar);

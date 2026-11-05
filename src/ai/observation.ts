@@ -1,4 +1,4 @@
-import type { QueueOrder, SideId, SideState } from '../sim/types';
+import type { QueueOrder, SideId, SideState, StoneState } from '../sim/types';
 import type { GameState } from '../sim/types';
 
 /** Yapay zekânın görebildiği bilgi (PRD R-03). Karşı tarafın altını, deneyimini ve kuyruğunu İÇERMEZ. */
@@ -9,6 +9,8 @@ export interface Observation {
   self: SideState;
   /** Karşı taraftan yalnızca görünen bilgi. */
   enemy: { age: number; baseHp: number; baseMaxHp: number };
+  /** Sınır Taşı durumu (görünür bilgi; PRD R-03). */
+  stone: StoneState;
   /** Sahadaki tüm birlikler. */
   units: { id: number; side: SideId; type: string; x: number; hp: number }[];
 }
@@ -38,9 +40,11 @@ export function buildObservation(state: GameState, side: SideId): Observation {
         goldSpent: own.stats.goldSpent,
         goldRefunded: own.stats.goldRefunded,
         baseDamageDealt: own.stats.baseDamageDealt,
+        ageUpTicks: own.stats.ageUpTicks.slice(),
       },
     },
     enemy: { age: enemy.age, baseHp: enemy.baseHp, baseMaxHp: enemy.baseMaxHp },
+    stone: { counter: state.stone.counter, owner: state.stone.owner },
     units: state.units.map((u) => ({ id: u.id, side: u.side, type: u.type, x: u.x, hp: u.hp })),
   };
 }

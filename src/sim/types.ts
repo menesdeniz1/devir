@@ -31,6 +31,8 @@ export interface SideStats {
   goldSpent: number;
   goldRefunded: number;
   baseDamageDealt: number;
+  /** Çağ geçişlerinin tick'leri: [0] = 2. çağa geçiş, … (sonuç ekranı için). */
+  ageUpTicks: number[];
 }
 
 export interface SideState {
@@ -83,6 +85,17 @@ export interface ProjectileState {
   targetLost: boolean;
 }
 
+/**
+ * Sınır Taşı (GDD §8). counter tamsayıdır: −counterMax (rakip) … +counterMax (oyuncu).
+ * Gövdesi bölgeyle kesişen birlikler sayılır. Yalnız bir tarafın birliği varsa sayaç her tick o tarafa 1 ilerler;
+ * iki taraf da varsa veya kimse yoksa değişmez. ±counterMax'a ulaşınca o taraf sahip olur;
+ * sahip 0 iken sayaç < 0 olursa, sahip 1 iken sayaç > 0 olursa sahiplik düşer.
+ */
+export interface StoneState {
+  counter: number;
+  owner: SideId | null;
+}
+
 /** Yapay zekâ belleği: yalnızca JSON değerleri. Biçimi ai/ katmanı belirler. */
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
@@ -103,6 +116,7 @@ export interface GameState {
   units: UnitState[];
   /** Sabit sırayla (oluşturulma sırası) tutulur. */
   projectiles: ProjectileState[];
+  stone: StoneState;
   /** Taraf başına yapay zekâ belleği; denetlenmeyen taraf için null. */
   ai: [JsonValue, JsonValue];
 }
@@ -112,7 +126,9 @@ export interface GameState {
 export type Command =
   | { type: 'queueUnit'; side: SideId; unitId: string }
   /** index ≥ 1 olmalı (index 0 üretimdedir). */
-  | { type: 'cancelOrder'; side: SideId; index: number };
+  | { type: 'cancelOrder'; side: SideId; index: number }
+  /** Sonraki çağa geçiş (PRD Ç-01…Ç-08). Ücret anında düşer; can yüzdesi korunur. */
+  | { type: 'ageUp'; side: SideId };
 
 export type RejectReason =
   /** Bozuk komut: taraf 0/1 değil, bilinmeyen tür ya da eksik/yanlış tipli alan. */
@@ -123,11 +139,23 @@ export type RejectReason =
   | 'notEnoughGold'
   | 'queueFull'
   | 'orderInProduction'
-  | 'noSuchOrder';
+  | 'noSuchOrder'
+  /** Sonraki çağın deneyim eşiğine ulaşılmadı. */
+  | 'notEnoughXp'
+  /** Son çağdasın. */
+  | 'maxAge';
 
 export type Validation =
   | { ok: true }
-  | { ok: false; reason: RejectReason; /** notEnoughGold için eksik miktar */ missingGold?: number };
+  | {
+      ok: false;
+      reason: RejectReason;
+      /** notEnoughGold için eksik miktar */
+      missingGold?: number;
+      /** notEnoughXp için mevcut ve gereken toplam deneyim */
+      xp?: number;
+      xpRequired?: number;
+    };
 
 // ---- Olaylar (duruma yazılmaz; çizim, ses, arayüz ve testler dinler) --------
 
@@ -144,4 +172,7 @@ export type SimEvent =
   | { type: 'baseDamaged'; side: SideId; amount: number }
   | { type: 'unitDied'; side: SideId; id: number; unitType: string; bountyGold: number; bountyXp: number }
   | { type: 'income'; side: SideId; amount: number }
+  | { type: 'agedUp'; side: SideId; age: number; paid: number; baseHp: number; baseMaxHp: number }
+  | { type: 'stoneCaptured'; side: SideId }
+  | { type: 'stoneLost'; side: SideId }
   | { type: 'matchEnded'; outcome: Outcome };

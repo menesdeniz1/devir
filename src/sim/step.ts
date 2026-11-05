@@ -1,6 +1,7 @@
 import { WORLD } from '../data/world';
 import { applyCommand } from './commands';
 import { strike, type PendingDamage } from './combat';
+import { STONE } from '../data/stone';
 import { EPS, mustGetAge, mustGetUnit } from './compile';
 import { dirOf, enemyBaseFaceX, facingEdgeX, otherSide } from './geometry';
 import { selectTargets, type Target } from './targeting';
@@ -24,6 +25,7 @@ export function step(state: GameState, commands: readonly Command[]): SimEvent[]
   attacks(state, targets, pending, events);
   advanceProjectiles(state, pending, events);
   resolveDamage(state, pending, events);
+  updateStone(state, events);
   resolveOutcome(state, events);
   state.tick += 1;
   return events;
@@ -51,7 +53,13 @@ function economy(state: GameState, events: SimEvent[]): void {
   if ((state.tick + 1) % WORLD.tickRate !== 0) return;
   for (const side of [0, 1] as const) {
     const s = state.sides[side];
-    const amount = mustGetAge(s.age).incomePerSec;
+    const ageDef = mustGetAge(s.age);
+    let amount = ageDef.incomePerSec;
+    // Sınır Taşı bonusu yalnız sahibine (GDD §8): ek altın ve deneyim.
+    if (state.stone.owner === side) {
+      amount += ageDef.stoneGoldPerSec;
+      s.xp += ageDef.stoneXpPerSec;
+    }
     s.gold += amount;
     s.stats.goldEarned += amount;
     events.push({ type: 'income', side, amount });
@@ -300,6 +308,41 @@ function resolveDamage(state: GameState, pending: readonly PendingDamage[], even
     });
   }
   state.units = survivors;
+}
+
+// ---- 11. Sınır Taşı -------------------------------------------------------------
+
+/**
+ * Gövdesi [zoneStart, zoneEnd] ile kesişen birlikler taraf başına sayılır. Yalnız bir taraf varsa sayaç o tarafa 1
+ * ilerler (±counterMax'ta durur); iki taraf da varsa ya da kimse yoksa değişmez. Sınıra ulaşan sahip olur;
+ * sahip 0 iken sayaç < 0, sahip 1 iken sayaç > 0 olursa sahiplik düşer.
+ */
+function updateStone(state: GameState, events: SimEvent[]): void {
+  const stone = state.stone;
+  const present: [boolean, boolean] = [false, false];
+  for (const u of state.units) {
+    const half = mustGetUnit(u.type).def.width / 2;
+    if (u.x + half >= STONE.zoneStart && u.x - half <= STONE.zoneEnd) present[u.side] = true;
+  }
+  if (present[0] && !present[1]) stone.counter = Math.min(STONE.counterMax, stone.counter + 1);
+  else if (present[1] && !present[0]) stone.counter = Math.max(-STONE.counterMax, stone.counter - 1);
+
+  if (stone.owner === 0 && stone.counter < 0) {
+    stone.owner = null;
+    events.push({ type: 'stoneLost', side: 0 });
+  } else if (stone.owner === 1 && stone.counter > 0) {
+    stone.owner = null;
+    events.push({ type: 'stoneLost', side: 1 });
+  }
+  if (stone.owner === null) {
+    if (stone.counter === STONE.counterMax) {
+      stone.owner = 0;
+      events.push({ type: 'stoneCaptured', side: 0 });
+    } else if (stone.counter === -STONE.counterMax) {
+      stone.owner = 1;
+      events.push({ type: 'stoneCaptured', side: 1 });
+    }
+  }
 }
 
 // ---- 12. Sonuç ---------------------------------------------------------------

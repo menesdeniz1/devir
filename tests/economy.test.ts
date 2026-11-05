@@ -17,6 +17,7 @@ describe('K-01: altın ve ücretlendirme', () => {
   it('K-01: bulanık test — altın her tick tamsayı ve >= 0, sipariş bir kez ücretlendirilir, ret durumu değiştirmez', () => {
     let rejectionsChecked = 0;
     let accepted = 0;
+    let agedUp = 0;
     for (let g = 0; g < FUZZ_GAMES; g++) {
       const seed = 1000 + g;
       const s = newState(seed);
@@ -25,6 +26,8 @@ describe('K-01: altın ve ücretlendirme', () => {
       for (let t = 0; t < FUZZ_TICKS && s.outcome === null; t++) {
         // Rastgele altın enjeksiyonu: büyük ordu, dolu kuyruk ve doğma engeli üretir.
         if (rngInt(rng, 200) === 0) s.sides[rngInt(rng, 2) as 0 | 1].gold += rngInt(rng, 600);
+        // Deneyim enjeksiyonu: çağ atlama (ücret bir kez, ret yolları) bulanık teste girer.
+        if (rngInt(rng, 300) === 0) s.sides[rngInt(rng, 2) as 0 | 1].xp += rngInt(rng, 2500);
         const cmds = [];
         const n = rngInt(rng, 3);
         for (let i = 0; i < n; i++) cmds.push(randomCommand(rng));
@@ -45,6 +48,7 @@ describe('K-01: altın ve ücretlendirme', () => {
         const goldBefore: [number, number] = [s.sides[0].gold, s.sides[1].gold];
         const events = stepMatch(s, cmds, controllers);
         accepted += events.filter((e) => e.type === 'unitQueued').length;
+        agedUp += events.filter((e) => e.type === 'agedUp').length;
         expect(checkInvariants(s)).toEqual([]);
         expect(goldBalanceProblems(goldBefore, s, events)).toEqual([]);
         for (const side of [0, 1] as const) {
@@ -55,6 +59,7 @@ describe('K-01: altın ve ücretlendirme', () => {
     }
     expect(rejectionsChecked).toBeGreaterThan(500);
     expect(accepted).toBeGreaterThan(100);
+    expect(agedUp).toBeGreaterThan(5);
   });
 
   it('K-01: kabul edilen sipariş altını hemen ve yalnız bir kez düşürür', () => {

@@ -53,7 +53,7 @@ async function boot(): Promise<void> {
   startFrameLoop(browserClock, (frameMs) => {
     session.advance(frameMs);
     renderer.render(frameMs);
-    hud.update();
+    hud.update(frameMs);
     overlays.update();
     debugUpdate?.();
   });

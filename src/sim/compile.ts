@@ -44,7 +44,7 @@ export interface CompiledUnit {
 function compileUnit(def: UnitDef): CompiledUnit {
   const multipliers = COMBAT.roleMultipliers[def.role];
   const damageVs = {} as Record<TargetClass, number>;
-  for (const cls of TARGET_CLASSES) damageVs[cls] = roundDamage(def.damage * multipliers[cls]);
+  for (const cls of TARGET_CLASSES) damageVs[cls] = roundDamage(def.damage * (def.multiplierOverrides?.[cls] ?? multipliers[cls]));
   let splashDamageVs: Record<Role, number> | null = null;
   if (def.splash !== undefined) {
     splashDamageVs = {} as Record<Role, number>;

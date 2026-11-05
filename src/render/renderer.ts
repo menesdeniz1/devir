@@ -3,7 +3,16 @@ import { prewarmUnitArt } from '../art/unitArt';
 import { WORLD } from '../data/world';
 import type { Session, SessionEvent } from '../game/session';
 import { COLOR_SKY_TOP, MAX_ANIM_FRAME_MS, MAX_RESOLUTION, SCENE_HEIGHT, WINDOW_MARGIN } from './constants';
-import { createBackground, createBaseView, triggerBaseFlash, updateBaseFlash, type BaseView } from './scene';
+import {
+  createBackground,
+  createBaseView,
+  createStoneView,
+  setBaseAge,
+  triggerBaseFlash,
+  updateBaseFlash,
+  updateStoneView,
+  type BaseView,
+} from './scene';
 import { ProjectileLayer } from './projectileView';
 import { UnitView } from './unitView';
 
@@ -40,7 +49,8 @@ export async function createRenderer(host: HTMLElement, session: Session): Promi
   units.sortableChildren = true;
   const bases: [BaseView, BaseView] = [createBaseView(0), createBaseView(1)];
   const projectiles = new ProjectileLayer();
-  world.addChild(createBackground(), bases[0].container, bases[1].container, units, projectiles.container);
+  const stone = createStoneView();
+  world.addChild(createBackground(), bases[0].container, bases[1].container, stone.container, units, projectiles.container);
   app.stage.addChild(world);
 
   const views = new Map<number, UnitView>();
@@ -68,6 +78,10 @@ export async function createRenderer(host: HTMLElement, session: Session): Promi
     if (event.type === 'reset') {
       clearViews();
       projectiles.clear();
+      // Yeni maç: üsler ve taş yeni durumdan çizilir; taşın görsel durumu da baştan başlar.
+      setBaseAge(bases[0], session.state.sides[0].age, false);
+      setBaseAge(bases[1], session.state.sides[1].age, false);
+      updateStoneView(stone, session.state.stone, 0);
       return;
     }
     if (event.type !== 'sim') return;
@@ -116,6 +130,9 @@ export async function createRenderer(host: HTMLElement, session: Session): Promi
         animMs,
         (sourceId) => views.get(sourceId)?.launchPoint(),
       );
+      setBaseAge(bases[0], state.sides[0].age);
+      setBaseAge(bases[1], state.sides[1].age);
+      updateStoneView(stone, state.stone, animMs);
       updateBaseFlash(bases[0], animMs);
       updateBaseFlash(bases[1], animMs);
       app.render();

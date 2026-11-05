@@ -1,9 +1,15 @@
+import { STONE } from '../data/stone';
 import { WORLD, ECONOMY } from '../data/world';
-import { EPS, getUnit, mustGetUnit } from './compile';
+import { EPS, getAge, getUnit, mustGetUnit } from './compile';
 import type { GameState, SimEvent, UnitState } from './types';
 
 /** Her tick sonunda geçerli olması gereken değişmezler (TDD §10). İhlal metinlerini döndürür; boşsa sorun yok. */
-export function checkInvariants(state: GameState): string[] {
+export interface InvariantOptions {
+  /** Karşılık senaryoları üs canını yapay olarak yükseltir; azami üs canının çağla uyumu denetlenmez. */
+  allowCustomBaseHp?: boolean;
+}
+
+export function checkInvariants(state: GameState, options: InvariantOptions = {}): string[] {
   const problems: string[] = [];
   for (const side of [0, 1] as const) {
     const s = state.sides[side];
@@ -18,8 +24,18 @@ export function checkInvariants(state: GameState): string[] {
         problems.push(`taraf ${side}: kuyruk sırası ${index} üretimde değil ama ilerlemesi ${order.progressTicks}`);
       }
     });
+    const ageDef = getAge(s.age);
+    if (!Number.isInteger(s.age) || ageDef === undefined) problems.push(`taraf ${side}: çağ geçersiz (${s.age})`);
+    else if (options.allowCustomBaseHp !== true && s.baseMaxHp !== ageDef.baseMaxHp) problems.push(`taraf ${side}: azami üs canı çağla uyumsuz (${s.baseMaxHp} ≠ ${ageDef.baseMaxHp})`);
+    if (s.stats.ageUpTicks.length !== s.age - 1) problems.push(`taraf ${side}: çağ geçiş kaydı ${s.stats.ageUpTicks.length} ama çağ ${s.age}`);
     if (s.baseHp <= 0 && state.outcome === null) problems.push(`taraf ${side}: üs canı ${s.baseHp} ama sonuç belirlenmemiş`);
   }
+
+  const stone = state.stone;
+  if (!Number.isInteger(stone.counter) || Math.abs(stone.counter) > STONE.counterMax) problems.push(`taş sayacı geçersiz (${stone.counter})`);
+  if (stone.owner === 0 && stone.counter < 0) problems.push(`taş sahibi 0 ama sayaç ${stone.counter}`);
+  if (stone.owner === 1 && stone.counter > 0) problems.push(`taş sahibi 1 ama sayaç ${stone.counter}`);
+  if (stone.owner === null && Math.abs(stone.counter) === STONE.counterMax) problems.push(`taş sayacı sınırda ama sahibi yok (${stone.counter})`);
 
   const seen = new Set<number>();
   const perSide: [UnitState[], UnitState[]] = [[], []];
@@ -85,6 +101,9 @@ export function goldBalanceProblems(goldBefore: readonly [number, number], state
   for (const e of events) {
     switch (e.type) {
       case 'unitQueued':
+        expected[e.side] -= e.paid;
+        break;
+      case 'agedUp':
         expected[e.side] -= e.paid;
         break;
       case 'orderCancelled':

@@ -1,4 +1,4 @@
-import { DEBUG_GOLD_GRANT, DEBUG_LOW_BASE_HP, DEBUG_SPEEDS, PLAYER_SIDE } from '../game/constants';
+import { DEBUG_GOLD_GRANT, DEBUG_LOW_BASE_HP, DEBUG_XP_GRANT, DEBUG_SPEEDS, PLAYER_SIDE } from '../game/constants';
 import type { Session } from '../game/session';
 import { fmt, tr } from '../i18n/tr';
 import { stateHash } from '../sim/hash';
@@ -35,6 +35,7 @@ export function mountDebugPanel(root: HTMLElement, session: Session): { update()
   action(tr.debug.enemyBase1, () => session.debugMutate((s) => void (s.sides[PLAYER_SIDE === 0 ? 1 : 0].baseHp = DEBUG_LOW_BASE_HP)));
   action(tr.debug.selfBase1, () => session.debugMutate((s) => void (s.sides[PLAYER_SIDE].baseHp = DEBUG_LOW_BASE_HP)));
   action(fmt(tr.debug.addGold, { n: DEBUG_GOLD_GRANT }), () => session.debugMutate((s) => void (s.sides[PLAYER_SIDE].gold += DEBUG_GOLD_GRANT)));
+  action(fmt(tr.debug.addXp, { n: DEBUG_XP_GRANT }), () => session.debugMutate((s) => void (s.sides[PLAYER_SIDE].xp += DEBUG_XP_GRANT)));
 
   const info = el('div', 'debug__info', panel);
   const writeInfo = textWriter(info);

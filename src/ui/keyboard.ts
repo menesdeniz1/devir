@@ -1,6 +1,6 @@
 import type { Session } from '../game/session';
-import { cancelLastWaiting, produceUnit } from './actions';
-import { KEY_CANCEL_LAST, KEYS_TOGGLE_PAUSE, UNIT_SHORTCUT_CODES } from './constants';
+import { ageUp, cancelLastWaiting, produceUnit } from './actions';
+import { KEY_AGE_UP, KEY_CANCEL_LAST, KEYS_TOGGLE_PAUSE, UNIT_SHORTCUT_CODES } from './constants';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -18,6 +18,11 @@ export function mountKeyboard(session: Session, target: Pick<Document, 'addEvent
     if (unitIndex >= 0) {
       event.preventDefault();
       if (!event.repeat) produceUnit(session, unitIndex);
+      return;
+    }
+    if (code === KEY_AGE_UP) {
+      event.preventDefault();
+      if (!event.repeat) ageUp(session);
       return;
     }
     if (code === KEY_CANCEL_LAST) {

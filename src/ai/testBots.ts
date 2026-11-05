@@ -4,6 +4,7 @@
 import { ECONOMY } from '../data/world';
 import type { Role } from '../data/types';
 import { getAge, unitOfRole } from '../sim/compile';
+import { planAgeUp } from './ageUpPlan';
 import { mixSeed, rngFromSeed, rngInt, rngNext, type RngState } from '../sim/rng';
 import type { Command, JsonValue, SideId } from '../sim/types';
 import type { Controller } from './controller';
@@ -11,8 +12,10 @@ import type { Observation } from './observation';
 
 /** Rastgele botun her tick'te bir şey yapma olasılığı. */
 const RANDOM_ACT_CHANCE = 0.04;
-/** Eylem seçiminde sipariş olasılığı; kalanı iptal denemesi. */
-const RANDOM_QUEUE_SHARE = 0.75;
+/** Eylem seçiminde sipariş olasılığı; kalanı çağ atlama veya iptal denemesi. */
+const RANDOM_QUEUE_SHARE = 0.7;
+/** Sipariş dışı eylemlerde çağ atlama payı (yalnız komut geçerliyken verilir). */
+const RANDOM_AGE_UP_SHARE = 0.5;
 /** Siparişlerde geçersiz/kullanılamaz kimlik deneme olasılığı (ret yollarını sınamak için). */
 const RANDOM_BAD_ID_CHANCE = 0.1;
 const BAD_UNIT_ID = 'no_such_unit';
@@ -51,6 +54,9 @@ export function createRandomBot(configSeed: number, side: SideId): Controller {
           const bad = ids.length === 0 || rngNext(rng) < RANDOM_BAD_ID_CHANCE;
           const unitId = bad ? BAD_UNIT_ID : ids[rngInt(rng, ids.length)]!;
           commands.push({ type: 'queueUnit', side: obs.side, unitId });
+        } else if (rngNext(rng) < RANDOM_AGE_UP_SHARE) {
+          // Rastgele zamanda çağ atlar, ama yalnız geçerliyse (ücret ve eşik karşılanmışsa).
+          if (planAgeUp(obs.self) === 'ageUp') commands.push({ type: 'ageUp', side: obs.side });
         } else {
           // Geçerli aralığın bir ötesi dahil: ret yollarını da dener.
           commands.push({ type: 'cancelOrder', side: obs.side, index: rngInt(rng, obs.self.queue.length + 1) });
@@ -77,7 +83,9 @@ export function createStackerBot(): Controller {
     id: 'stacker',
     decide(obs: Observation) {
       const commands: Command[] = [];
-      if (obs.self.queue.length > 0) return { commands, memory: null };
+      const plan = planAgeUp(obs.self);
+      if (plan === 'ageUp') return { commands: [{ type: 'ageUp', side: obs.side }], memory: null };
+      if (plan === 'save' || obs.self.queue.length > 0) return { commands, memory: null };
       const mix: string[] = [];
       let total = 0;
       for (const role of STACKER_MIX.slice(0, ECONOMY.maxQueue)) {
@@ -103,8 +111,10 @@ export function createMonoBot(role: Role): Controller {
     id: `mono-${role}`,
     decide(obs: Observation) {
       const commands: Command[] = [];
+      const plan = planAgeUp(obs.self);
+      if (plan === 'ageUp') return { commands: [{ type: 'ageUp', side: obs.side }], memory: null };
       const unit = unitOfRole(obs.self.age, role);
-      if (unit !== undefined) {
+      if (unit !== undefined && plan === 'none') {
         let gold = obs.self.gold;
         let queued = obs.self.queue.length;
         while (queued < MONO_TARGET_QUEUE && gold >= unit.def.cost) {

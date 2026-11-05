@@ -12,6 +12,15 @@ export function queueCommand(unitId: string): Command {
   return { type: 'queueUnit', side: PLAYER_SIDE, unitId };
 }
 
+export function ageUpCommand(): Command {
+  return { type: 'ageUp', side: PLAYER_SIDE };
+}
+
+/** Sonraki çağa geçer (düğme ve kısayol aynı yolu kullanır). */
+export function ageUp(session: Session): Check {
+  return session.submit(ageUpCommand());
+}
+
 export function cancelCommand(index: number): Command {
   return { type: 'cancelOrder', side: PLAYER_SIDE, index };
 }
