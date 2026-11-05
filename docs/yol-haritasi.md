@@ -30,12 +30,14 @@ Her aşama **çalıştırılabilir** bir sürümle ve **komutla doğrulanabilir*
 | 9 | Üretim kalitesinde görsel ve ses | Tamamlandı (2026-11-05): özgün siluetler, çağa özgü mermiler, arka planlar, üs hasarı, sarsıntı; sentez ses ve 5 çağ müziği |
 | 10 | Denge, kalite ve yayın | Tamamlandı (2026-11-05): kod incelemesi düzeltmeleri, perf paneli, WebGL yok ekranı, üç tarayıcılı E2E, sürüm 1.0.0 paketi. Açık: insan oyun testi (maç süresi, Normal'in zorluğu), itch.io yüklemesi (kullanıcı hesabı) |
 
-**Sürüm 1.0.0 sonrası düzeltmeler:** ikinci denge turu (üs canı eğrisi; Normal–Normal medyan 10:41, zaman aşımı
-%13) ve ölçüme dayalı ses normalizasyonu (kırpılma, DC sapması ve çağlar arası düzey farkı düzeltildi).
+**Sürüm 1.0.0 sonrası düzeltmeler:** ikinci ve üçüncü denge turu (üs canı eğrisi; Yürüyen Kale hasarı; iki tohum
+kümesinde Normal–Normal medyan ≈ 10:45, zaman aşımı ≤ %7,5; Zor–Zor zaman aşımı ≤ %8,5), ölçüme dayalı ses
+normalizasyonu (kırpılma, DC sapması, çağlar arası düzey farkı) ve BS.1770 K-ağırlıklı gürlük (LUFS) ile frekans
+dengesi.
 
-**Bilinen açık noktalar:** Normal–Normal zaman aşımı farklı tohum kümesinde %18'e çıkabiliyor (5. çağ aynalı
-çıkmazı); Zor–Zor maçlarının ≈ %25'i 20 dakikada sonuçlanmaz; ses düzeyleri ölçüme göre ayarlandı ama algısal
-gürlük ve tını kulakla değerlendirilmedi; öğreticinin insan oyunundaki süresi ölçülmedi.
+**Bilinen açık noktalar:** saf ön hat yığınıyla oynanan aynalı maçlar (normal-front – Normal) çoğunlukla 20
+dakikayı aşar (kazanamaz, %27–28,5); ses ve müziğin tınısı yalnız ölçümle (LUFS, bant dengesi) doğrulandı, kulakla
+dinlenmedi; öğretici ve maç süresi gerçek insan oyununda ölçülmedi (betikli oyuncuyla tarayıcıda doğrulandı).
 
 ---
 

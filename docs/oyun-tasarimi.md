@@ -131,7 +131,7 @@ Hesaplanan değerler veri dosyasına tamsayı/sabit ondalık olarak yazılır; �
 | 2 Antik | **Kalkanlı Mızrakçı** — can +%15, hasar −%10 | **Atlı Okçu** — hız +%40, can −%10 | **Balista** — delme (hedef + 2), alan yok |
 | 3 Orta | **Zırhlı Muhafız** — can +%10 | **Arbaletçi** — aralık 1,8 sn, hasar +%60, ön hata çarpan 1,5 | **Mancınık** — menzil +%15, hız −%15, alan 70 |
 | 4 Endüstri | **Süngülü Er** — hız +%10 | **Nişancı** — menzil +%15 | **Buharlı Top Arabası** — can +%20, alan 60 |
-| 5 Gelecek | **Plazma Muhafızı** — can ve hasar +%10 | **Ray Tüfekçisi** — delme (hedef + 1) | **Yürüyen Kale** — can +%25, hız −%10, alan 80 |
+| 5 Gelecek | **Plazma Muhafızı** — can ve hasar +%10 | **Ray Tüfekçisi** — delme (hedef + 1) | **Yürüyen Kale** — can +%25, hız −%10, alan 80, hasar ×2 (çağ istisnası: geç oyun ağır düellosunu kısaltır, §10) |
 
 Kadro adları ve görsel kavramları özgündür; türün bilinen oyunlarındaki birlik adları ve tasarımları kullanılmaz.
 
@@ -255,8 +255,10 @@ ilişkileri, kuleler, yetenekler ve çağ farkıyla sonuca dönüşür. Sonuçla
 tarafın geride kalanı üssüne sıkıştırmasıyla 5–8. dakikada bitiyordu. Reddedilen iki çözüm: geride kalana çağ
 ücreti indirimi (%20–40; zaman aşımı %18 → %45) ve çağ başına can/hasar çarpanını ×1,8–1,7'ye yumuşatmak (zaman
 aşımı %31–41). İkisi de maçları uzatmak yerine çıkmaza çevirdi. İşe yarayan kaldıraç üs canı eğrisidir (§4):
-Normal–Normal medyanı 10:41, zaman aşımı %13, maçların %71'i 4., %33'ü 5. çağı görür. Kalan zaman aşımları
-çoğunlukla 5. çağdaki aynalı çıkmazdır; insan oyununda belirleyici karşılık seçimi bunu kırar.
+maçların %71'i 4., %33'ü 5. çağı görür. Kalan zaman aşımları 5. çağdaki ağır düellosundan geliyordu (iki
+Yürüyen Kale 300 menzilden birbirini döverken arkadaki ordu geçemiyordu); bu yüzden Yürüyen Kale formülün iki
+katı hasar verir (§5). Son ölçüm, iki ayrı tohum kümesinde (200'er maç): Normal–Normal medyan 10:52 / 10:40,
+zaman aşımı %5,5 / %7,5; Zor–Zor zaman aşımı %8,5 / %6,5.
 
 ## 11. Arayüz ve kontroller
 
