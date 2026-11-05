@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # typecheck + birim testleri + üretim derlemesi (CLAUDE.md kalite kapısı)
+      - run: npm run check
+      # Toplu maç denetimi: değişmez ihlali veya kilitlenme varsa çıkış kodu 1
+      - run: npm run sim -- soak --games 200
+      - uses: actions/upload-artifact@v4
+        with:
+          name: devir-dist
+          path: dist
+          retention-days: 14
