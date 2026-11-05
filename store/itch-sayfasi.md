@@ -1,5 +1,7 @@
 # itch.io sayfası — Devir
 
+Yayında: https://menesdeniz.itch.io/devir (2026-11-06, sürüm 1.0.1, gömme 1280×720, AI bildirimi işaretli).
+
 Bu dosya, itch.io'da proje oluştururken alanlara olduğu gibi yapıştırılacak metni ve ayarları içerir.
 Görseller bu klasördedir. Yüklenecek paket: GitHub sürüm sayfasındaki `devir-1.0.1-html5.zip`
 (ya da `npm run build` sonrası `dist/` içeriğinin zip'i; kökte `index.html`).
