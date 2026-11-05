@@ -24,8 +24,10 @@ Paket: GitHub sürüm sayfasındaki `devir-1.1.0-html5.zip` (yerelde `release/de
 
 ## Short description or tagline
 
+itch.io sınırı 120 karakter; bu satır 81 karakter.
+
 ```text
-One lane, five ages: build an army, hold the Border Stone and out-age your rival. Single-player strategy in your browser.
+One lane, five ages: build an army, hold the Border Stone and out-age your rival.
 ```
 
 ## Description
@@ -84,5 +86,11 @@ Your 1.0 saves still load.
 | Viewport | 1280 × 720; Fullscreen button açık; Mobile friendly, Automatically start, Enable scrollbars, SharedArrayBuffer kapalı |
 | Genre | Strategy |
 | Tags | 2d, singleplayer, real-time-strategy, tower-defense, medieval, science-fiction, cartoon (isteğe bağlı english, turkish) |
-| AI generation disclosure | Yes (kod, kodla üretilen görsel/ses ve metinler yapay zekâ yardımıyla) |
+| AI generation disclosure | Yes; türler: Graphics, Sounds, Text & Dialog, Code (dördü de). İsteğe bağlı açıklama aşağıda |
 | Community | Comments |
+
+## Statement of AI usage (isteğe bağlı, sayfada herkese görünür)
+
+```text
+The code, the code-drawn art, the synthesized sound and music, and the texts were created with the help of an AI assistant (Claude), then reviewed and playtested by me.
+```
