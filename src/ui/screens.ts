@@ -1,10 +1,11 @@
 import type { Flow, FlowNotice } from '../game/flow';
 import type { SaveFailure } from '../game/save';
 import { tr } from '../i18n/tr';
-import { mountMenu, mountSetup, type MenuHooks } from './menuScreens';
+import { mountMenu, mountSetup } from './menuScreens';
 import { mountOverlays } from './overlays';
 import { mountSettings } from './settingsScreen';
 import { mountToasts } from './toast';
+import { mountTutorialView } from './tutorialView';
 
 export interface Screens {
   /** Her karede: ekran görünürlüğü ve bildirim süreleri. */
@@ -16,7 +17,7 @@ export interface Screens {
   destroy(): void;
 }
 
-export interface ScreenHooks extends MenuHooks {
+export interface ScreenHooks {
   /** Bir bildirim gösterildiğinde (ör. 'notice' sesi). */
   onNotice?: () => void;
 }
@@ -29,13 +30,14 @@ export function noticeText(notice: FlowNotice): string {
 
 /** Tüm ekranlar ve katmanlar: ana menü, kurulum, ayarlar, duraklatma, sonuç, bildirimler. */
 export function mountScreens(root: HTMLElement, flow: Flow, hooks: ScreenHooks = {}): Screens {
-  const menu = mountMenu(root, flow, hooks);
+  const menu = mountMenu(root, flow);
   const setup = mountSetup(root, flow);
   const overlays = mountOverlays(root, flow);
   const settings = mountSettings(root, flow);
+  const tutorial = mountTutorialView(root, flow);
   const toasts = mountToasts(root, hooks.onNotice);
 
-  const all = [menu, setup, overlays, settings];
+  const all = [menu, setup, overlays, settings, tutorial];
   const refresh = (): void => {
     root.dataset['screen'] = flow.screen;
     for (const screen of all) screen.update();
@@ -57,7 +59,7 @@ export function mountScreens(root: HTMLElement, flow: Flow, hooks: ScreenHooks =
       return flow.screen !== 'battle' || flow.settingsOpen;
     },
     dismiss(): boolean {
-      if (settings.dismiss()) return true;
+      if (settings.dismiss() || tutorial.dismiss()) return true;
       if (flow.screen === 'setup') return setup.dismiss();
       // Ana menüde Esc bir şey yapmaz ama oyun kısayolu olarak da işlenmez.
       return flow.screen === 'menu';

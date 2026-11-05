@@ -12,12 +12,19 @@ import {
   startMatch,
 } from './helpers';
 
+/** İlk açılış önerisi diğer testlerin tıklamalarını örtmesin: öneri daha önce yanıtlanmış sayılır. */
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript((key) => {
+    if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify({ status: 'dismissed' }));
+  }, KEYS.tutorial);
+});
+
 test.describe('Ekran akışı ve kayıt', () => {
   test('menü → kurulum → Normal başlat; birlik üret; duraklat → yeniden yükle → Devam et: aynı tick ve karma (K-07)', async ({ page }) => {
     await openGame(page);
     // Kayıt yokken Devam et kapalı; Öğretici henüz devre dışı.
     await expect(action(page, 'continue')).toBeDisabled();
-    await expect(action(page, 'tutorial')).toBeDisabled();
+    await expect(action(page, 'tutorial')).toBeEnabled();
     await shot(page, 'menu-1280x720');
 
     await action(page, 'start').click();

@@ -276,6 +276,14 @@ export class Session {
     mutate(this.gameState);
   }
 
+  /**
+   * Senaryo (öğretici) kurulumu için durumu doğrudan değiştirir. Yalnız kayıtsız, sonuçsuz özel maçlarda kullanılır;
+   * değişmezleri korumak çağıranın sorumluluğudur.
+   */
+  scenarioMutate(mutate: (state: GameState) => void): void {
+    mutate(this.gameState);
+  }
+
   // ---- Abonelik ------------------------------------------------------------
 
   subscribe(listener: (event: SessionEvent) => void): () => void {

@@ -12,14 +12,9 @@ export interface MountedScreen {
   destroy(): void;
 }
 
-export interface MenuHooks {
-  /** Öğretici kancası (Aşama 8). Verilmezse düğme "Yakında" ile devre dışıdır. */
-  onTutorial?: () => void;
-}
-
 // ---- Ana menü (PRD EK-01) ---------------------------------------------------------
 
-export function mountMenu(root: HTMLElement, flow: Flow, hooks: MenuHooks = {}): MountedScreen {
+export function mountMenu(root: HTMLElement, flow: Flow): MountedScreen {
   const { root: screen, card } = createScreen(root, 'screen--menu', false);
   screen.dataset['screen'] = 'menu';
   const title = el('h1', 'menu__logo', card);
@@ -40,14 +35,8 @@ export function mountMenu(root: HTMLElement, flow: Flow, hooks: MenuHooks = {}):
   const resumeInfo = el('span', 'menu__continue-info', resume);
   const writeInfo = textWriter(resumeInfo);
 
-  const tutorial = actionButton(nav, tr.menu.tutorial, { onClick: () => hooks.onTutorial?.() });
+  const tutorial = actionButton(nav, tr.menu.tutorial, { ariaLabel: tr.menu.tutorialAria, onClick: () => flow.startTutorial() });
   tutorial.dataset['action'] = 'tutorial';
-  if (hooks.onTutorial === undefined) {
-    tutorial.disabled = true;
-    tutorial.title = tr.menu.tutorialSoon;
-    const soon = el('span', 'menu__soon', tutorial);
-    soon.textContent = tr.menu.tutorialSoon;
-  }
 
   const settings = actionButton(nav, tr.menu.settings, { ariaLabel: tr.menu.settingsAria, onClick: () => flow.openSettings() });
   settings.dataset['action'] = 'settings';

@@ -6,6 +6,8 @@ import { infoOf, SaveSlot, type SaveFailure, type SaveInfo } from './save';
 import type { Session, SessionEvent } from './session';
 import { SettingsStore } from './settings';
 import { SafeStorage, type KeyValueStorage } from './storage';
+import { TutorialRunner } from './tutorial';
+import { loadTutorialStatus, saveTutorialStatus, type TutorialStatus } from './tutorialStatus';
 import { GAME_VERSION } from './version';
 
 /** Hangi ekranın açık olduğu. Ayarlar ayrı bir katmandır (`settingsOpen`); duraklatma ve sonuç savaş ekranının parçasıdır. */
@@ -17,7 +19,7 @@ export type FlowNotice =
   /** Kayıt yazılamadı (kota, gizli pencere); oyun sürer, bir kez bildirilir (TDD §9). */
   | { kind: 'saveWriteFailed' };
 
-export type FlowEvent = { type: 'screen' } | { type: 'settingsOpen' } | { type: 'save' } | { type: 'results' };
+export type FlowEvent = { type: 'screen' } | { type: 'settingsOpen' } | { type: 'save' } | { type: 'results' } | { type: 'tutorial' };
 
 export interface FlowOptions {
   session: Session;
@@ -55,6 +57,9 @@ export class Flow {
   private currentSave: SaveInfo | null = null;
   private currentResults: ResultsData;
   private lastSaveTick = 0;
+  private runner: TutorialRunner | null = null;
+  private tutorialState: TutorialStatus | null;
+  private offerAnswered = false;
 
   constructor(options: FlowOptions) {
     this.session = options.session;
@@ -64,6 +69,7 @@ export class Flow {
     this.slot = new SaveSlot(this.store, options.gameVersion ?? GAME_VERSION);
     this.settings = new SettingsStore(this.store);
     this.currentResults = loadResults(this.store);
+    this.tutorialState = loadTutorialStatus(this.store);
     this.store.onWriteFailure(() => this.notify({ kind: 'saveWriteFailed' }));
     // Menüdeyken oyun ilerlemez (başlangıçta oturum bir arka plan maçı tutar).
     this.session.pause();
@@ -88,6 +94,20 @@ export class Flow {
 
   get results(): ResultsData {
     return this.currentResults;
+  }
+
+  /** Çalışan öğretici (varsa). Öğretici maçı kaydedilmez ve sonuç geçmişine yazılmaz (PRD ÖK-08). */
+  get tutorial(): TutorialRunner | null {
+    return this.runner;
+  }
+
+  get tutorialStatus(): TutorialStatus | null {
+    return this.tutorialState;
+  }
+
+  /** İlk açılışta (öğretici durumu hiç yazılmamışken) ana menüde öğretici önerilir (PRD ÖK-01). */
+  get tutorialOfferPending(): boolean {
+    return this.tutorialState === null && !this.offerAnswered && this.runner === null;
   }
 
   // ---- Ekranlar ------------------------------------------------------------
@@ -151,9 +171,62 @@ export class Flow {
     return true;
   }
 
-  /** Ana menüye döner; sürmekte olan maç kaydedilir (PRD EK-05). */
+  /** Öğretici önerisine "Şimdi değil": bir daha önerilmez, menüden açılabilir. */
+  dismissTutorialOffer(): void {
+    if (!this.tutorialOfferPending) return;
+    this.offerAnswered = true;
+    this.setTutorialStatus('dismissed');
+    this.emit({ type: 'tutorial' });
+  }
+
+  /**
+   * Öğretici maçını başlatır: rakipsiz özel maç + betikli adımlar. Kayıt yuvasına ve sonuç geçmişine dokunmaz,
+   * var olan kayıt "Devam et" için korunur.
+   */
+  startTutorial(): void {
+    if (this.currentScreen !== 'menu' || this.runner !== null) return;
+    this.offerAnswered = true;
+    this.session.startMatch({ seed: this.newSeed(), opponent: 'none' });
+    this.runner = new TutorialRunner(this.session);
+    this.runner.subscribe(() => this.onTutorialChanged());
+    this.runner.start();
+    this.lastSaveTick = 0;
+    this.currentScreen = 'battle';
+    this.settingsVisible = false;
+    this.emit({ type: 'tutorial' });
+    this.emit({ type: 'screen' });
+    this.emit({ type: 'settingsOpen' });
+  }
+
+  /** Öğreticiyi atlar: "atlandı" olarak saklanır ve ana menüye dönülür. */
+  skipTutorial(): void {
+    if (this.runner === null) return;
+    this.setTutorialStatus('skipped');
+    this.toMenu();
+  }
+
+  private setTutorialStatus(next: TutorialStatus): void {
+    this.tutorialState = saveTutorialStatus(this.store, this.tutorialState, next);
+  }
+
+  private onTutorialChanged(): void {
+    if (this.runner?.status === 'completed') this.setTutorialStatus('completed');
+    this.emit({ type: 'tutorial' });
+  }
+
+  private endTutorial(): void {
+    if (this.runner === null) return;
+    // Tamamlanmadan ve atlanmadan çıkış: bir daha önerilmesin.
+    if (this.tutorialState === null) this.setTutorialStatus('dismissed');
+    this.runner.dispose();
+    this.runner = null;
+    this.emit({ type: 'tutorial' });
+  }
+
+  /** Ana menüye döner; sürmekte olan maç kaydedilir (PRD EK-05). Öğretici maçı kaydedilmez. */
   toMenu(): void {
     if (this.currentScreen === 'battle') this.saveNow();
+    this.endTutorial();
     this.currentScreen = 'menu';
     this.settingsVisible = false;
     this.session.pause();
@@ -177,7 +250,7 @@ export class Flow {
 
   /** Savaş ekranındaki bitmemiş maçı kaydeder. Yazılırsa true. */
   saveNow(): boolean {
-    if (this.currentScreen !== 'battle' || this.session.ended) return false;
+    if (this.currentScreen !== 'battle' || this.session.ended || this.runner !== null) return false;
     const state = this.session.state;
     const savedAt = this.now();
     const ok = this.slot.write(state, savedAt);
@@ -190,6 +263,7 @@ export class Flow {
 
   /** Her karede çağrılır: periyodik kayıt (her SAVE_INTERVAL_SEC oyun saniyesinde bir). */
   update(): void {
+    if (this.currentScreen === 'battle') this.runner?.update();
     if (this.currentScreen !== 'battle' || this.session.paused || this.session.ended) return;
     if (this.session.tick - this.lastSaveTick >= SAVE_INTERVAL_SEC * WORLD.tickRate) this.saveNow();
   }
@@ -217,6 +291,8 @@ export class Flow {
   }
 
   private onMatchEnded(): void {
+    // Öğretici maçı kayıt yuvasını silmez ve sonuç geçmişine yazılmaz (PRD ÖK-08).
+    if (this.runner !== null) return;
     const state = this.session.state;
     const outcome = state.outcome;
     this.slot.clear();

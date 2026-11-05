@@ -458,7 +458,6 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
 .menu__list .btn { width: 100%; }
 .menu__continue { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .menu__continue-info { font-size: 12px; font-weight: 500; color: var(--c-muted); min-height: 1.2em; }
-.menu__soon { margin-left: 8px; font-size: 12px; font-weight: 500; color: var(--c-muted); }
 .menu__version { margin: 12px 0 0; font-size: 12px; color: var(--c-muted); }
 
 .screen--setup .screen__card { width: min(100%, 860px); }
@@ -536,3 +535,37 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
   .screen__card { padding: 18px 28px; gap: 10px; }
   .screen__title { font-size: 34px; }
 }
+
+/* ---- Öğretici ---- */
+.screen--offer { z-index: 14; background: rgba(20, 18, 30, 0.8); }
+.tutorial {
+  position: absolute;
+  top: 96px;
+  left: 16px;
+  z-index: 11;
+  width: min(360px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--c-panel);
+  border: 2px solid var(--c-gold);
+  border-radius: var(--radius);
+}
+.tutorial__counter { font-size: 12px; font-weight: 700; color: var(--c-muted); }
+.tutorial__title { margin: 0; font-size: 20px; color: var(--c-gold); }
+.tutorial__text { margin: 0; font-size: 15px; line-height: 1.4; }
+.tutorial__buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+.tutorial__buttons .btn { font-size: 15px; padding: 6px 14px; }
+.tutorial-highlight {
+  position: fixed;
+  z-index: 9;
+  pointer-events: none;
+  border: 3px solid var(--c-gold);
+  border-radius: 12px;
+  box-shadow: 0 0 0 2px rgba(29, 27, 43, 0.9), 0 0 18px 4px rgba(255, 210, 90, 0.7);
+  animation: tutorial-pulse 1.2s ease-in-out infinite;
+}
+@keyframes tutorial-pulse { 50% { box-shadow: 0 0 0 2px rgba(29, 27, 43, 0.9), 0 0 30px 10px rgba(255, 210, 90, 0.35); } }
+@media (prefers-reduced-motion: reduce) { .tutorial-highlight { animation: none; } }
+.screen--tutorial-done { z-index: 13; }

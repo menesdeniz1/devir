@@ -86,7 +86,7 @@ export function mountOverlays(root: HTMLElement, flow: Flow): Overlays {
   const pauseMenu = actionButton(pause.card, tr.pause.toMenu, { ariaLabel: tr.pause.toMenuAria, onClick: () => flow.toMenu() });
   pauseMenu.dataset['action'] = 'to-menu';
   const hint = el('p', 'overlay__hint', pause.card);
-  hint.textContent = `${tr.pause.hint} ${tr.pause.savedHint}`;
+  const writeHint = textWriter(hint);
   const togglePause = visibilityToggle(pause.root, () => resume);
 
   // ---- Sonuç ----
@@ -121,7 +121,10 @@ export function mountOverlays(root: HTMLElement, flow: Flow): Overlays {
 
     togglePause(inBattle && session.paused && outcome === null);
 
-    const showResult = inBattle && outcome !== null;
+    writeHint(`${tr.pause.hint} ${flow.tutorial !== null ? tr.tutorial.pauseHint : tr.pause.savedHint}`);
+
+    // Öğretici maçının sonu sonuç ekranı yerine tamamlanma kartıyla gösterilir.
+    const showResult = inBattle && outcome !== null && flow.tutorial === null;
     if (showResult && outcome !== null) {
       const kind = outcome.kind === 'draw' ? 'draw' : outcome.winner === PLAYER_SIDE ? 'win' : 'loss';
       writeTitle(kind === 'draw' ? tr.result.draw : kind === 'win' ? tr.result.win : tr.result.loss);

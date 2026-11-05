@@ -268,7 +268,7 @@ export const tr = {
     continueNone: 'Kayıtlı maç yok',
     continueInfo: '{difficulty} · {time} · {age}',
     tutorial: 'Öğretici',
-    tutorialSoon: 'Yakında',
+    tutorialAria: 'Öğreticiyi başlat',
     settings: 'Ayarlar',
     settingsAria: 'Ayarları aç',
     version: 'Sürüm {version}',
@@ -322,6 +322,63 @@ export const tr = {
     ageUp: 'Çağ atla',
     pause: 'Duraklat / devam et',
     cancelTarget: 'Hedeflemeyi ya da açık menüyü kapat',
+  },
+  tutorial: {
+    region: 'Öğretici',
+    counter: 'Öğretici · Adım {n} / {total}',
+    next: 'Devam',
+    skip: 'Atla',
+    skipAria: 'Öğreticiyi atla',
+    offerTitle: 'Öğreticiyi denemek ister misin?',
+    offerText: 'Kısa bir maçta üretim, kule, yetenek ve çağ atlamayı adım adım öğrenirsin. İstersen sonra Ana menüden açabilirsin.',
+    offerStart: 'Başla',
+    offerLater: 'Şimdi değil',
+    doneTitle: 'Öğretici tamamlandı',
+    doneText: 'Artık hazırsın. Ana menüden yeni bir maç başlatabilirsin.',
+    doneToMenu: 'Ana menü',
+    pauseHint: 'Öğretici maçı kaydedilmez.',
+    steps: {
+      welcome: {
+        title: 'Hoş geldin',
+        text: 'Solda senin, sağda rakibin üssü var. Amaç rakip üssün canını sıfırlamak. Üssünün canı üstte, soldaki çubukta görünür.',
+      },
+      produceFront: {
+        title: 'Ön hat birliği üret',
+        text: 'Sol alttaki ilk düğmeye tıkla ya da 1 tuşuna bas. Ön hat birliği yakın dövüşür ve cepheyi tutar.',
+      },
+      firstKill: {
+        title: 'İlk çatışma',
+        text: 'Birliğin kendiliğinden ilerler. Rakip tek bir zayıf birlik gönderdi: onu öldürünce altın ve deneyim kazanırsın. Çatışmayı izle.',
+      },
+      produceRanged: {
+        title: 'Menzilli birlik üret',
+        text: 'İkinci düğme (2 tuşu) menzilli birlik üretir. Ön hattın arkasında güvende kalıp uzaktan ateş eder. Doğmasını bekle.',
+      },
+      cancelOrder: {
+        title: 'Siparişi iptal et',
+        text: 'Üretim kuyruğuna iki sipariş ver (1 tuşuna iki kez bas), sonra bekleyen siparişin kutusuna tıkla ya da Backspace’e bas. Altının tam iade edilir.',
+      },
+      buildTower: {
+        title: 'Kule kur',
+        text: 'Sağ alttaki ilk savunma yuvasına tıkla ve açılan menüden bir kule seç. Kuleler üssünü ve ordunu korur.',
+      },
+      useAbility: {
+        title: 'Özel yeteneği kullan',
+        text: 'Rakip küme hâlinde geliyor! Q tuşuna bas (ya da yetenek düğmesine tıkla), imleci kümenin üstüne getir ve tıkla. Q’ya tekrar basmak da imlecin olduğu yere uygular.',
+      },
+      ageUp: {
+        title: 'Çağ atla',
+        text: 'Deneyim eşiği doldu. Çağ Atla düğmesine tıkla ya da E tuşuna bas: yeni çağda daha güçlü birlikler, kuleler ve yetenek açılır.',
+      },
+      captureStone: {
+        title: 'Sınır Taşı’nı ele geç',
+        text: 'Koridorun ortasındaki taşı tek başına tutan taraf ele geçirir ve ek altın ile deneyim kazanır. Birlik üretip taşın bulunduğu bölgeye gönder.',
+      },
+      destroyBase: {
+        title: 'Rakip üssü yık',
+        text: 'Rakip üssün canı azaldı. Birlik üret ve üssü yık!',
+      },
+    } as Record<string, { title: string; text: string }>,
   },
   notices: {
     saveInvalid: 'Kayıtlı maç bozuk olduğu için silindi.',

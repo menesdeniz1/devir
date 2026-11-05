@@ -10,6 +10,7 @@ export const KEYS = {
   save: 'devir.save.v1',
   settings: 'devir.settings.v1',
   results: 'devir.results.v1',
+  tutorial: 'devir.tutorial.v1',
 } as const;
 
 export const SIZES = [
