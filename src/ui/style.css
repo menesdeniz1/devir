@@ -176,6 +176,51 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
 }
 .unit-cell__reason { min-height: 1.3em; font-size: 12px; color: #ffb199; }
 
+/* Özel yetenek: 130 px'lik grup (1280 px bütçesi); bekleme halkası solda, kısayol köşe rozetidir. */
+.hud-ability { display: flex; flex-direction: column; align-items: stretch; gap: 4px; width: 130px; }
+.btn--ability {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  align-items: center;
+  gap: 6px;
+  min-height: 62px;
+  padding: 4px 6px;
+  text-align: left;
+}
+.ability__ring {
+  grid-area: auto;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: conic-gradient(var(--c-gold) calc(var(--p, 100) * 1%), #2a2438 0);
+}
+.ability__ring::before { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: #3a3552; }
+.ability__ring-text { position: relative; font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ability__name { grid-area: auto; min-width: 0; font-size: 13px; line-height: 1.15; overflow-wrap: anywhere; }
+.ability__key { position: absolute; top: -9px; right: -6px; padding: 2px 5px; font-size: 11px; }
+.btn--ability[data-state="ready"] { border-color: var(--c-gold); box-shadow: 0 0 10px rgba(255, 210, 90, 0.6); }
+.btn--ability[data-state="targeting"] { border-color: var(--c-focus); background: var(--c-player); opacity: 1; }
+.ability__status { color: #ffb199; }
+.ability__status[data-ready="true"] { color: var(--c-ok); }
+.hud-target-hint {
+  position: absolute;
+  top: 130px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  font-size: 16px;
+  font-weight: 700;
+  background: var(--c-panel);
+  border: 2px solid var(--c-focus);
+  border-radius: var(--radius);
+  pointer-events: none;
+  z-index: 4;
+}
+
 /* Savunma yuvaları */
 .hud-defense { display: flex; gap: 8px; }
 .slot-cell { width: 128px; }
@@ -334,11 +379,11 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
 .hud-gold, .hud-age, .hud-units, .hud-ability, .hud-queue, .hud-defense { flex: none; }
 
 /*
- * 1800 px'ten dar pencerelerde (desteklenen en küçük 1280×720 dahil) alt panel iki kompakt satırdır:
+ * 1880 px'ten dar pencerelerde (desteklenen en küçük 1280×720 dahil) alt panel iki kompakt satırdır:
  * üstte altın · çağ · birlikler · yetenek, altta kuyruk · savunma. Panel yüksekliği sahnede birliklerin
  * yürüdüğü bandın altında kalır (≈ ekranın alt %22'si).
  */
-@media (max-width: 1799px) {
+@media (max-width: 1879px) {
   .hud-bottom { flex-wrap: wrap; gap: 6px 16px; padding: 6px 12px 8px; }
   .hud-bottom::after { content: ''; flex-basis: 100%; order: 2; height: 0; }
   .hud-gold, .hud-age, .hud-units, .hud-ability { order: 1; }
@@ -362,6 +407,7 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
   .hud-age > .unit-cell__reason { grid-area: reason; }
   .unit-cell { width: 150px; gap: 2px; }
   .btn--unit { min-height: 50px; }
+  .btn--ability { min-height: 50px; }
   .unit-cell__reason { min-height: 1.1em; font-size: 11px; line-height: 1.15; }
   .queue-slot { width: 46px; height: 46px; font-size: 18px; }
   .slot-cell { width: 128px; }

@@ -25,6 +25,9 @@ export function addUnit(state: GameState, side: SideId, x: number, overrides: Pa
     hp: mustGetUnit(type).def.hp,
     cooldown: 0,
     mode: 'wait',
+    stunTicks: 0,
+    vulnTicks: 0,
+    vulnPct: 0,
     ...overrides,
   };
   state.nextId += 1;

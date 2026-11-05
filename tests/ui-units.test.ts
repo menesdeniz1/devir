@@ -133,9 +133,9 @@ describe('Arayüz: üç birlik', () => {
   it('Session.previousProjectileX: atıldığı tick için yok, sonraki tick için bir önceki konum', () => {
     const session = new Session({ createControllers: () => [null, null] });
     session.debugMutate((s) => {
-      s.units.push({ id: s.nextId, side: 0, type: 'primitive_ranged', x: 500, hp: 90, cooldown: 0, mode: 'wait' });
+      s.units.push({ id: s.nextId, side: 0, type: 'primitive_ranged', x: 500, hp: 90, cooldown: 0, mode: 'wait', stunTicks: 0, vulnTicks: 0, vulnPct: 0 });
       s.nextId += 1;
-      s.units.push({ id: s.nextId, side: 1, type: 'primitive_front', x: 500 + 15 + 150 + 18, hp: 180, cooldown: 0, mode: 'wait' });
+      s.units.push({ id: s.nextId, side: 1, type: 'primitive_front', x: 500 + 15 + 150 + 18, hp: 180, cooldown: 0, mode: 'wait', stunTicks: 0, vulnTicks: 0, vulnPct: 0 });
       s.nextId += 1;
     });
     session.advance(50);

@@ -129,8 +129,9 @@ describe('Kural: doğrulama', () => {
     const before = stateHash(s);
     const events = step(s, [{ type: 'queueUnit', side: 0, unitId: FRONT_ID }]);
     expect(events[0]).toMatchObject({ type: 'commandRejected', reason: 'notEnoughGold' });
-    // Tick dışında hiçbir şey değişmedi.
+    // Tick ve geçen tick'le azalan yetenek beklemeleri dışında hiçbir şey değişmedi.
     s.tick = 0;
+    for (const side of s.sides) side.abilityCooldown += 1;
     expect(stateHash(s)).toBe(before);
   });
 });

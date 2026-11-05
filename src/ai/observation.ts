@@ -1,4 +1,4 @@
-import type { QueueOrder, SideId, SideState, StoneState, TowerSlotState } from '../sim/types';
+import type { AbilityZoneState, PendingStrikeState, QueueOrder, SideId, SideState, StoneState, TowerSlotState } from '../sim/types';
 import type { GameState } from '../sim/types';
 
 /** Yapay zekânın görebildiği bilgi (PRD R-03). Karşı tarafın altını, deneyimini ve kuyruğunu İÇERMEZ. */
@@ -20,6 +20,12 @@ export interface Observation {
   stone: StoneState;
   /** Sahadaki tüm birlikler. */
   units: { id: number; side: SideId; type: string; x: number; hp: number }[];
+  /**
+   * Etkin yetenek alanları ve bekleyen vuruşlar; iki taraf için de görünür (PRD R-03). Kendi bekleme süresi
+   * `self.abilityCooldown`'dadır; karşı tarafınki gözlemde yoktur.
+   */
+  zones: AbilityZoneState[];
+  strikes: PendingStrikeState[];
 }
 
 function cloneSlot(s: TowerSlotState): TowerSlotState {
@@ -44,6 +50,7 @@ export function buildObservation(state: GameState, side: SideId): Observation {
       baseMaxHp: own.baseMaxHp,
       queue: own.queue.map(cloneOrder),
       slots: own.slots.map(cloneSlot),
+      abilityCooldown: own.abilityCooldown,
       stats: {
         produced: { ...own.stats.produced },
         lost: { ...own.stats.lost },
@@ -63,5 +70,7 @@ export function buildObservation(state: GameState, side: SideId): Observation {
     },
     stone: { counter: state.stone.counter, owner: state.stone.owner },
     units: state.units.map((u) => ({ id: u.id, side: u.side, type: u.type, x: u.x, hp: u.hp })),
+    zones: state.zones.map((z) => ({ ...z })),
+    strikes: state.strikes.map((s) => ({ ...s })),
   };
 }

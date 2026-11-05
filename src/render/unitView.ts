@@ -1,5 +1,6 @@
-import { Container, Graphics } from 'pixi.js';
-import type { UnitAnimInput, UnitRig } from '../art/anim';
+import { Container, Graphics, Sprite } from 'pixi.js';
+import { abilityTexture } from '../art/abilityArt';
+import { clamp01, easeOutCubic, TAU, type UnitAnimInput, type UnitRig } from '../art/anim';
 import { createUnitRig } from '../art/unitArt';
 import { mustGetUnit } from '../sim/compile';
 import type { SideId, UnitState } from '../sim/types';
@@ -10,8 +11,19 @@ import {
   DEATH_FADE_MS,
   DEPTH_LEVELS,
   DEPTH_STEP_PX,
+  FREEZE_CRYSTAL_FOOTPRINT,
+  FREEZE_GLINT_COLOR,
+  FREEZE_GLINT_MS,
+  FREEZE_GROW_MS,
+  FREEZE_TINT,
   HEAVY_Z_OFFSET,
   HP_NOTCHES,
+  STUN_LIFT_PX,
+  STUN_ORBIT_RX,
+  STUN_ORBIT_RY,
+  STUN_PERIOD_MS,
+  STUN_STARS,
+  STUN_STAR_SCALE,
   UNIT_ART_SCALE,
   UNIT_FEET_Y,
   UNIT_HP_BAR_H,
@@ -26,6 +38,82 @@ export function depthOffset(unitId: number): number {
 
 /** Ölümde solmanın başladığı an (devrilme önce görünsün), süre oranı. */
 const DEATH_FADE_START = 0.25;
+
+/**
+ * Durum işaretleri (GDD §7): sersemlikte başın üstünde dönen yıldızlar; donmada ayakları saran kristaller
+ * ve gövdede parıltılar (birliğin kendisi buz tonuna boyanır). İlk gerektiğinde kurulur (çoğu birlik hiç
+ * sersemlemez: sprite maliyeti yalnız etkilenenlerde), sonra gizlenip yeniden kullanılır.
+ * Konteyner aynalanmaz: yıldızların dönüşü iki tarafta aynıdır; takım ipucu birliğin kendisinde kalır.
+ */
+class StatusMarks {
+  readonly container = new Container();
+  private readonly stars: Sprite[] = [];
+  private readonly crystal: Sprite;
+  private readonly glints: Sprite[] = [];
+  private stunMs = 0;
+  private freezeMs = -1;
+
+  constructor(private readonly rig: UnitRig) {
+    for (let i = 0; i < STUN_STARS; i++) {
+      const s = new Sprite(abilityTexture('status.star'));
+      this.stars.push(s);
+      this.container.addChild(s);
+    }
+    this.crystal = new Sprite(abilityTexture('status.crystal'));
+    this.container.addChild(this.crystal);
+    for (let i = 0; i < 2; i++) {
+      const g = new Sprite(abilityTexture('glint'));
+      g.tint = FREEZE_GLINT_COLOR;
+      this.glints.push(g);
+      this.container.addChild(g);
+    }
+  }
+
+  update(stunned: boolean, frozen: boolean, animMs: number): void {
+    const r = this.rig;
+    const scale = UNIT_ART_SCALE;
+    // Sersemlik: başın (can çubuğu hizasının) üstünde eğik yörüngede dönen yıldızlar; öndeki büyük görünür.
+    if (stunned) this.stunMs += animMs;
+    else this.stunMs = 0;
+    const headY = r.hpBarY * scale - STUN_LIFT_PX;
+    this.stars.forEach((s, i) => {
+      s.visible = stunned;
+      if (!stunned) return;
+      const a = (this.stunMs / STUN_PERIOD_MS) * TAU + (i * TAU) / this.stars.length;
+      const front = Math.sin(a);
+      s.position.set(Math.cos(a) * STUN_ORBIT_RX, headY + front * STUN_ORBIT_RY);
+      s.scale.set(STUN_STAR_SCALE * (0.75 + 0.25 * front) * Math.min(1, 0.4 + this.stunMs / 120));
+      s.rotation = a * 0.5;
+      s.alpha = 0.75 + 0.25 * front;
+    });
+
+    // Donma: kristaller ayaktan büyür, parıltılar gövdede yanıp söner (yerel, yumuşak).
+    if (frozen) this.freezeMs = this.freezeMs < 0 ? 0 : this.freezeMs + animMs;
+    else this.freezeMs = -1;
+    this.crystal.visible = frozen;
+    for (const g of this.glints) g.visible = frozen;
+    if (!frozen) return;
+    const grow = easeOutCubic(clamp01(this.freezeMs / FREEZE_GROW_MS));
+    const k = (r.footprint * scale) / FREEZE_CRYSTAL_FOOTPRINT;
+    this.crystal.position.set(0, 2);
+    this.crystal.scale.set(Math.min(2.2, Math.max(0.85, k)) * grow, Math.min(1.35, Math.max(0.85, k)) * grow);
+    const spots: ReadonlyArray<readonly [number, number]> = [
+      [-0.45, 0.42],
+      [0.4, 0.75],
+    ];
+    this.glints.forEach((g, i) => {
+      const [fx, fy] = spots[i]!;
+      const p = ((this.freezeMs + i * FREEZE_GLINT_MS * 0.5) % FREEZE_GLINT_MS) / FREEZE_GLINT_MS;
+      g.position.set(fx * r.footprint * scale, fy * r.hpBarY * scale);
+      g.scale.set(0.75 * Math.max(0, Math.sin(p * Math.PI)) * grow);
+      g.rotation = p * 0.6;
+    });
+  }
+
+  hide(): void {
+    this.container.visible = false;
+  }
+}
 
 /**
  * Bir birliğin görünümü. Simülasyon kimliğine bağlıdır; animasyon durumu yalnız burada tutulur (TDD §6).
@@ -45,6 +133,8 @@ export class UnitView {
   private lastHp: number;
   private dyingMs = -1;
   private lastX = 0;
+  private status: StatusMarks | null = null;
+  private frozenTint = false;
 
   constructor(unit: UnitState) {
     this.unitId = unit.id;
@@ -104,24 +194,50 @@ export class UnitView {
     if (this.dyingMs < 0) this.dyingMs = 0;
   }
 
-  /** Canlı birliği günceller: interpolasyonlu konum, animasyonlar, can çubuğu. */
+  /**
+   * Canlı birliği günceller: interpolasyonlu konum, animasyonlar, can çubuğu, durum işaretleri.
+   * Sersem/donmuşken (stunTicks > 0) yürüme ve saldırı animasyonu durur (poz donar). Sersemlikte vuruş
+   * sarsılması görünür; donmuş birlik heykel gibi kalır. vulnTicks > 0: buz tonu ve kristaller.
+   */
   update(unit: UnitState, x: number, animMs: number): void {
     const a = this.anim;
-    a.walkDist += Math.abs(x - this.lastX);
-    this.lastX = x;
-    a.timeMs += animMs;
-    a.sinceAttackMs += animMs;
-    a.sinceHitMs += animMs;
-    a.engaged = unit.mode === 'attack';
-    const target = unit.mode === 'walk' ? 1 : 0;
-    const step = animMs * WALK_BLEND_PER_MS;
-    a.walkBlend = a.walkBlend < target ? Math.min(target, a.walkBlend + step) : Math.max(target, a.walkBlend - step);
-    if (unit.hp < this.lastHp) a.sinceHitMs = 0;
+    const held = unit.stunTicks > 0;
+    const frozen = unit.vulnTicks > 0;
+    const hit = unit.hp < this.lastHp;
     this.lastHp = unit.hp;
-
+    if (!held) {
+      a.walkDist += Math.abs(x - this.lastX);
+      a.timeMs += animMs;
+      a.sinceAttackMs += animMs;
+      a.sinceHitMs += animMs;
+      a.engaged = unit.mode === 'attack';
+      const target = unit.mode === 'walk' ? 1 : 0;
+      const step = animMs * WALK_BLEND_PER_MS;
+      a.walkBlend = a.walkBlend < target ? Math.min(target, a.walkBlend + step) : Math.max(target, a.walkBlend - step);
+      if (hit) a.sinceHitMs = 0;
+      this.rig.pose(a);
+    } else if (!frozen) {
+      a.sinceHitMs = hit ? 0 : a.sinceHitMs + animMs;
+      this.rig.pose(a);
+    }
+    this.lastX = x;
     this.container.x = x;
-    this.rig.pose(a);
     this.setHp(unit.hp);
+    this.setStatus(held && !frozen, frozen, animMs);
+  }
+
+  private setStatus(stunned: boolean, frozen: boolean, animMs: number): void {
+    if (frozen !== this.frozenTint) {
+      this.frozenTint = frozen;
+      this.rig.root.tint = frozen ? FREEZE_TINT : 0xffffff;
+    }
+    if (this.status === null) {
+      if (!stunned && !frozen) return;
+      this.status = new StatusMarks(this.rig);
+      // Can çubuğunun altında, iskeletin üstünde.
+      this.container.addChildAt(this.status.container, this.container.getChildIndex(this.hpBar));
+    }
+    this.status.update(stunned, frozen, animMs);
   }
 
   /** Ölen birlik: devrilir ve solar (son bilinen konumda). */
@@ -132,6 +248,11 @@ export class UnitView {
     this.container.alpha = t < DEATH_FADE_START ? 1 : 1 - (t - DEATH_FADE_START) / (1 - DEATH_FADE_START);
     this.container.x = this.lastX;
     this.hpBar.visible = false;
+    this.status?.hide();
+    if (this.frozenTint) {
+      this.frozenTint = false;
+      this.rig.root.tint = 0xffffff;
+    }
   }
 
   private setHp(hp: number): void {

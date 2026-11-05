@@ -66,7 +66,8 @@ describe('K-02: menzil ve saldırı aralığı', () => {
     }
     expect(attacks).toBeGreaterThan(200);
     // Üç rol de saldırmış olmalı (mermili saldırılar da aynı menzil ve aralık kuralına uyar).
-    expect([...attackerTypes].sort()).toEqual(['primitive_front', 'primitive_heavy', 'primitive_ranged']);
+    // (Botlar çağ atlayabildiği için kontrol tür değil rol düzeyindedir.)
+    expect([...new Set([...attackerTypes].map((type) => mustGetUnit(type).role))].sort()).toEqual(['front', 'heavy', 'ranged']);
     // Üsse saldırı yolu da gerçekten sınanmış olmalı (bu tohumlarda ölçülen ~180).
     expect(baseAttacks).toBeGreaterThan(50);
   });

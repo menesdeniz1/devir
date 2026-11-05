@@ -2,9 +2,11 @@ import { STONE } from '../data/stone';
 import { ECONOMY, WORLD } from '../data/world';
 import { PLAYER_SIDE } from '../game/constants';
 import type { Session } from '../game/session';
-import { ageName, ageNameTo, fmt, rejectText, towerName, tr, unitName } from '../i18n/tr';
+import { abilityName, ageName, ageNameTo, fmt, rejectText, towerName, tr, unitName } from '../i18n/tr';
 import { getAge, getUnit } from '../sim/compile';
 import type { SideId } from '../sim/types';
+import { abilityDescription, abilityReasonText, abilityTooltip, checkAbility, cooldownSeconds, playerAbility } from './ability';
+import { createTargeting, type Targeting } from './targeting';
 import { ageUp, ageUpCommand, availableUnitIds, cancelCommand, cancelOrderAt, produceUnit, queueCommand } from './actions';
 import { NOTICE_MS, UNIT_SHORTCUT_LABELS } from './constants';
 import { attrWriter, boolWriter, el, formatClock, styleWriter, textWriter } from './dom';
@@ -87,7 +89,11 @@ interface QueueSlot {
   mark: (v: string) => void;
 }
 
-export function mountHud(root: HTMLElement, session: Session): Hud {
+/**
+ * Alt panel ve üst şerit. `targeting`: yetenek hedefleme durumu (renderer ve klavye ile paylaşılır); verilmezse HUD kendi
+ * durumunu kurar.
+ */
+export function mountHud(root: HTMLElement, session: Session, targeting: Targeting = createTargeting(session)): Hud {
   const top = el('header', 'hud-top', root);
   const bottom = el('section', 'hud-bottom', root);
   bottom.setAttribute('aria-label', tr.hud.controls);
@@ -174,6 +180,46 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
   const writeAgeAria = attrWriter(ageButton, 'aria-label');
   const writeAgeReady = attrWriter(ageButton, 'data-ready');
 
+  // ---- Alt panel: özel yetenek (düğme, bekleme halkası, kalan sn, ret nedeni; GDD §11) ----
+  // Kutu burada kurulur ama alt panele savunma yuvalarından sonra eklenir (GDD §11 sırası: … kule yuvaları · yetenek).
+  const abilityBox = el('div', 'hud-ability');
+  abilityBox.setAttribute('role', 'group');
+  abilityBox.setAttribute('aria-label', tr.abilityUi.group);
+  const abilityButton = el('button', 'btn btn--ability', abilityBox);
+  abilityButton.type = 'button';
+  abilityButton.setAttribute('aria-keyshortcuts', tr.abilityUi.key);
+  const abilityRing = el('span', 'ability__ring', abilityButton);
+  abilityRing.setAttribute('aria-hidden', 'true');
+  const abilityRingText = el('span', 'ability__ring-text', abilityRing);
+  const abilityNameEl = el('span', 'btn__name ability__name', abilityButton);
+  const abilityKey = el('kbd', 'btn__key ability__key', abilityButton);
+  abilityKey.textContent = tr.abilityUi.key;
+  const abilityStatus = el('span', 'unit-cell__reason ability__status', abilityBox);
+  abilityStatus.setAttribute('aria-hidden', 'true');
+  abilityButton.addEventListener('click', () => {
+    if (targeting.active) targeting.cancel();
+    else targeting.begin();
+    abilityButton.blur();
+  });
+  const writeAbilityName = textWriter(abilityNameEl);
+  const writeAbilityRing = textWriter(abilityRingText);
+  const writeAbilityPct = styleWriter(abilityRing, '--p');
+  const writeAbilityStatus = textWriter(abilityStatus);
+  const writeAbilityReady = attrWriter(abilityStatus, 'data-ready');
+  const writeAbilityState = attrWriter(abilityButton, 'data-state');
+  const writeAbilityTitle = attrWriter(abilityButton, 'title');
+  const writeAbilityAria = attrWriter(abilityButton, 'aria-label');
+  const writeAbilityPressed = attrWriter(abilityButton, 'aria-pressed');
+  const writeAbilityDisabled = boolWriter((v) => {
+    abilityButton.disabled = v;
+  });
+
+  // Hedefleme ipucu (koridorun üstünde; hedefleme açıkken görünür).
+  const targetHint = el('div', 'hud-target-hint', root);
+  targetHint.setAttribute('role', 'status');
+  targetHint.textContent = tr.abilityUi.targetHint;
+  targetHint.hidden = true;
+
   // ---- Bildirim (çağ geçişi, Sınır Taşı) ----
   const notice = el('div', 'hud-notice', root);
   notice.setAttribute('role', 'status');
@@ -200,6 +246,8 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
         showNotice(e.side === PLAYER_SIDE ? tr.hud.noticeStoneCaptured : tr.hud.noticeStoneCapturedFoe);
       } else if (e.type === 'stoneLost' && e.side === PLAYER_SIDE) {
         showNotice(tr.hud.noticeStoneLost);
+      } else if (e.type === 'abilityCast' && e.side !== PLAYER_SIDE) {
+        showNotice(fmt(tr.abilityUi.castFoe, { name: abilityName(e.abilityId) }));
       }
     }
   });
@@ -433,6 +481,8 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
     });
   }
 
+  bottom.appendChild(abilityBox);
+
   // Menü dışına tıklamak menüyü kapatır (yuva düğmeleri kendi tıklamasını işler).
   const onPointerDown = (event: Event): void => {
     if (openSlot === null) return;
@@ -576,6 +626,37 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
     writeAgeAria(fmt(tr.hud.ageUpAriaBlocked, { name: ageName(nextAge.age), cost: nextAge.ageUpCost, key, reason }));
   }
 
+  function updateAbility(): void {
+    const ability = playerAbility(session);
+    if (ability === undefined) return;
+    const me = session.state.sides[PLAYER_SIDE];
+    const key = tr.abilityUi.key;
+    const name = abilityName(ability.def.id);
+    const check = checkAbility(session);
+    const cooling = me.abilityCooldown > 0;
+    // Hazır oranı: kalan bekleme yeni yeteneğin tam beklemesine göre (çağ geçişinde kalan süre korunur; Y-05).
+    const ready = cooling ? Math.max(0, Math.min(1, 1 - me.abilityCooldown / Math.max(1, ability.cooldownTicks))) : 1;
+    writeAbilityName(name);
+    writeAbilityPct(`${(ready * 100).toFixed(1)}`);
+    writeAbilityRing(cooling ? String(cooldownSeconds(me.abilityCooldown)) : '');
+    writeAbilityDisabled(!check.ok);
+    writeAbilityPressed(targeting.active ? 'true' : 'false');
+    writeAbilityState(targeting.active ? 'targeting' : check.ok ? 'ready' : cooling ? 'cooldown' : 'blocked');
+    targetHint.hidden = !targeting.active;
+    if (check.ok) {
+      writeAbilityStatus(targeting.active ? tr.abilityUi.targeting : tr.abilityUi.ready);
+      writeAbilityReady('true');
+      writeAbilityTitle(abilityTooltip(ability, key));
+      writeAbilityAria(fmt(tr.abilityUi.aria, { name, key, desc: abilityDescription(ability) }));
+      return;
+    }
+    const reason = abilityReasonText(check);
+    writeAbilityStatus(reason);
+    writeAbilityReady('false');
+    writeAbilityTitle(abilityTooltip(ability, key, reason));
+    writeAbilityAria(fmt(tr.abilityUi.ariaBlocked, { name, key, reason }));
+  }
+
   function update(frameMs = 0): void {
     const state = session.state;
     const me = state.sides[PLAYER_SIDE];
@@ -630,6 +711,7 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
     });
 
     updateDefense();
+    updateAbility();
 
     // Kuyruk.
     slots.forEach((slot, i) => {
@@ -683,6 +765,7 @@ export function mountHud(root: HTMLElement, session: Session): Hud {
       document.removeEventListener('pointerdown', onPointerDown);
       slotMenu.remove();
       notice.remove();
+      targetHint.remove();
       top.remove();
       bottom.remove();
     },

@@ -7,6 +7,14 @@ import { SLOT_SCALE, TowerSlot, towerAtlasStats } from './towerRig';
 import { createUnitRig, unitAtlasStats } from './unitArt';
 import { createBackground, createBaseView, setBaseAge, setTowerSlot, towerLaunchPoint, triggerTowerFire } from '../render/scene';
 import { SCENE_HEIGHT, UNIT_FEET_Y } from '../render/constants';
+import { AbilityFx } from '../render/abilityFx';
+import { UnitView } from '../render/unitView';
+import { ABILITIES } from '../data/abilities';
+import { WORLD } from '../data/world';
+import type { AbilityDef } from '../data/types';
+import type { AbilityZoneState, PendingStrikeState, SideId, UnitState } from '../sim/types';
+import { mustGetUnit } from '../sim/compile';
+import { abilityAtlasStats } from './abilityArt';
 
 /**
  * Yalnız geliştirme vitrini (GDD §14 denetimi için). Oyuna ve derlemeye girmez; metin içermez.
@@ -24,6 +32,10 @@ import { SCENE_HEIGHT, UNIT_FEET_Y } from '../render/constants';
  *             mermi çıkış noktaları işaretli (okunurluk: pencereyi 1366×768 / 1920×1080 yapın)
  *   towerfx — durum geçişi film şeritleri (çağ satırları): kilit açılması, kurulum (belirme), satış (sökülme)
  *   towerlive  — canlı: atış döngüsü, kilit açma → kurma → satma; çağ atlayan rakip üssü (kuleler kalır)
+ *   abilities  — her yetenek (çağ satırı) için zaman şeridi: oyuncu başlangıç/orta/bitiş | rakip aynı; alanda
+ *             karşı tarafın üç birliği. Altta durum görselleri: sersem (yıldız) ve donmuş (buz) birlikler,
+ *             oyuncu ve rakip. Statik kareler (gerçek efekt sınıfı, sabit adımlı zamanla sürülür).
+ *   abilitylive — aynı hücreler canlı döngüde (iki taraf).
  * `age=2,3` çağ süzgeci (units/gray/bases).
  */
 
@@ -553,6 +565,231 @@ function live(world: Container, app: Application): { w: number; h: number } {
   return { w: 1160, h: 220 };
 }
 
+// ---- Yetenek efektleri ----
+
+const ABILITY_CELL = { w: 460, h: 330, groundY: 268, padX: 80 } as const;
+/** Kare zamanları (ms, kullanımdan beri): başlangıç, orta, bitiş. Çağ sırasıyla. */
+const ABILITY_FRAMES: Record<number, readonly [number, number, number]> = {
+  1: [140, 330, 720],
+  2: [420, 3000, 5650],
+  3: [520, 5000, 9600],
+  4: [300, 1360, 1720],
+  5: [420, 2000, 3820],
+};
+const ABILITY_LOOP_MS: Record<number, number> = { 1: 2600, 2: 7200, 3: 11000, 4: 3800, 5: 5200 };
+let runnerIds = 1;
+
+/** Koridor şeridi (gök, çim, yol), dünya koordinatında. */
+function corridorStrip(g: Graphics, x: number, w: number): void {
+  const y = UNIT_FEET_Y;
+  g.rect(x, y - 300, w, 270).fill(0x9ed0e6);
+  g.rect(x, y - 110, w, 80).fill(0x93ad6b);
+  g.rect(x, y - 30, w, 100).fill(0xd2ab72);
+  g.rect(x, y - 22, w, 50).fill(0xc49b63);
+}
+
+function galleryUnit(side: SideId, type: string, x: number): { state: UnitState; view: UnitView; maxHp: number } {
+  const maxHp = mustGetUnit(type).def.hp;
+  const state: UnitState = { id: runnerIds++, side, type, x, hp: maxHp, cooldown: 0, mode: 'attack', stunTicks: 0, vulnTicks: 0, vulnPct: 0 };
+  return { state, view: new UnitView(state), maxHp };
+}
+
+/**
+ * Bir yetenek kullanımını simülasyonsuz sürer: olaylar ve durum (alan/vuruş/birlik durumları) veriden,
+ * tick saatine göre üretilir; çizim gerçek AbilityFx ve UnitView ile yapılır.
+ */
+class AbilityRunner {
+  readonly fx = new AbilityFx();
+  private readonly units: Array<{ view: UnitView; state: UnitState; maxHp: number; nextAttack: number }> = [];
+  private t = 0;
+  private tick = 0;
+  private id = 0;
+  private readonly zoneTicks: number;
+  private readonly strikeTicks: number;
+  private readonly statusTicks: number;
+
+  constructor(
+    private readonly def: AbilityDef,
+    private readonly side: SideId,
+    private readonly x0: number,
+    private readonly x1: number,
+    unitLayer: Container,
+  ) {
+    const tr = WORLD.tickRate;
+    this.zoneTicks = def.zone ? def.zone.durationSec * tr : 0;
+    this.strikeTicks = def.delaySec ? Math.round(def.delaySec * tr) : 0;
+    this.statusTicks = def.status ? def.status.durationSec * tr : 0;
+    const enemy: SideId = side === 0 ? 1 : 0;
+    const w = x1 - x0;
+    const at = side === 0 ? [0.22, 0.5, 0.8] : [0.78, 0.5, 0.2];
+    ['front', 'ranged', 'heavy'].forEach((role, i) => {
+      const u = galleryUnit(enemy, `${AGE_PREFIX[def.age - 1]}_${role}`, x0 + w * at[i]!);
+      unitLayer.addChild(u.view.container);
+      this.units.push({ ...u, nextAttack: 300 + i * 250 });
+    });
+    this.start();
+  }
+
+  private start(): void {
+    this.fx.clear();
+    this.t = 0;
+    this.tick = 0;
+    this.id++;
+    for (const u of this.units) {
+      u.state.hp = u.maxHp;
+      u.state.stunTicks = 0;
+      u.state.vulnTicks = 0;
+      u.nextAttack = 300;
+    }
+    const d = this.def;
+    this.fx.onCast(this.side, d.id, this.x0, this.x1);
+    if (d.delaySec === undefined && (d.impactDamage !== undefined || d.status !== undefined)) this.impact();
+  }
+
+  private impact(): void {
+    this.fx.onImpact(this.side, this.def.id, this.x0, this.x1, this.units.length);
+    for (const u of this.units) {
+      u.state.hp = Math.max(1, u.state.hp - u.maxHp * 0.12);
+      if (this.statusTicks > 0) {
+        u.state.stunTicks = this.statusTicks;
+        if (this.def.status?.kind === 'freeze') {
+          u.state.vulnTicks = this.statusTicks;
+          u.state.vulnPct = this.def.status.damageTakenPct ?? 0;
+        }
+      }
+    }
+  }
+
+  step(dt: number, loopMs?: number): void {
+    if (loopMs !== undefined && this.t + dt >= loopMs) this.start();
+    this.t += dt;
+    const ms = 1000 / WORLD.tickRate;
+    while ((this.tick + 1) * ms <= this.t) {
+      this.tick++;
+      for (const u of this.units) {
+        if (u.state.stunTicks > 0) u.state.stunTicks--;
+        if (u.state.vulnTicks > 0) u.state.vulnTicks--;
+      }
+      if (this.zoneTicks > 0 && this.tick <= this.zoneTicks && this.tick % WORLD.tickRate === 0) this.impact();
+      if (this.strikeTicks > 0 && this.tick === this.strikeTicks) this.impact();
+    }
+    const zones: AbilityZoneState[] =
+      this.zoneTicks > 0 && this.tick < this.zoneTicks
+        ? [{ id: this.id, side: this.side, abilityId: this.def.id, x0: this.x0, x1: this.x1, ticksLeft: this.zoneTicks - this.tick }]
+        : [];
+    const strikes: PendingStrikeState[] =
+      this.strikeTicks > 0 && this.tick < this.strikeTicks
+        ? [{ id: this.id, side: this.side, abilityId: this.def.id, x0: this.x0, x1: this.x1, ticksLeft: this.strikeTicks - this.tick }]
+        : [];
+    this.fx.sync(zones, strikes, dt);
+    for (const u of this.units) {
+      if (u.state.stunTicks === 0 && this.t >= u.nextAttack) {
+        u.view.startAttack();
+        u.nextAttack = this.t + 900;
+      }
+      u.view.update(u.state, u.state.x, dt);
+    }
+  }
+
+  runTo(ms: number): void {
+    while (this.t + 16 <= ms) this.step(16);
+    if (ms > this.t) this.step(ms - this.t);
+  }
+}
+
+/** Hücre: maskeli kap; içi dünya koordinatında (zemin çizgisi UNIT_FEET_Y). Katmanlar: zemin efekti < birlikler < ön efekt. */
+function abilityCell(parent: Container, cx: number, cy: number, def: AbilityDef, side: SideId): AbilityRunner {
+  const C = ABILITY_CELL;
+  const cell = new Container();
+  cell.position.set(cx, cy);
+  parent.addChild(cell);
+  const mask = new Graphics().rect(0, 0, C.w, C.h).fill(0xffffff);
+  cell.addChild(mask);
+  cell.mask = mask;
+  const inner = new Container();
+  const x0 = 1000;
+  const x1 = x0 + def.width;
+  inner.position.set(C.w / 2 - (x0 + x1) / 2, C.groundY - UNIT_FEET_Y);
+  cell.addChild(inner);
+  const g = new Graphics();
+  corridorStrip(g, x0 - 400, def.width + 800);
+  inner.addChild(g);
+  const units = new Container();
+  units.sortableChildren = true;
+  const runner = new AbilityRunner(def, side, x0, x1, units);
+  // Zemin katmanı birliklerin altına taşınır (renderer için önerilen düzen).
+  inner.addChild(runner.fx.ground, units, runner.fx.container);
+  cell.addChild(new Graphics().rect(0, 0, C.w, C.h).stroke({ width: 3, color: 0x1d1b2b }));
+  return runner;
+}
+
+function statusCell(parent: Container, x: number, y: number, age: ArtAge, role: string, side: SideId, kind: 'stun' | 'freeze', ms: number): void {
+  const u = galleryUnit(side, `${AGE_PREFIX[age - 1]}_${role}`, 0);
+  u.state.hp = u.maxHp * 0.7;
+  u.state.stunTicks = 60;
+  if (kind === 'freeze') {
+    u.state.vulnTicks = 60;
+    u.state.vulnPct = 30;
+  }
+  const holder = new Container();
+  holder.position.set(x, y - UNIT_FEET_Y);
+  holder.addChild(u.view.container);
+  parent.addChild(holder);
+  for (let t = 0; t < ms; t += 16) u.view.update(u.state, 0, 16);
+}
+
+function abilities(world: Container, app: Application | null): { w: number; h: number } {
+  const C = ABILITY_CELL;
+  const defs = ABILITIES.filter((d) => AGES.includes(d.age as ArtAge));
+  const runners: Array<{ r: AbilityRunner; loop: number }> = [];
+  const gap = 40;
+  const colsPerSide = app === null ? 3 : 1;
+  defs.forEach((def, ri) => {
+    const y = 20 + ri * (C.h + 16);
+    const frames = ABILITY_FRAMES[def.age] ?? [200, 1000, 2000];
+    for (const side of [0, 1] as const) {
+      const cols = app === null ? frames : [0];
+      cols.forEach((ms, fi) => {
+        const x = 20 + side * (colsPerSide * C.w + gap) + fi * C.w;
+        const r = abilityCell(world, x, y, def, side);
+        if (app === null) r.runTo(ms);
+        else runners.push({ r, loop: ABILITY_LOOP_MS[def.age] ?? 4000 });
+      });
+    }
+  });
+  let h = 20 + defs.length * (C.h + 16);
+  let w = 40 + 2 * colsPerSide * C.w + gap;
+  if (app !== null) {
+    app.ticker.add((tk) => {
+      const dt = Math.min(tk.deltaMS, 50);
+      for (const { r, loop } of runners) r.step(dt, loop);
+    });
+    return { w, h };
+  }
+  // Durum görselleri: her çağ satırı; oyuncu ve rakip için üç rol × (sersem, donmuş).
+  const g = new Graphics();
+  world.addChild(g);
+  const cellW = 112;
+  const rowH = 150;
+  AGES.forEach((age, ai) => {
+    const y = h + ai * rowH + 125;
+    g.rect(20, y - 125, 12 * cellW + gap, rowH - 6).fill(0xc49b63);
+    let x = 20 + cellW / 2;
+    for (const side of [0, 1] as const) {
+      for (const kind of ['stun', 'freeze'] as const) {
+        for (const role of ['front', 'ranged', 'heavy']) {
+          statusCell(world, x, y, age, role, side, kind, kind === 'stun' ? 200 + ((x / cellW) % 5) * 90 : 600);
+          x += cellW;
+        }
+      }
+      x += gap;
+    }
+  });
+  h += AGES.length * rowH + 10;
+  w = Math.max(w, 40 + 12 * cellW + gap);
+  return { w, h };
+}
+
 async function main(): Promise<void> {
   const host = document.getElementById('gallery')!;
   const app = new Application();
@@ -573,6 +810,8 @@ async function main(): Promise<void> {
   else if (VIEW === 'towerlive') size = towerLive(world, app);
   else if (VIEW === 'scene') size = sceneView(world, app);
   else if (VIEW === 'towerfx') size = towerFx(world);
+  else if (VIEW === 'abilities') size = abilities(world, null);
+  else if (VIEW === 'abilitylive') size = abilities(world, app);
   else size = unitRows(app, world, VIEW === 'gray');
 
   const fit = Math.min(W / size.w, H / size.h);
@@ -581,7 +820,7 @@ async function main(): Promise<void> {
   world.scale.set(scale);
   world.position.set(-Number(params.get('ox') ?? 0) * scale, -Number(params.get('oy') ?? 0) * scale);
 
-  const stats = { units: unitAtlasStats(), bases: baseAtlasStats(), towers: towerAtlasStats() };
+  const stats = { units: unitAtlasStats(), bases: baseAtlasStats(), towers: towerAtlasStats(), abilities: abilityAtlasStats() };
   (globalThis as { __galleryApp?: Application; __atlasStats?: typeof stats }).__galleryApp = app;
   (globalThis as { __atlasStats?: typeof stats }).__atlasStats = stats;
 }

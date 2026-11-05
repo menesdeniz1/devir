@@ -24,6 +24,7 @@ const reject: Record<UiRejectReason, string> = {
   slotEmpty: 'Yuva boş',
   unknownTower: 'Bilinmeyen kule',
   towerNotAvailable: 'Bu çağda kurulamaz',
+  abilityCooldown: 'Bekleme: {sec} sn',
   paused: 'Oyun duraklatıldı',
 };
 
@@ -94,6 +95,24 @@ export const tr = {
     base: 'üs',
   } as Record<string, string>,
   unitFallback: 'Birlik',
+  /** Özel yetenek adları (GDD §7). */
+  ability: {
+    primitive_stampede: 'Sürü Hücumu',
+    ancient_fire_trench: 'Ateş Hendeği',
+    medieval_caltrops: 'Çivi Kapanı',
+    industrial_barrage: 'Baraj Ateşi',
+    future_stasis: 'Durağanlık Alanı',
+  } as Record<string, string>,
+  /** Kısa açıklamalar; sayılar veriden doldurulur ({damage}, {sec}, {zoneSec}, {dps}, {slow}, {delay}, {pct}). */
+  abilityDesc: {
+    primitive_stampede: 'Yaban hayvanı sürüsü alandan geçer: düşmanlara {damage} hasar verir ve {sec} sn sersemletir.',
+    ancient_fire_trench: 'Alan {zoneSec} sn yanar: içindeki düşmanlara saniyede {dps} hasar verir.',
+    medieval_caltrops: 'Alan {zoneSec} sn boyunca düşmanları %{slow} yavaşlatır ve saniyede {dps} hasar verir.',
+    industrial_barrage: 'Alan işaretlenir; {delay} sn sonra düşmanlara {damage} hasar verir.',
+    future_stasis: 'Düşmanları {sec} sn dondurur; donanlar %{pct} fazla hasar alır.',
+  } as Record<string, string>,
+  abilityFallback: 'Yetenek',
+  abilityDescFallback: 'Düşman birliklerine etki eden özel yetenek.',
   /** Rol adları (araç ipucu ve kuyruk işareti). */
   role: {
     front: 'Ön hat',
@@ -161,6 +180,18 @@ export const tr = {
     noticeStoneCaptured: 'Sınır Taşı senin',
     noticeStoneLost: 'Sınır Taşı elden çıktı',
     noticeStoneCapturedFoe: "Rakip Sınır Taşı'nı aldı",
+  },
+  abilityUi: {
+    group: 'Özel yetenek',
+    key: 'Q',
+    ready: 'Hazır',
+    stats: 'Alan {width} · Bekleme {cooldown} sn',
+    aria: 'Yetenek: {name}, kısayol {key}. {desc}',
+    ariaBlocked: 'Yetenek: {name}, kısayol {key}. Kullanılamıyor: {reason}',
+    tip: '{name} [{key}]\n{desc}\n{stats}',
+    targetHint: 'Hedef seç: sol tık uygula, sağ tık veya Esc iptal',
+    targeting: 'Hedef seç',
+    castFoe: 'Rakip {name} kullandı',
   },
   defense: {
     group: 'Savunma yuvaları',
@@ -231,8 +262,13 @@ export function fmt(template: string, vars: Record<string, string | number>): st
 }
 
 /** Ret nedeninin görünen metni (eksik altın varsa doldurulur). */
-export function rejectText(reason: UiRejectReason, missingGold?: number, xpInfo?: { xp: number; xpRequired: number }): string {
-  return fmt(tr.reject[reason], { missing: missingGold ?? 0, xp: xpInfo?.xp ?? 0, required: xpInfo?.xpRequired ?? 0 });
+export function rejectText(
+  reason: UiRejectReason,
+  missingGold?: number,
+  xpInfo?: { xp: number; xpRequired: number },
+  cooldownSec?: number,
+): string {
+  return fmt(tr.reject[reason], { missing: missingGold ?? 0, xp: xpInfo?.xp ?? 0, required: xpInfo?.xpRequired ?? 0, sec: cooldownSec ?? 0 });
 }
 
 export function ageNameTo(age: number): string {
@@ -245,6 +281,10 @@ export function ageName(age: number): string {
 
 export function towerName(towerId: string): string {
   return tr.tower[towerId] ?? tr.towerFallback;
+}
+
+export function abilityName(abilityId: string): string {
+  return tr.ability[abilityId] ?? tr.abilityFallback;
 }
 
 export function unitName(unitId: string): string {
