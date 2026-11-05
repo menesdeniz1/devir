@@ -18,7 +18,7 @@ Paket: GitHub sürüm sayfasındaki `devir-1.1.0-html5.zip` (yerelde `release/de
 6. **Screenshots:** eski görselleri kaldır, `en-ekran-1` … `en-ekran-5` dosyalarını sırayla yükle.
 7. **Tags:** mevcutlar kalsın; istersen `english` ekle (en fazla 10).
 8. **Save.** Sonra sayfada **Run game** ile kısa bir deneme yap:
-   - Sağ alttaki sürüm 1.1.0 olmalı (Ayarlar ekranında da yazar).
+   - Ana menünün altında "Version 1.1.0" ya da "Sürüm 1.1.0" yazmalı.
    - Ayarlar → Dil çalışmalı.
 9. İstersen sayfadaki **Devlog → Create new post** ile aşağıdaki güncelleme notunu paylaş. Takipçilere bildirim gider.
 
