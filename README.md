@@ -3,7 +3,7 @@
 İlkel Çağ'dan Gelecek Çağı'na uzanan tek bir koridorda ordunu, savunmanı ve çağ atlama zamanını dengeleyerek rakip
 üssü yıktığın, tek oyunculu bir tarayıcı strateji oyunu. Hesap gerekmez; kayıtlar tarayıcıda tutulur.
 
-**Oyna:** https://menesdeniz.itch.io/devir
+**Oyna:** https://menesdeniz.itch.io/devir — arayüz Türkçe ve İngilizce (Ayarlar → Dil; ilk açılışta tarayıcı diline göre).
 
 ## Nasıl oynanır
 

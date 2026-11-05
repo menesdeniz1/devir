@@ -90,6 +90,10 @@ describe('Yükleme zinciri: her başarısızlık türü (ÖK-04)', () => {
   it('yama sürümü farkı uyumludur; ana/ikincil fark uyumsuzdur', () => {
     expect(isCompatibleVersion('0.1.0', '0.1.9')).toBe(true);
     expect(isCompatibleVersion('0.1.0', '0.2.0')).toBe(false);
+    // 1.x: ara sürüm kayıt biçimini değiştirmez (biçim schemaVersion ile korunur); ana sürüm değişince kayıt uyumsuz.
+    expect(isCompatibleVersion('1.0.1', '1.1.0')).toBe(true);
+    expect(isCompatibleVersion('1.1.0', '1.0.1')).toBe(true);
+    expect(isCompatibleVersion('1.4.2', '2.0.0')).toBe(false);
     expect(isCompatibleVersion('1.1.0', '0.1.0')).toBe(false);
     expect(isCompatibleVersion('dev', '0.1.0')).toBe(false);
   });

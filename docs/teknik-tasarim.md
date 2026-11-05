@@ -221,7 +221,9 @@ varken 30 sn oyun süresi boyunca hiçbir birlik konum değiştirmez ve hiç has
   anlık kayıtlar duraklatma, `visibilitychange` (gizli), ana menüye dönüş ve `pagehide` anlarında.
 - **Yükleme:** ayrıştır → sürüm → bütünlük karması → yapısal doğrulama → veri başvuruları (tür kimlikleri
   mevcut mu) → simülasyon değişmezleri (`checkInvariants`; ör. birbirini tamamen geçmiş düşman birlik yok). Herhangi biri başarısızsa kayıt silinir ve oyuncu bilgilendirilir (PRD ÖK-04).
-- İlk sürümde kayıt göçü yoktur: uyumsuz sürüm bilgilendirilerek silinir.
+- İlk sürümde kayıt göçü yoktur: uyumsuz sürüm bilgilendirilerek silinir. Uyumluluk semver'e göredir: 1.x'te
+  aynı ana sürümün kayıtları açılır (ara sürüm kayıt biçimini değiştirmez; biçim `schemaVersion` ile korunur),
+  0.x'te ana.ara aynı olmalıdır.
 - Tüm `localStorage` erişimleri `try/catch` içindedir; yazma başarısız olursa (gizli pencere, kota) oyun
   sürer ve bir kez uyarı gösterilir.
 

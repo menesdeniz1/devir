@@ -28,7 +28,7 @@ Her aşama **çalıştırılabilir** bir sürümle ve **komutla doğrulanabilir*
 | 7 | Ekranlar, ayarlar, kayıt | Tamamlandı (2026-11-05): menüler, ayarlar, kayıt/devam, sonuç ekranı, ses bağlantısı |
 | 8 | Öğretici | Tamamlandı (2026-11-05): 10 adım, atla, ilk açılış önerisi; kayda ve sonuçlara yazılmaz |
 | 9 | Üretim kalitesinde görsel ve ses | Tamamlandı (2026-11-05): özgün siluetler, çağa özgü mermiler, arka planlar, üs hasarı, sarsıntı; sentez ses ve 5 çağ müziği |
-| 10 | Denge, kalite ve yayın | Tamamlandı (2026-11-05): kod incelemesi düzeltmeleri, perf paneli, WebGL yok ekranı, üç tarayıcılı E2E, sürüm 1.0.0 paketi. Yayında (2026-11-06): https://menesdeniz.itch.io/devir, sürüm 1.0.1 (itch.io sunucusundaki paket yerel derlemeyle bayt bayt aynı; oradan açılış, maç ve üretim konsol hatasız). Açık: tam bir insan oyun testi (maç süresi, Normal'in zorluğu, seslerin kulakla değerlendirilmesi); kullanıcı yayın öncesi kısa bir deneme yaptı |
+| 10 | Denge, kalite ve yayın | Tamamlandı (2026-11-05): kod incelemesi düzeltmeleri, perf paneli, WebGL yok ekranı, üç tarayıcılı E2E, sürüm 1.0.0 paketi. Yayında (2026-11-06): https://menesdeniz.itch.io/devir, sürüm 1.0.1 (itch.io sunucusundaki paket yerel derlemeyle bayt bayt aynı; oradan açılış, maç ve üretim konsol hatasız). İlk insan oyun testi yapıldı (2026-11-06; bkz. Sürüm 1.1.0). Açık: yeni seslerin kulakla yeniden dinlenmesi, Normal'in zorluğu için daha fazla insan oyuncu |
 
 **Sürüm 1.0.0 sonrası düzeltmeler:** ikinci ve üçüncü denge turu (üs canı eğrisi; Yürüyen Kale hasarı; iki tohum
 kümesinde Normal–Normal medyan ≈ 10:45, zaman aşımı ≤ %7,5; Zor–Zor zaman aşımı ≤ %8,5), ölçüme dayalı ses
@@ -36,6 +36,13 @@ normalizasyonu (kırpılma, DC sapması, çağlar arası düzey farkı) ve BS.17
 dengesi.
 
 **Sürüm 1.0.1:** 1280×720'de deneyim başlığında etiket ile değerin bitişip bölünmesi düzeltildi (sıkışık alt panelde deneyim sütunu genişletildi); CI action'ları Node 24 kullanan v7 sürümlerine geçti. Son tarayıcı doğrulaması (Chromium, 1280×720): öğretici baştan sona 2:34'te tamamlandı; kayıt → Ana menü → Devam et aynı durumu geri getirdi; düğmelere tıklayan basit betikli oyuncu Normal'e karşı 5 maçın 5'ini 10:43–12:55 arasında kaybetti (konsol hatası 0, reddedilen komut 0). Ardından lead, her birkaç oyun saniyesinde duraklatıp yalnız ekrandaki bilgiye bakarak karar verdiği canlı bir maçı gerçek klavye ve fareyle oynadı: erken iki hızlı kule, kümelere yetenek, eşik dolar dolmaz çağ atlama. Normal'e karşı **10:54'te zafer** (çağ geçişleri 04:04 · 06:52 · 09:20; rakip 05:08 · 07:53; Normal 4. çağa çıkamadan üssü düştü; hata 0). Betikli oyuncunun kayıpları Normal'in kötü takası cezalandırdığını, canlı maç da bilinçli oyunla yenilebildiğini gösteriyor.
+
+**Sürüm 1.1.0 (2026-11-06) — ilk insan oyun testi:** kullanıcı oynadı ve beğendi; iki sorun bildirdi. (1) "Sınır
+Taşı ne işe yarıyor anlamadım": gelir satırı taşı saymıyordu; artık gelir satırı, taş göstergesi, bildirimler ve
+taşın üstünden yükselen "+N altın" getiriyi gösterir (GDD §8). (2) "Sesler hafif itici": bant dengeleyicinin
+eklediği yapay hışırtı ve tık gibi başlangıçlar giderildi; efektlerin 4 kHz üstü payı ortalama %10,3 → %0,3
+(GDD §15, tests/audio-timbre). Ayrıca İngilizce dil desteği (PRD G-04; Ayarlar → Dil) ve kayıt uyumluluğu
+semver'e göre: 1.0 kayıtları 1.1'de açılır (TDD §9).
 
 **Bilinen açık noktalar:** saf ön hat yığınıyla oynanan aynalı maçlar (normal-front – Normal) çoğunlukla 20
 dakikayı aşar (kazanamaz, %27–28,5); ses ve müziğin tınısı yalnız ölçümle (LUFS, bant dengesi) doğrulandı, kulakla

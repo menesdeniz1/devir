@@ -64,14 +64,18 @@ export function serializeSave(save: SaveFile): string {
   return JSON.stringify(save);
 }
 
-/** "ana.ikincil" sürüm öneki; ayrıştırılamıyorsa null. */
+/**
+ * Sürüm hattı (semver): 1.x ve sonrasında yalnız ana sürüm ("1"), 0.x'te ana.ikincil ("0.2"); ayrıştırılamıyorsa null.
+ * Kayıt biçimi ayrıca schemaVersion ile, içerik de yapısal/veri doğrulamasıyla korunur; ara sürüm (1.0 → 1.1) kaydı bozmaz.
+ */
 function versionLine(version: unknown): string | null {
   if (typeof version !== 'string') return null;
   const match = /^(\d+)\.(\d+)\./.exec(version);
-  return match === null ? null : `${match[1]}.${match[2]}`;
+  if (match === null) return null;
+  return match[1] === '0' ? `0.${match[2]}` : match[1]!;
 }
 
-/** Aynı sürüm hattı (ana.ikincil) uyumlu sayılır; yama sürümleri kaydı bozmaz. */
+/** Aynı sürüm hattı uyumlu sayılır: yama ve (1.x'te) ara sürümler kaydı bozmaz. */
 export function isCompatibleVersion(saved: unknown, current: string): boolean {
   const a = versionLine(saved);
   const b = versionLine(current);
