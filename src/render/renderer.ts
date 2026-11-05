@@ -44,7 +44,20 @@ export interface Renderer {
   isInCorridor(clientX: number, clientY: number): boolean;
   /** Canlı ve solmakta olan birlik görünümü sayısı (test/hata ayıklama). */
   readonly unitViewCount: number;
+  /** Ekran sarsıntısını açar/kapatır (ayar: PRD EK-07, GR-06). Aşama 9'da uygulanır. */
+  setScreenShake(enabled: boolean): void;
+  /** Performans paneli için son karenin sayıları (TDD §4). */
+  readonly stats: RenderStats;
   destroy(): void;
+}
+
+export interface RenderStats {
+  /** Son karede çizilen birlik, mermi ve etkin efekt sayısı. */
+  units: number;
+  projectiles: number;
+  effects: number;
+  /** Son karenin çizim süresi (ms). */
+  renderMs: number;
 }
 
 /**
@@ -223,6 +236,13 @@ export async function createRenderer(host: HTMLElement, session: Session, option
     },
     get unitViewCount(): number {
       return views.size;
+    },
+    setScreenShake(enabled: boolean): void {
+      // Aşama 9: sarsıntı uygulanınca bu bayrak okunur.
+      void enabled;
+    },
+    get stats(): RenderStats {
+      return { units: views.size, projectiles: session.state.projectiles.length, effects: 0, renderMs: 0 };
     },
     destroy(): void {
       unsubscribe();
