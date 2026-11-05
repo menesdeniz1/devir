@@ -66,6 +66,10 @@ Amaçlanan karşılık döngüsü:
 - **Ağır > Kuleler/üs:** Üsse ×2,5 hasar ve hızlı kulenin menzilinin dışından atış (PRD B-03).
 - **Kuleler > Menzilli ve ön hat baskısı;** ama ağır birliğe karşı yetersiz → savunma tek başına yetmez.
 
+Karşılık döngüsü **dizilişe** bağlıdır: tek şeritte birlikler birbirini geçemediği için ön hat + menzilli düzeni
+ancak üretim sırası ön hattı önde tuttuğunda işler. Önceden dizilmiş senaryolardaki (`npm run sim -- matchup`)
+üstünlük, sürekli akan üretimde zayıflar; denge ölçümü bu yüzden gerçek maç turnuvalarıyla yapılır (§10).
+
 ### Alan hasarı, delme ve mermiler
 
 - **Alan hasarı:** Ana hedef tam hasar alır; çarpma noktasına `yarıçap` içindeki diğer düşman birlikleri
@@ -93,9 +97,9 @@ maçlar hızlanır).
 - **Başlangıç:** 150 altın, 0 deneyim, İlkel Çağ, tam üs canı, yuva 1 açık ve boş, yetenek 30 sn beklemede.
 - **Geri dönüş hedefi (PRD E-06):** Sıfır altından, temel gelirle güncel çağın ön hat birliği **≤ 13 sn**'de
   sipariş verilebilir (üretim süresi hariç; örn. İlkel: 50 / 4 = 12,5 sn).
-- **Tempo tahmini:** Tarafların harcamalarının büyük kısmı savaşta tükenir; denge durumunda harcama ≈ gelir /
-  (1 − 0,6) ≈ 2,5 × gelir. Buradan deneyim akışı İlkel Çağ'da ≈ 300/dk çıkar; her çağ ≈ 2,5–3 dk sürer ve
-  Gelecek Çağı'na ≈ 11. dakikada ulaşılır. Bu bir tahmindir; gerçek değerler Aşama 6 turnuvasıyla ayarlanır.
+- **Tempo:** İlk tahmin her çağın ≈ 2,5–3 dk sürmesiydi. Aşama 6 ölçümünde 2. çağ eşiği bilerek yüksek tutuldu
+  (≈ 800): daha düşük eşik erken ön hat akınını ödüllendirip maçı ilk çağ farkıyla bitiriyordu. Hızlı tempo
+  sonraki çağların daha sıkışık eşikleriyle sağlanır; Normal–Normal maçlarının ≈ %40'ı 4., ≈ %25'i 5. çağı görür.
 - **Çağın değeri:** Lanchester yaklaşımıyla aynı altına bir çağ öndeki ordu ≈ %30 daha güçlüdür (can ve
   hasar ×2, maliyet ×1,75). Çağ atlamak değerlidir ama tek başına belirleyici değildir.
 
@@ -156,11 +160,15 @@ kırpılır. Yalnızca düşman birliklerini etkiler; üsse ve dost birliklere e
 
 | Çağ | Yetenek | Etki | Alan genişliği | Bekleme |
 |---|---|---|---|---|
-| 1 | **Sürü Hücumu** | Yaban hayvanı sürüsü geçer: anında 120 hasar + 1 sn sersemletme | 240 | 50 sn |
-| 2 | **Ateş Hendeği** | Alana 6 sn süren ateş: içindeki düşmanlara 50 hasar/sn | 220 | 55 sn |
-| 3 | **Çivi Kapanı** | 10 sn: içindeki düşmanlar %50 yavaş, 40 hasar/sn | 300 | 55 sn |
-| 4 | **Baraj Ateşi** | 1,5 sn gecikmeyle (alan önceden gösterilir) 1.100 hasar | 320 | 60 sn |
-| 5 | **Durağanlık Alanı** | 4 sn dondurma; donmuş düşmanlar %30 fazla hasar alır | 260 | 60 sn |
+| 1 | **Sürü Hücumu** | Yaban hayvanı sürüsü geçer: anında hasar + kısa sersemletme | 240 | 50 sn |
+| 2 | **Ateş Hendeği** | Alana 6 sn süren ateş: içindeki düşmanlara saniyelik hasar | 220 | 55 sn |
+| 3 | **Çivi Kapanı** | 10 sn: içindeki düşmanlar yavaşlar ve saniyelik hasar alır | 300 | 55 sn |
+| 4 | **Baraj Ateşi** | Gecikmeli (alan önceden gösterilir) ağır vuruş | 320 | 60 sn |
+| 5 | **Durağanlık Alanı** | Dondurma; donmuş düşmanlar daha fazla hasar alır | 260 | 60 sn |
+
+Kesin hasar, süre ve genişlik değerleri `src/data/abilities.ts`'tedir (tek kaynak; yukarıdaki tablo niyeti anlatır).
+**Tasarım kuralı:** anlık yetenek hasarı aynı çağın menzilli birliğini tek vuruşta öldürmez; yetenek ordunun
+arka sırasını silmez, aşındırır (Aşama 6 denge bulgusu: Sürü Hücumu 120 → 60, aksi hâlde saf ön hat baskın oluyordu).
 
 - **Bekleme aktarımı (PRD Y-05):** çağ geçişinde kalan süre = min(kalan süre, yeni yeteneğin beklemesi).
 - **Durum etkileri:** sersemletme ve donma (hareket ve saldırı yok), yavaşlatma (hız çarpanı), savunmasızlık
@@ -191,11 +199,14 @@ Yapay zekâ yalnızca **gözlem** nesnesini görür: kendi tam durumu ve PRD R-0
 Her karar anında sırayla çalışır ve oyuncunun kullandığı komutların aynısını üretir:
 
 1. **Tehdit değerlendirmesi:** kendi üssüne yakın düşman gücü, üs canı eğilimi, orduların güç oranı.
-2. **Çağ planı:** deneyim eşiği geçildiyse ve tehdit düşükse çağ ücretini biriktirir (rezerv).
+2. **Çağ planı:** deneyim eşiği geçildiyse ve tehdit düşükse çağ ücretini biriktirir (rezerv). Bir çağ gerideyse
+   tehdit altında da biriktirir (tek geri dönüş yolu); Zor her zaman biriktirir.
 3. **Savunma:** tehdit yüksekse yuva açar / kule kurar; düşman bileşimine göre A veya B seçer; eski çağ
    kulesini satıp yenisini kurmayı değerlendirir.
-4. **Ordu bileşimi:** görünür düşman ordusunun rol dağılımına (maliyet ağırlıklı) karşılık gelen rolü seçer
-   (§3 döngüsü); kuyruğu hedef uzunlukta tutar.
+4. **Ordu bileşimi:** görünür düşman ordusuna göre bir **duruş** seçer ve ordusunu oranla değil duruşun
+   **üretim dizisiyle** kurar (ör. ön hatta karşı ön-ön-menzilli), çünkü sipariş sırası dizilişi belirler (§3).
+   Açılış dizisi maç başında karışık seçilir; karar anları rastgele dağılır, böylece aynı tohumlu iki yapay zekâ
+   aynı oyunu oynamaz. Kuyruğu hedef uzunlukta tutar.
 5. **Yetenek:** alan içindeki düşman değerini en çok yapan noktayı tarar; eşik üstündeyse kullanır.
 6. **Sınır Taşı:** taş kaybedilmişse ve güç oranı uygunsa ileri itmeyi ağırlıklandırır.
 
@@ -211,7 +222,9 @@ Her karar anında sırayla çalışır ve oyuncunun kullandığı komutların ay
 | Kuyruk ve altın | Altın boşta bekler, kuyruk 1 | Kuyruk 2–3 | Kuyruk dolu, çağ rezervi hesaplı |
 | Sınır Taşı | Yok sayar | Dikkate alır | Aktif hedefler |
 
-Rastgele seçimler, kayda giren tohumlu üreteçten gelir (TDD §3). Hiçbir seviye ek kaynak veya hasar almaz.
+"Doğru karşılık seçme olasılığı", her kararda duruşun güncellenme olasılığıdır (sipariş başına değil). Kesin
+profil değerleri `src/data/ai.ts`'tedir. Rastgele seçimler, kayda giren tohumlu üreteçten gelir (TDD §3).
+Hiçbir seviye ek kaynak veya hasar almaz.
 
 ## 10. Denge hedefleri ve ölçümü
 
@@ -221,7 +234,7 @@ Headless turnuva aracı (TDD §5) ile ölçülür. Her eşleşme en az 200 maç,
 |---|---|
 | Maç süresi | Normal–Normal medyanı 10–15 dk |
 | Zorluk sıralaması | Zor, Normal'e karşı ≥ %70; Normal, Kolay'a karşı ≥ %70 kazanır |
-| Tek tip ordu yok (PRD B-07) | Yalnız tek rol üreten bot (diğer kararları Normal) Normal bota karşı < %35 kazanır — her rol için |
+| Tek tip ordu yok (PRD B-07) | Yalnız tek rol üreten bot (diğer kararları Normal) Normal bota karşı < %35 kazanır — her rol için; Normal ve Zor'da hiçbir rol harcanan altının %65'inden fazlası değildir |
 | Yalnız savunma yok (PRD D-07) | Savunma ağırlıklı bot (yalnızca kule + gecikmeli saldırı) Normal bota karşı < %40 kazanır |
 | Çağın değeri | Eşit harcamalı senaryoda bir çağ önde olan taraf %65–80 kazanır |
 | Geri dönüş | Sıfırdan ön hat birliği ≤ 13 sn (§4) |
