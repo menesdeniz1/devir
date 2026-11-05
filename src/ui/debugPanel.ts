@@ -1,8 +1,10 @@
-import { DEBUG_GOLD_GRANT, DEBUG_LOW_BASE_HP, DEBUG_XP_GRANT, DEBUG_SPEEDS, PLAYER_SIDE } from '../game/constants';
+import { DEBUG_BASE_HIT, DEBUG_GOLD_GRANT, DEBUG_LOW_BASE_HP, DEBUG_XP_GRANT, DEBUG_SPEEDS, PLAYER_SIDE } from '../game/constants';
 import type { Session } from '../game/session';
 import { fmt, tr } from '../i18n/tr';
 import { stateHash } from '../sim/hash';
 import { attrWriter, el, textWriter } from './dom';
+
+const ENEMY_SIDE = PLAYER_SIDE === 0 ? 1 : 0;
 
 /**
  * Geliştirme paneli (`?debug`, yalnız import.meta.env.DEV). Oyun durumunu doğrudan değiştirebilir.
@@ -32,7 +34,8 @@ export function mountDebugPanel(root: HTMLElement, session: Session): { update()
     b.textContent = label;
     b.addEventListener('click', run);
   };
-  action(tr.debug.enemyBase1, () => session.debugMutate((s) => void (s.sides[PLAYER_SIDE === 0 ? 1 : 0].baseHp = DEBUG_LOW_BASE_HP)));
+  action(tr.debug.enemyBase1, () => session.debugMutate((s) => void (s.sides[ENEMY_SIDE].baseHp = DEBUG_LOW_BASE_HP)));
+  action(tr.debug.hitEnemyBase, () => session.debugMutate((s) => void (s.sides[ENEMY_SIDE].baseHp = Math.max(0, s.sides[ENEMY_SIDE].baseHp - DEBUG_BASE_HIT))));
   action(tr.debug.selfBase1, () => session.debugMutate((s) => void (s.sides[PLAYER_SIDE].baseHp = DEBUG_LOW_BASE_HP)));
   action(fmt(tr.debug.addGold, { n: DEBUG_GOLD_GRANT }), () => session.debugMutate((s) => void (s.sides[PLAYER_SIDE].gold += DEBUG_GOLD_GRANT)));
   action(fmt(tr.debug.addXp, { n: DEBUG_XP_GRANT }), () => session.debugMutate((s) => void (s.sides[PLAYER_SIDE].xp += DEBUG_XP_GRANT)));

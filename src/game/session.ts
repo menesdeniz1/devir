@@ -67,8 +67,9 @@ function defaultControllers(config: MatchConfig): [Controller | null, Controller
  * Yeniden başlatma her şeyi sıfırdan kurar (PRD K-08).
  */
 export class Session {
-  private readonly config: MatchConfig;
-  private readonly makeControllers: () => [Controller | null, Controller | null];
+  private config: MatchConfig;
+  /** Verilmişse her yeni maçta bu fabrika kullanılır; yoksa denetleyiciler config'ten kurulur. */
+  private readonly controllerFactory: (() => [Controller | null, Controller | null]) | null;
   private readonly visibility: VisibilitySource | null;
   private readonly listeners = new Set<(event: SessionEvent) => void>();
   private readonly onVisibility = (): void => {
@@ -86,8 +87,7 @@ export class Session {
 
   constructor(options: SessionOptions = {}) {
     this.config = { seed: options.seed ?? DEFAULT_SEED, opponent: options.opponent ?? DEFAULT_OPPONENT };
-    const config = this.config;
-    this.makeControllers = options.createControllers ?? (() => defaultControllers(config));
+    this.controllerFactory = options.createControllers ?? null;
     this.visibility = options.visibility ?? null;
     this.gameState = createMatch(this.config);
     this.controllers = this.makeControllers();
@@ -95,7 +95,16 @@ export class Session {
     this.visibility?.addEventListener('visibilitychange', this.onVisibility);
   }
 
+  private makeControllers(): [Controller | null, Controller | null] {
+    return this.controllerFactory !== null ? this.controllerFactory() : defaultControllers(this.config);
+  }
+
   // ---- Okuma ---------------------------------------------------------------
+
+  /** Çalışan maçın yapılandırması (tohum ve rakip). */
+  get matchConfig(): MatchConfig {
+    return { seed: this.config.seed, opponent: this.config.opponent };
+  }
 
   get state(): GameState {
     return this.gameState;
@@ -234,14 +243,24 @@ export class Session {
 
   /** Tamamen yeni maç: durum, denetleyiciler, kuyruk, döngü ve duraklatma sıfırdan (PRD K-08). */
   restart(): void {
-    this.gameState = createMatch(this.config);
+    this.startMatch(this.config);
+  }
+
+  /**
+   * Verilen yapılandırmayla yeni maç kurar. `state` verilirse (kayıttan devam) maç o durumdan sürer; denetleyiciler
+   * yine config'ten kurulur, yapay zekâ belleği durumdadır (TDD §5, §9). Her ikisinde de duraklatma kalkar.
+   */
+  startMatch(config: MatchConfig, state?: GameState): void {
+    this.config = { seed: config.seed, opponent: config.opponent };
+    this.gameState = state ?? createMatch(this.config);
     this.controllers = this.makeControllers();
     this.loop = this.newLoop();
     this.commandQueue = [];
     this.prevX = new Map();
     this.prevProjectileX = new Map();
     this.frameEvents = [];
-    this.endedAnnounced = false;
+    this.endedAnnounced = this.gameState.outcome !== null;
+    this.snapshotPrev();
     this.emit({ type: 'reset' });
     this.emit({ type: 'paused', paused: false });
   }

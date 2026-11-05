@@ -16,3 +16,8 @@ export const KEY_CLOSE_MENU = 'Escape';
 export const NOTICE_MS = 3000;
 export const KEYS_TOGGLE_PAUSE = ['KeyP', 'Escape'] as const;
 
+
+/** Bildirim (toast) süresi (ms). */
+export const TOAST_MS = 9000;
+/** Ses düzeyi kaydırıcısı adımı. */
+export const VOLUME_STEP = 5;

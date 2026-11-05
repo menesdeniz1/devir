@@ -10,12 +10,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "sim": "tsx tools/sim-cli.ts",
-    "check": "npm run typecheck && npm run test && npm run build"
+    "check": "npm run typecheck && npm run test && npm run build",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "pixi.js": "^8.22.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.6",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

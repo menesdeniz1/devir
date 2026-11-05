@@ -23,3 +23,33 @@ export const DEBUG_XP_GRANT = 1000;
 
 /** Geliştirme panelinde üs canının ayarlandığı değer. */
 export const DEBUG_LOW_BASE_HP = 1;
+
+/** Geliştirme panelindeki "rakip üssüne hasar" miktarı. */
+export const DEBUG_BASE_HIT = 1;
+
+// ---- Kalıcılık (TDD §9) ---------------------------------------------------------
+
+/** localStorage anahtarları. */
+export const STORAGE_KEYS = {
+  settings: 'devir.settings.v1',
+  results: 'devir.results.v1',
+  tutorial: 'devir.tutorial.v1',
+  save: 'devir.save.v1',
+} as const;
+
+/** Periyodik kayıt aralığı (oyun saniyesi; PRD ÖK-03: en geç 10 sn). Tick karşılığı `WORLD.tickRate` ile çarpılarak bulunur. */
+export const SAVE_INTERVAL_SEC = 10;
+
+/** Kayıt biçimi sürümü; uyumsuz kayıt silinir (ilk sürümde göç yok, TDD §9). */
+export const SAVE_SCHEMA_VERSION = 1;
+
+/** Saklanan son sonuç sayısı (GDD §13). */
+export const RESULTS_HISTORY_MAX = 20;
+
+/** Ayarların varsayılanları ve sınırları (PRD EK-07). */
+export const DEFAULT_SETTINGS = { musicVolume: 60, sfxVolume: 80, screenShake: true } as const;
+export const VOLUME_MIN = 0;
+export const VOLUME_MAX = 100;
+
+/** Maç kurulumunda ön seçili zorluk. */
+export const DEFAULT_DIFFICULTY = 'normal' as const;
