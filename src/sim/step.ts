@@ -1,0 +1,308 @@
+import { WORLD } from '../data/world';
+import { applyCommand } from './commands';
+import { isWellFormedCommand } from './validate';
+import { EPS, mustGetAge, mustGetUnit } from './compile';
+import type { Command, GameState, Outcome, SideId, SimEvent, UnitState } from './types';
+
+/** Taraf yönü: taraf 0 +x, taraf 1 -x. */
+function dirOf(side: SideId): 1 | -1 {
+  return side === 0 ? 1 : -1;
+}
+
+function otherSide(side: SideId): SideId {
+  return side === 0 ? 1 : 0;
+}
+
+/** Hedefin ön yüzünün x değeri (hedef = rakip üssü). */
+function enemyBaseFaceX(side: SideId): number {
+  return side === 0 ? WORLD.worldWidth - WORLD.baseWidth : WORLD.baseWidth;
+}
+
+/** Hedef türü: birlik kimliği, 'base' ya da hedef yok. */
+type Target = number | 'base' | null;
+
+interface PendingDamage {
+  attackerSide: SideId;
+  attackerType: string;
+  target: Target;
+  damage: number;
+}
+
+/**
+ * Bir simülasyon adımı (TDD §3). Durumu yerinde değiştirir ve olayları döndürür.
+ * Sonuç belirlenmişse hiçbir şeyi değiştirmez (tick dahil) ve boş liste döner.
+ */
+export function step(state: GameState, commands: readonly Command[]): SimEvent[] {
+  if (state.outcome !== null) return [];
+  const events: SimEvent[] = [];
+
+  applyCommands(state, commands, events);
+  economy(state, events);
+  production(state, events);
+  const targets = selectTargets(state);
+  movement(state, targets);
+  const pending = attacks(state, targets, events);
+  resolveDamage(state, pending, events);
+  resolveOutcome(state, events);
+  state.tick += 1;
+  return events;
+}
+
+// ---- 2. Komutlar -------------------------------------------------------------
+
+function applyCommands(state: GameState, commands: readonly Command[], events: SimEvent[]): void {
+  // Önce taraf 0, sonra taraf 1; aynı taraf içinde verilen sıra korunur.
+  for (const side of [0, 1] as const) {
+    for (const cmd of commands) {
+      if (isWellFormedCommand(cmd) && cmd.side === side) applyCommand(state, cmd, events);
+    }
+  }
+  // Bozuk komutlar (taraf dışı, bilinmeyen tür, eksik alan) sessizce atılmaz; 'invalidCommand' ile reddedilir.
+  for (const cmd of commands) {
+    if (!isWellFormedCommand(cmd)) applyCommand(state, cmd, events);
+  }
+}
+
+// ---- 3. Ekonomi --------------------------------------------------------------
+
+function economy(state: GameState, events: SimEvent[]): void {
+  // Tam bir saniye dolduğunda (adım sonunda) gelir yazılır.
+  if ((state.tick + 1) % WORLD.tickRate !== 0) return;
+  for (const side of [0, 1] as const) {
+    const s = state.sides[side];
+    const amount = mustGetAge(s.age).incomePerSec;
+    s.gold += amount;
+    s.stats.goldEarned += amount;
+    events.push({ type: 'income', side, amount });
+  }
+}
+
+// ---- 4. Üretim ---------------------------------------------------------------
+
+function production(state: GameState, events: SimEvent[]): void {
+  for (const side of [0, 1] as const) {
+    const s = state.sides[side];
+    const order = s.queue[0];
+    if (order === undefined) continue;
+    const unit = mustGetUnit(order.unitId);
+    if (order.progressTicks < unit.buildTicks) order.progressTicks += 1;
+    if (order.progressTicks < unit.buildTicks) continue;
+    if (!spawnBlocked(state, side, unit.def.width)) {
+      spawnUnit(state, side, order.unitId, events);
+      s.queue.shift();
+    }
+  }
+}
+
+/** Aynı taraftan herhangi bir birlik [ön yüz, ön yüz + w + aralık] aralığıyla çakışıyorsa doğma engellidir. */
+function spawnBlocked(state: GameState, side: SideId, width: number): boolean {
+  // Taraf koordinatında (ileri yön artan): doğma bölgesi [0, width + aralık] (üs ön yüzünden itibaren).
+  const zoneEnd = width + WORLD.friendlyGap;
+  for (const u of state.units) {
+    if (u.side !== side) continue;
+    const half = mustGetUnit(u.type).def.width / 2;
+    const rear = forwardOffset(side, u.x) - half;
+    const front = forwardOffset(side, u.x) + half;
+    if (rear < zoneEnd - EPS && front > EPS) return true;
+  }
+  return false;
+}
+
+/** Kendi üssünün ön yüzünden ileri doğru ölçülen konum. */
+function forwardOffset(side: SideId, x: number): number {
+  return side === 0 ? x - WORLD.baseWidth : WORLD.worldWidth - WORLD.baseWidth - x;
+}
+
+function spawnUnit(state: GameState, side: SideId, unitId: string, events: SimEvent[]): void {
+  const unit = mustGetUnit(unitId);
+  const half = unit.def.width / 2;
+  const x = side === 0 ? WORLD.baseWidth + half : WORLD.worldWidth - WORLD.baseWidth - half;
+  const id = state.nextId;
+  state.nextId += 1;
+  state.units.push({ id, side, type: unitId, x, hp: unit.def.hp, cooldown: 0, mode: 'wait' });
+  state.sides[side].stats.produced[unitId] = (state.sides[side].stats.produced[unitId] ?? 0) + 1;
+  events.push({ type: 'unitSpawned', side, id, unitType: unitId });
+}
+
+// ---- 6. Hedefleme ------------------------------------------------------------
+
+/** İki birlik arasında birbirine bakan kenarlar arası mesafe (negatif olabilir). */
+function gapBetween(a: UnitState, aWidth: number, b: UnitState, bWidth: number): number {
+  return dirOf(a.side) * (b.x - a.x) - (aWidth + bWidth) / 2;
+}
+
+function selectTargets(state: GameState): Target[] {
+  const targets: Target[] = [];
+  const defs = state.units.map((u) => mustGetUnit(u.type));
+  const bySide: [number[], number[]] = [[], []];
+  state.units.forEach((u, i) => bySide[u.side].push(i));
+  for (let ai = 0; ai < state.units.length; ai++) {
+    const a = state.units[ai]!;
+    const aUnit = defs[ai]!;
+    let best: Target = null;
+    let bestGap = Infinity;
+    for (const ei of bySide[otherSide(a.side)]) {
+      const e = state.units[ei]!;
+      const eWidth = defs[ei]!.def.width;
+      const gap = gapBetween(a, aUnit.def.width, e, eWidth);
+      // Tamamen arkada kalmış düşman (yan yana değil, geride) hedef olamaz; birlikler birbirini geçemediği için
+      // normal oyunda bu durum oluşmaz, yalnızca bozuk/elle kurulmuş durumlara karşı koruma.
+      if (gap <= -(aUnit.def.width + eWidth)) continue;
+      if (gap <= aUnit.def.range && gap < bestGap) {
+        best = e.id;
+        bestGap = gap;
+      }
+    }
+    if (best === null) {
+      const dir = dirOf(a.side);
+      const frontX = a.x + (dir * aUnit.def.width) / 2;
+      const baseGap = dir * (enemyBaseFaceX(a.side) - frontX);
+      if (baseGap <= aUnit.def.range) best = 'base';
+    }
+    targets.push(best);
+  }
+  return targets;
+}
+
+// ---- 7. Hareket --------------------------------------------------------------
+
+function movement(state: GameState, targets: readonly Target[]): void {
+  // Karşı tarafın tick başındaki en ön kenarı (her taraf kendi ileri koordinatında), hareket başlamadan alınır.
+  const enemyFrontForward: [number, number] = [Infinity, Infinity];
+  for (const side of [0, 1] as const) {
+    const enemy = otherSide(side);
+    const dir = dirOf(side);
+    for (const e of state.units) {
+      if (e.side !== enemy) continue;
+      const half = mustGetUnit(e.type).def.width / 2;
+      const edgeX = e.x + (dirOf(enemy) * half);
+      enemyFrontForward[side] = Math.min(enemyFrontForward[side], dir * edgeX);
+    }
+  }
+
+  const modes: ('walk' | 'attack' | 'wait')[] = state.units.map((_, i) => (targets[i] !== null ? 'attack' : 'wait'));
+
+  for (const side of [0, 1] as const) {
+    const dir = dirOf(side);
+    // Önden arkaya: ileri koordinatı büyük olan önce; eşitlikte dizi sırası.
+    const order: number[] = [];
+    state.units.forEach((u, i) => {
+      if (u.side === side) order.push(i);
+    });
+    order.sort((i, j) => dir * state.units[j]!.x - dir * state.units[i]!.x || i - j);
+
+    const baseLimit = dir * enemyBaseFaceX(side);
+    let aheadRear: number | null = null;
+    for (const i of order) {
+      const u = state.units[i]!;
+      const def = mustGetUnit(u.type);
+      const half = def.def.width / 2;
+      if (targets[i] === null) {
+        const front = dir * u.x + half;
+        let limit = front + def.speedPerTick;
+        if (aheadRear !== null) limit = Math.min(limit, aheadRear - WORLD.friendlyGap);
+        const enemyFront = enemyFrontForward[side];
+        if (enemyFront !== Infinity) limit = Math.min(limit, front + Math.max(0, enemyFront - front) / 2);
+        limit = Math.min(limit, baseLimit);
+        if (limit > front) {
+          u.x = dir * (limit - half);
+          modes[i] = 'walk';
+        }
+      }
+      aheadRear = dir * u.x - half;
+    }
+  }
+
+  state.units.forEach((u, i) => {
+    u.mode = modes[i]!;
+  });
+}
+
+// ---- 8. Saldırılar -----------------------------------------------------------
+
+function attacks(state: GameState, targets: readonly Target[], events: SimEvent[]): PendingDamage[] {
+  const pending: PendingDamage[] = [];
+  state.units.forEach((u, i) => {
+    if (u.cooldown > 0) u.cooldown -= 1;
+    const target = targets[i] ?? null;
+    if (target === null || u.cooldown > 0) return;
+    const def = mustGetUnit(u.type);
+    // Aşama 1: yalnız yakın dövüş, rol çarpanı yok.
+    const damage = def.def.damage;
+    u.cooldown = def.attackIntervalTicks;
+    pending.push({ attackerSide: u.side, attackerType: u.type, target, damage });
+    events.push({ type: 'attack', side: u.side, attackerId: u.id, target, damage });
+  });
+  return pending;
+}
+
+// ---- 10. Hasarın eşzamanlı uygulanması ---------------------------------------
+
+function resolveDamage(state: GameState, pending: readonly PendingDamage[], events: SimEvent[]): void {
+  if (pending.length === 0) return;
+  const byId = new Map<number, UnitState>();
+  for (const u of state.units) byId.set(u.id, u);
+  const fatalSeen = new Set<number>();
+
+  for (const p of pending) {
+    if (p.target === null) continue;
+    if (p.target === 'base') {
+      const victim = otherSide(p.attackerSide);
+      const base = state.sides[victim];
+      const applied = Math.min(p.damage, base.baseHp);
+      base.baseHp -= applied;
+      if (applied > 0) {
+        state.sides[p.attackerSide].stats.baseDamageDealt += applied;
+        events.push({ type: 'baseDamaged', side: victim, amount: applied });
+      }
+      continue;
+    }
+    const victim = byId.get(p.target);
+    if (victim === undefined) continue;
+    victim.hp -= p.damage;
+    if (victim.hp <= 0 && !fatalSeen.has(victim.id)) {
+      fatalSeen.add(victim.id);
+      const kills = state.sides[p.attackerSide].stats.kills;
+      kills[p.attackerType] = (kills[p.attackerType] ?? 0) + 1;
+    }
+  }
+
+  if (fatalSeen.size === 0) return;
+  const survivors: UnitState[] = [];
+  for (const u of state.units) {
+    if (!fatalSeen.has(u.id)) {
+      survivors.push(u);
+      continue;
+    }
+    const def = mustGetUnit(u.type).def;
+    const rewardSide = otherSide(u.side);
+    const reward = state.sides[rewardSide];
+    reward.gold += def.bountyGold;
+    reward.xp += def.bountyXp;
+    reward.stats.goldEarned += def.bountyGold;
+    state.sides[u.side].stats.lost[u.type] = (state.sides[u.side].stats.lost[u.type] ?? 0) + 1;
+    events.push({
+      type: 'unitDied',
+      side: u.side,
+      id: u.id,
+      unitType: u.type,
+      bountyGold: def.bountyGold,
+      bountyXp: def.bountyXp,
+    });
+  }
+  state.units = survivors;
+}
+
+// ---- 12. Sonuç ---------------------------------------------------------------
+
+function resolveOutcome(state: GameState, events: SimEvent[]): void {
+  const down0 = state.sides[0].baseHp <= 0;
+  const down1 = state.sides[1].baseHp <= 0;
+  if (!down0 && !down1) return;
+  // Sonuç tick'i: bu adım dahil geçen toplam tick (tick++ bu adımın sonunda yapılır).
+  const tick = state.tick + 1;
+  const outcome: Outcome = down0 && down1 ? { kind: 'draw', tick } : { kind: 'win', winner: down0 ? 1 : 0, tick };
+  state.outcome = outcome;
+  // Olay durumla nesne paylaşmaz: dinleyicinin değişikliği duruma sızamaz.
+  events.push({ type: 'matchEnded', outcome: { ...outcome } });
+}
