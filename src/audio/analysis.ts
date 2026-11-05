@@ -1,5 +1,6 @@
 import { MIX, MUSIC, SFX_SETTINGS } from './config';
 import { Biquad, windowRms } from './dsp';
+import { bandShares, measureLoudness, type BandShares } from './loudness';
 import { composeSong } from './music/compose';
 import { renderInstrument } from './music/instruments';
 import { planSteps, stepDurationSec } from './music/sequencer';
@@ -39,6 +40,12 @@ export interface LevelStats {
   tailDb: number;
   /** 12 kHz üstü enerji payı (0..1). */
   hfShare: number;
+  /** Kapılamasız en yüksek 400 ms blok K-ağırlıklı gürlüğü (LUFS) — kısa efektler. */
+  momentaryLufs: number;
+  /** Kapılı entegre gürlük (LUFS) — müzik. */
+  integratedLufs: number;
+  /** < 250 Hz, 250 Hz–4 kHz, > 4 kHz enerji payları. */
+  bands: BandShares;
   finite: boolean;
 }
 
@@ -75,6 +82,7 @@ export function analyzeSamples(data: Float32Array, sr: number, gain = 1): LevelS
     hfShare = Math.min(1, hf / sq);
   }
 
+  const loud = measureLoudness(data, sr, gain);
   return {
     peakDb: toDb(peak * gain),
     rmsDb: toDb(Math.sqrt(sq / n) * gain),
@@ -83,6 +91,9 @@ export function analyzeSamples(data: Float32Array, sr: number, gain = 1): LevelS
     durSec: data.length / sr,
     tailDb: toDb(tail * gain),
     hfShare,
+    momentaryLufs: loud.momentaryMaxLufs,
+    integratedLufs: loud.integratedLufs,
+    bands: bandShares(data, sr),
     finite,
   };
 }
@@ -165,22 +176,23 @@ export function analyzeAllMusic(musicVolume = 100, tension = 0): MusicRow[] {
 }
 
 const f1 = (x: number): string => (x <= FLOOR_DB ? '-inf' : x.toFixed(1));
+const pct = (x: number): string => (x * 100).toFixed(0).padStart(3);
 
 export function formatSfxTable(rows: readonly SfxRow[]): string {
-  const lines = ['efekt/çağ            tepe   rms  pencere   dc(dB)  süre  kuyruk  hf%'];
+  const lines = ['efekt/çağ            tepe   rms  pencere  LUFS(an)  süre  kuyruk  hf%  düşük/orta/tiz%'];
   for (const r of rows) {
     lines.push(
-      `${r.id.padEnd(20)}${r.age} ${f1(r.peakDb).padStart(6)} ${f1(r.rmsDb).padStart(5)} ${f1(r.windowRmsDb).padStart(7)} ${f1(toDb(Math.abs(r.dc))).padStart(8)} ${r.durSec.toFixed(2).padStart(5)} ${f1(r.tailDb).padStart(7)} ${(r.hfShare * 100).toFixed(1).padStart(4)}`,
+      `${r.id.padEnd(20)}${r.age} ${f1(r.peakDb).padStart(6)} ${f1(r.rmsDb).padStart(5)} ${f1(r.windowRmsDb).padStart(7)} ${f1(r.momentaryLufs).padStart(9)} ${r.durSec.toFixed(2).padStart(5)} ${f1(r.tailDb).padStart(7)} ${(r.hfShare * 100).toFixed(1).padStart(4)}  ${pct(r.bands.low)}/${pct(r.bands.mid)}/${pct(r.bands.high)}`,
     );
   }
   return lines.join('\n');
 }
 
 export function formatMusicTable(rows: readonly MusicRow[]): string {
-  const lines = ['müzik/çağ    tepe   rms  pencere   dc(dB)  süre  kuyruk'];
+  const lines = ['müzik/çağ    tepe   rms  LUFS(ent)  LUFS(an)  süre  düşük/orta/tiz%'];
   for (const r of rows) {
     lines.push(
-      `çağ ${r.age}    ${f1(r.peakDb).padStart(6)} ${f1(r.rmsDb).padStart(5)} ${f1(r.windowRmsDb).padStart(7)} ${f1(toDb(Math.abs(r.dc))).padStart(8)} ${r.durSec.toFixed(1).padStart(5)} ${f1(r.tailDb).padStart(7)}`,
+      `çağ ${r.age}    ${f1(r.peakDb).padStart(6)} ${f1(r.rmsDb).padStart(5)} ${f1(r.integratedLufs).padStart(9)} ${f1(r.momentaryLufs).padStart(9)} ${r.durSec.toFixed(1).padStart(5)}  ${pct(r.bands.low)}/${pct(r.bands.mid)}/${pct(r.bands.high)}`,
     );
   }
   return lines.join('\n');

@@ -12,10 +12,10 @@ const uiClick: Recipe = {
 const uiError: Recipe = {
   dur: 0.35,
   layers: () => [
-    tone('square', 170, 0.05, 0.6, { hold: 0.07 }),
-    tone('sine', 85, 0.05, 0.5, { hold: 0.07 }),
-    tone('square', 150, 0.06, 0.6, { hold: 0.08, delay: 0.14 }),
-    tone('sine', 75, 0.06, 0.5, { hold: 0.08, delay: 0.14 }),
+    tone('square', 330, 0.05, 0.6, { hold: 0.07 }),
+    tone('sine', 165, 0.05, 0.2, { hold: 0.07 }),
+    tone('square', 262, 0.06, 0.6, { hold: 0.08, delay: 0.14 }),
+    tone('sine', 131, 0.06, 0.2, { hold: 0.08, delay: 0.14 }),
   ],
 };
 

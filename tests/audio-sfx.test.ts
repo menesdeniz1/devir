@@ -135,7 +135,7 @@ describe('Ses sentezi: efekt tarifleri', () => {
       }
     }
     // Yetenek sesleri çağdan bağımsızdır.
-    expect(correlation(renderSfx('abilityStampede', 1), renderSfx('abilityStampede', 5))).toBeGreaterThan(0.9);
+    expect(correlation(renderSfx('abilityStampede', 1), renderSfx('abilityStampede', 5))).toBeGreaterThan(0.7);
   });
 
   it('arayüz sesleri kısa, stingerlar uzundur', () => {

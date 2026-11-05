@@ -56,46 +56,67 @@ export const MUSIC = {
   restartPadSec: 0.05,
   /**
    * Çağ başına müzik düzeyi düzeltmesi (doğrusal kazanç, çağ 1..5): çevrimdışı ölçümle, varsayılan ses düzeylerinde
-   * döngü ortalama RMS'i tipik savaş efektinin ≈10 dB altına gelecek biçimde ayarlanır.
+   * döngü entegre gürlüğü (LUFS) tipik savaş efektinin ≈10,5 LU altına gelecek biçimde ayarlanır.
    */
-  levelTrim: [0.217, 0.23, 0.242, 0.148, 0.166],
+  levelTrim: [0.206, 0.202, 0.207, 0.137, 0.2],
   /** Döngü süresi sınırları (sn) — test garantisi. */
   minLoopSec: 60,
   maxLoopSec: 90,
 } as const;
 
-// ---- Düzey hedefleri (dBFS, çıkışta; ana çıkış ve kendi-taraf kazancı dahil, kanal ses düzeyi 100) ----------
+// ---- Düzey hedefleri (LUFS, ITU-R BS.1770-4 K-ağırlıklı; çıkışta, ana çıkış ve kendi-taraf kazancı dahil, kanal ses düzeyi 100) ----
 
 export type SfxCategory = 'strike' | 'impact' | 'death' | 'base' | 'tower' | 'cue' | 'ability' | 'fanfare' | 'ui' | 'spawn';
 
 export const SFX_LEVEL = {
-  /** Her efekt tamponu, 400 ms pencere RMS'i bu değere (dBFS) normalleştirilerek üretilir. */
-  refWindowRmsDb: -22,
-  /** Kategori hedefleri: kısa pencere (400 ms) en yüksek RMS, dBFS. */
+  /** Her efekt tamponu, kapılamasız en yüksek 400 ms blok gürlüğü bu değere (LUFS) normalleştirilerek üretilir. */
+  refMomentaryLufs: -24,
+  /** Kategori hedefleri: kısa süreli (400 ms blok) en yüksek gürlük, LUFS. */
   targets: {
-    strike: -22, // yakın dövüş vuruşu, mızrak/ok/top atışı
-    impact: -18, // çarpma ve patlama
-    death: -24, // birlik ölümü
-    base: -18, // üs vuruşu
-    tower: -22, // kule atışı
-    cue: -20, // kule kurma/satma, yuva açma, Sınır Taşı
-    ability: -16, // yetenekler
-    fanfare: -14, // çağ fanfarı ve stingerlar
-    ui: -26, // arayüz
-    spawn: -26, // birlik doğması (arka plan dokusu)
+    strike: -23, // yakın dövüş vuruşu, mızrak/ok/top atışı
+    impact: -19, // çarpma ve patlama
+    death: -25, // birlik ölümü
+    base: -19, // üs vuruşu
+    tower: -23, // kule atışı
+    cue: -21, // kule kurma/satma, yuva açma, Sınır Taşı
+    ability: -17, // yetenekler
+    fanfare: -15, // çağ fanfarı ve stingerlar
+    ui: -27, // arayüz
+    spawn: -27, // birlik doğması (arka plan dokusu)
   } satisfies Record<SfxCategory, number>,
-  /** Hedefe izin verilen sapma (±dB). */
-  toleranceDb: 3,
+  /** Hedefe izin verilen sapma (±LU). */
+  toleranceLu: 2,
   /** Tepe sınırı (dBFS), her yerde. */
   peakCeilingDb: -1,
-  /** Aynı efektin çağlar arası pencere RMS farkı üst sınırı (dB). */
-  maxAgeSpreadDb: 3,
-  /** Müzik ortalama RMS'i, tipik savaş efektinin (varsayılan düzeylerde) bu kadar dB altında olmalı. */
-  musicBelowSfxDb: { min: 8, max: 12 },
+  /** Aynı efektin çağlar arası gürlük farkı üst sınırı (LU). */
+  maxAgeSpreadLu: 3,
+  /** Müzik entegre gürlüğü, tipik savaş efektinin (varsayılan düzeylerde) bu kadar LU altında olmalı. */
+  musicBelowSfxLu: { min: 9, max: 12 },
   /** Tıklama ölçütü: son 10 ms'deki en büyük genlik bu değerin (dBFS) altında olmalı. */
   maxTailDb: -40,
   /** DC sapması üst sınırı (doğrusal). */
   maxDc: 0.001,
+} as const;
+
+/** Frekans dengesi kuralları (bantlar: < 250 Hz, 250 Hz–4 kHz, > 4 kHz) ve bas/tiz dengeleyici ayarları. */
+export const BALANCE = {
+  /** Hiçbir efektte tek bandın enerji payı bunu aşmaz (test). */
+  maxBandShare: 0.85,
+  /** Müzikte orta bant payı en az (test). */
+  minMusicMid: 0.3,
+  /** Arayüz seslerinde < 250 Hz payı en çok (test). */
+  maxUiLow: 0.4,
+  /** Dengeleyici: tek bant payı bunu aşarsa devreye girer (maxBandShare altında pay bırakır). */
+  trigger: 0.78,
+  /** Dengeleyici: payı bunun altındaki bantlara dolgu eklenir. */
+  minShare: 0.08,
+  /** Eklenen dolgunun ana enerjiye oranı. */
+  fillShare: 0.12,
+  lowHz: 150,
+  midHz: 1000,
+  highHz: 5500,
+  envAttackSec: 0.003,
+  envReleaseSec: 0.04,
 } as const;
 
 export const SFX_CATEGORY: Record<SfxId, SfxCategory> = {
@@ -131,11 +152,11 @@ export const SFX_CATEGORY: Record<SfxId, SfxCategory> = {
 };
 
 /**
- * Hedef çıkış düzeyini veren kazanç: tampon pencere RMS'i refWindowRmsDb iken
+ * Hedef çıkış düzeyini veren kazanç: tampon kısa süreli gürlüğü refMomentaryLufs iken
  * gain × ownGain × masterGain çarpımı hedefe ulaştırır. 0,01 hassasiyetle yuvarlanır.
  */
 export function levelGain(targetDb: number): number {
-  const linear = Math.pow(10, (targetDb - SFX_LEVEL.refWindowRmsDb) / 20) / (MIX.ownGain * MIX.masterGain);
+  const linear = Math.pow(10, (targetDb - SFX_LEVEL.refMomentaryLufs) / 20) / (MIX.ownGain * MIX.masterGain);
   return Math.round(linear * 100) / 100;
 }
 
@@ -163,7 +184,7 @@ const SFX_BASE: Record<SfxId, SfxBase> = {
   meleeHit: { priority: 1, minGapSec: BATTLE_GAP },
   shootRanged: { priority: 1, minGapSec: BATTLE_GAP },
   shootHeavy: { priority: 2, minGapSec: BATTLE_GAP },
-  impact: { priority: 1, minGapSec: BATTLE_GAP, trimDb: -1.5 },
+  impact: { priority: 1, minGapSec: BATTLE_GAP, trimDb: -0.5 },
   explosion: { priority: 3, minGapSec: 0.06 },
   unitDeath: { priority: 2, minGapSec: 0.05 },
   unitSpawn: { priority: 1, minGapSec: 0.05 },

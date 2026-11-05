@@ -303,13 +303,22 @@ export function finalize(buf: Float32Array, sr: number, peak: number): Float32Ar
   const scale = max > 1e-9 ? peak / max : 0;
   const fadeIn = Math.min(buf.length, Math.round(sr * 0.0015));
   const fadeOut = Math.min(buf.length, Math.round(sr * 0.03));
+  // Sönümlerden sonra kalan ortalama, sönüm profiliyle ağırlıklı çıkarılır (uçlar sıfır kalır, DC ≈ 0).
+  const fade = new Float32Array(buf.length);
+  let sumY = 0;
+  let sumW = 0;
   for (let i = 0; i < buf.length; i++) {
-    let g = scale;
-    if (i < fadeIn) g *= i / fadeIn;
+    let w = 1;
+    if (i < fadeIn) w *= i / fadeIn;
     const fromEnd = buf.length - 1 - i;
-    if (fromEnd < fadeOut) g *= (fromEnd / fadeOut) ** 2;
-    buf[i]! *= g;
+    if (fromEnd < fadeOut) w *= (fromEnd / fadeOut) ** 2;
+    fade[i] = w;
+    buf[i]! *= scale * w;
+    sumY += buf[i]!;
+    sumW += w;
   }
+  const c = sumW > 0 ? sumY / sumW : 0;
+  for (let i = 0; i < buf.length; i++) buf[i]! -= c * fade[i]!;
   return buf;
 }
 

@@ -1,5 +1,7 @@
 import { SFX_LEVEL } from '../config';
-import { createRng, finalize, hashString, renderLayers, windowRms } from '../dsp';
+import { createRng, finalize, hashString, renderLayers } from '../dsp';
+import { measureLoudness } from '../loudness';
+import { balanceBands } from './balance';
 import { ABILITY_RECIPES } from './abilities';
 import { COMBAT_RECIPES } from './combat';
 import { SFX_IDS, type SfxId } from './ids';
@@ -30,17 +32,20 @@ export function clampAge(age: number): number {
  * Bir efekti çağ tınısıyla örneklere çevirir (saf ve tekrarlanabilir: tohum kimlikten ve çağdan türetilir).
  * Süre tarifin kendi uzunluğudur.
  *
- * Gürlük: her tampon, 400 ms kayan pencere RMS'i SFX_LEVEL.refWindowRmsDb olacak biçimde ölçeklenir; böylece aynı
- * efektin çağlar arası gürlüğü eşit olur ve kategori düzeyi yalnızca config.ts'teki efekt kazancıyla ayarlanır.
+ * Dengeleme: tek bantta yığılan efektlere küçük bir bant dolgusu eklenir (balance.ts).
+ * Gürlük: her tampon, kapılamasız en yüksek 400 ms blok K-ağırlıklı gürlüğü (LUFS) SFX_LEVEL.refMomentaryLufs olacak
+ * biçimde ölçeklenir; böylece aynı efektin çağlar arası gürlüğü eşit olur ve kategori düzeyi yalnızca config.ts'teki
+ * efekt kazancıyla ayarlanır.
  */
 export function renderSfx(id: SfxId, age: number, sampleRate: number = SFX_SAMPLE_RATE): Float32Array {
   const recipe = SFX_RECIPES[id];
   const a = clampAge(age);
   const rng = createRng(hashString(`${id}:${a}`));
   const raw = renderLayers(sampleRate, recipe.dur, recipe.layers(a), rng);
+  balanceBands(raw, sampleRate, rng);
   finalize(raw, sampleRate, 1);
-  const rms = windowRms(raw, sampleRate);
-  const scale = rms > 1e-9 ? Math.pow(10, SFX_LEVEL.refWindowRmsDb / 20) / rms : 0;
+  const { momentaryMaxLufs } = measureLoudness(raw, sampleRate);
+  const scale = Number.isFinite(momentaryMaxLufs) && momentaryMaxLufs > -100 ? Math.pow(10, (SFX_LEVEL.refMomentaryLufs - momentaryMaxLufs) / 20) : 0;
   for (let i = 0; i < raw.length; i++) raw[i]! *= scale;
   return raw;
 }

@@ -159,11 +159,11 @@ export const SONGS: readonly SongDef[] = [
     motifA: [[0, 4, 4], [4, 6, 4], [8, 7, 6], [14, 6, 2], [16, 4, 4], [20, 2, 2], [22, 4, 2], [24, 2, 8]],
     motifB: [[0, 7, 2], [2, 8, 2], [4, 9, 4], [8, 7, 4], [12, 6, 4], [16, 4, 2], [18, 6, 2], [20, 7, 4], [24, 4, 4], [28, 2, 4]],
     tracks: [
-      { instrument: 'eKick', kind: 'rhythm', midi: 36, gain: 0.9, sections: ALL, patterns: ['x...x...x...x...', 'x...x...x..xx...'] },
+      { instrument: 'eKick', kind: 'rhythm', midi: 36, gain: 0.6, sections: ALL, patterns: ['x...x...x...x...', 'x...x...x..xx...'] },
       { instrument: 'eSnare', kind: 'rhythm', midi: 50, gain: 0.6, sections: NOT_FIRST, patterns: ['....x.......x...'] },
       { instrument: 'eHat', kind: 'rhythm', midi: 60, gain: 0.35, sections: NOT_FIRST, patterns: ['..x...x...x...x.', 'x.x.x.x.x.x.x.x.'] },
       { instrument: 'eHat', kind: 'rhythm', midi: 60, gain: 0.2, sections: ALL, patterns: ['ooooooooooooooo.'], minTension: 0.6 },
-      { instrument: 'subBass', kind: 'bass', octave: -2, gain: 0.6, sections: ALL, patterns: ['x.x...x.x.x...x.', 'x.x.x.x.x.x.x.x.'] },
+      { instrument: 'subBass', kind: 'bass', octave: -2, gain: 0.35, sections: ALL, patterns: ['x.x...x.x.x...x.', 'x.x.x.x.x.x.x.x.'] },
       { instrument: 'synthPad', kind: 'chord', hold: 16, gain: 0.35, sections: ALL },
       { instrument: 'synthArp', kind: 'arp', octave: 1, gain: 0.3, sections: NOT_FIRST, patterns: ['x.xxx.xxx.xxx.xx'] },
       { instrument: 'synthLead', kind: 'melody', octave: 1, gain: 0.5, sections: ALL },
