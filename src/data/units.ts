@@ -236,14 +236,16 @@ export const UNITS: readonly UnitDef[] = [
     pierce: { count: 1, length: 100 },
   },
   {
-    // Yürüyen Kale
+    // Yürüyen Kale. Çağ istisnası: hasar formülün (48 × 2^4 = 768) iki katı. 5. çağda öndeki ağırlar
+    // birbirini 300 menzilden döverken arkadaki ön hat geçemiyor; topçu düellosunu hızlandırıp geç oyun
+    // çıkmazını kırar (Aşama 6 denge turu 3: Normal–Normal zaman aşımı %16 → %5,5).
     id: 'future_heavy',
     age: 5,
     role: 'heavy',
     cost: 1500,
     buildTimeSec: 8.2,
     hp: 8400,
-    damage: 768,
+    damage: 1536,
     attackIntervalSec: 3,
     range: 300,
     speed: 29,
