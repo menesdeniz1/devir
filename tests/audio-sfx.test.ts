@@ -99,7 +99,7 @@ describe('Ses sentezi: efekt tarifleri', () => {
         const { peak, finite } = stats(buf);
         expect(finite, `${id}/${age} sonlu`).toBe(true);
         expect(peak, `${id}/${age} doruk`).toBeGreaterThan(0.1);
-        expect(peak, `${id}/${age} doruk`).toBeLessThanOrEqual(recipe.peak + 1e-6);
+        expect(peak, `${id}/${age} doruk`).toBeLessThanOrEqual(1);
         // Sonda tıklama olmasın: son örnek ~0.
         expect(Math.abs(buf[buf.length - 1]!)).toBeLessThan(0.01);
       }

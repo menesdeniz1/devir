@@ -133,7 +133,18 @@ export function createAudioEngine(options: AudioEngineOptions = {}): AudioEngine
   function build(ctx: AudioContextLike): Graph {
     const master = ctx.createGain();
     master.gain.value = MIX.masterGain;
-    master.connect(ctx.destination);
+    const limiter = ctx.createDynamicsCompressor?.();
+    if (limiter) {
+      limiter.threshold.value = MIX.limiter.thresholdDb;
+      limiter.knee.value = MIX.limiter.kneeDb;
+      limiter.ratio.value = MIX.limiter.ratio;
+      limiter.attack.value = MIX.limiter.attackSec;
+      limiter.release.value = MIX.limiter.releaseSec;
+      master.connect(limiter);
+      limiter.connect(ctx.destination);
+    } else {
+      master.connect(ctx.destination);
+    }
     const musicGain = ctx.createGain();
     const musicGate = ctx.createGain();
     const sfxGain = ctx.createGain();

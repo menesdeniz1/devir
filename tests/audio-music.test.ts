@@ -221,7 +221,7 @@ describe('MusicPlayer (sahte ses bağlamı)', () => {
     const trackGains = ctx.gains.filter((g) => g.connections.includes(out));
     expect(trackGains).toHaveLength(2);
     expect(trackGains[0]!.gain.ramps.at(-1)).toMatchObject({ value: 0, time: 5 + MUSIC.crossfadeSec });
-    expect(trackGains[1]!.gain.ramps.at(-1)).toMatchObject({ value: 1, time: 5 + MUSIC.crossfadeSec });
+    expect(trackGains[1]!.gain.ramps.at(-1)).toMatchObject({ value: MUSIC.levelTrim[1], time: 5 + MUSIC.crossfadeSec });
   });
 
   it('geçersiz çağ yok sayılır', () => {

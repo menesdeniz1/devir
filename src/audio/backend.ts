@@ -35,6 +35,15 @@ export interface BufferSourceLike extends AudioNodeLike {
   stop(when?: number): void;
 }
 
+/** Sınırlayıcı olarak kullanılan DynamicsCompressorNode'un alt kümesi. */
+export interface CompressorNodeLike extends AudioNodeLike {
+  threshold: AudioParamLike;
+  knee: AudioParamLike;
+  ratio: AudioParamLike;
+  attack: AudioParamLike;
+  release: AudioParamLike;
+}
+
 export interface AudioContextLike {
   readonly currentTime: number;
   readonly sampleRate: number;
@@ -43,6 +52,8 @@ export interface AudioContextLike {
   createGain(): GainNodeLike;
   createBuffer(channels: number, length: number, sampleRate: number): AudioBufferLike;
   createBufferSource(): BufferSourceLike;
+  /** İsteğe bağlı: yoksa sınırlayıcı atlanır. */
+  createDynamicsCompressor?(): CompressorNodeLike;
   resume(): Promise<void>;
   close(): Promise<void>;
 }

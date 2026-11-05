@@ -288,21 +288,43 @@ export function renderLayers(sr: number, durSec: number, layers: readonly Layer[
 
 /** Tepeyi `peak`e ölçekler, başa/sona tıklamayı önleyen kısa yükselme-sönme uygular, sonlu değerleri garanti eder. */
 export function finalize(buf: Float32Array, sr: number, peak: number): Float32Array {
+  let sum = 0;
+  for (let i = 0; i < buf.length; i++) {
+    if (!Number.isFinite(buf[i]!)) buf[i] = 0;
+    sum += buf[i]!;
+  }
+  // Ortalama (DC) sapmasını kaldır.
+  const mean = sum / buf.length;
   let max = 0;
   for (let i = 0; i < buf.length; i++) {
-    const v = buf[i]!;
-    if (!Number.isFinite(v)) buf[i] = 0;
-    else if (Math.abs(v) > max) max = Math.abs(v);
+    buf[i]! -= mean;
+    if (Math.abs(buf[i]!) > max) max = Math.abs(buf[i]!);
   }
   const scale = max > 1e-9 ? peak / max : 0;
   const fadeIn = Math.min(buf.length, Math.round(sr * 0.0015));
-  const fadeOut = Math.min(buf.length, Math.round(sr * 0.02));
+  const fadeOut = Math.min(buf.length, Math.round(sr * 0.03));
   for (let i = 0; i < buf.length; i++) {
     let g = scale;
     if (i < fadeIn) g *= i / fadeIn;
     const fromEnd = buf.length - 1 - i;
-    if (fromEnd < fadeOut) g *= fromEnd / fadeOut;
+    if (fromEnd < fadeOut) g *= (fromEnd / fadeOut) ** 2;
     buf[i]! *= g;
   }
   return buf;
+}
+
+// ---- Ölçüm ------------------------------------------------------------------
+
+/** Kısa pencere (varsayılan 400 ms) en yüksek RMS (doğrusal). Pencere arabellek sonunda sıfırla doldurulmuş sayılır. */
+export function windowRms(data: Float32Array, sr: number, windowSec = 0.4, hopSec = 0.025): number {
+  const win = Math.max(1, Math.round(windowSec * sr));
+  const hop = Math.max(1, Math.round(hopSec * sr));
+  const ps = new Float64Array(data.length + 1);
+  for (let i = 0; i < data.length; i++) ps[i + 1] = ps[i]! + data[i]! * data[i]!;
+  let best = 0;
+  for (let s = 0; s < data.length; s += hop) {
+    const e = Math.min(data.length, s + win);
+    best = Math.max(best, ps[e]! - ps[s]!);
+  }
+  return Math.sqrt(best / win);
 }

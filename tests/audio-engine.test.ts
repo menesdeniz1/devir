@@ -6,7 +6,7 @@ import type { AudioEvent, SfxRequest } from '../src/audio/eventMapper';
 import { MIX } from '../src/audio/config';
 import { volumeToGain } from '../src/audio/volume';
 import { UNITS } from '../src/data/units';
-import { FakeContext, FakeTimer } from './audio-helpers';
+import { FakeContext, FakeGain, FakeParam, FakeTimer } from './audio-helpers';
 
 function setup(opts: { minGapScale?: number } = {}) {
   const ctx = new FakeContext();
@@ -121,6 +121,31 @@ describe('AudioEngine: kilit açma ve mikser', () => {
     expect(master.gain.value).toBe(MIX.masterGain);
     const feeders = ctx.gains.filter((g) => g.connections.includes(master));
     expect(feeders.length).toBe(2); // müzik ve efekt kanalları
+  });
+});
+
+describe('AudioEngine: sınırlayıcı', () => {
+  it('bağlam DynamicsCompressor destekliyorsa ana çıkış sınırlayıcı üzerinden hedefe bağlanır', () => {
+    class LimiterContext extends FakeContext {
+      comp = Object.assign(new FakeGain(), {
+        threshold: new FakeParam(),
+        knee: new FakeParam(),
+        ratio: new FakeParam(),
+        attack: new FakeParam(),
+        release: new FakeParam(),
+      });
+      createDynamicsCompressor() {
+        return this.comp;
+      }
+    }
+    const ctx = new LimiterContext();
+    const engine = createAudioEngine({ contextFactory: () => ctx, timer: new FakeTimer() });
+    engine.unlock();
+    const master = ctx.gains.find((g) => g.connections.includes(ctx.comp))!;
+    expect(master).toBeDefined();
+    expect(ctx.comp.connections).toContain(ctx.destination);
+    expect(ctx.comp.ratio.value).toBe(MIX.limiter.ratio);
+    expect(ctx.comp.threshold.value).toBe(MIX.limiter.thresholdDb);
   });
 });
 

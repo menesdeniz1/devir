@@ -10,7 +10,6 @@ import { GLASS, noise, ring, thump, tone, type Recipe } from './layers';
 /** Sürü Hücumu: dörtnala toynak gümbürtüsü + hırıltı + toz. */
 const abilityStampede: Recipe = {
   dur: 2.2,
-  peak: 0.95,
   layers: () => {
     const layers: Layer[] = [];
     for (let g = 0; g < 6; g++) {
@@ -28,7 +27,6 @@ const abilityStampede: Recipe = {
 const CRACKLE_DELAYS = [0.1, 0.18, 0.3, 0.37, 0.5, 0.62, 0.71, 0.9, 1.05, 1.2] as const;
 const abilityFireTrench: Recipe = {
   dur: 1.8,
-  peak: 0.85,
   layers: () => [
     noise('bp', 500, 0.5, 0.8, { attack: 0.12, fEnd: 2800, sweepTau: 0.25, q: 0.6 }),
     noise('lp', 600, 0.7, 0.6, { attack: 0.1, hold: 0.6 }),
@@ -41,7 +39,6 @@ const abilityFireTrench: Recipe = {
 const CALTROP_DELAYS = [0, 0.03, 0.07, 0.1, 0.16, 0.19, 0.27, 0.33, 0.4, 0.52, 0.6, 0.75] as const;
 const abilityCaltrops: Recipe = {
   dur: 1.2,
-  peak: 0.7,
   layers: () => [
     noise('bp', 900, 0.2, 0.4, { attack: 0.05 }),
     ...CALTROP_DELAYS.flatMap((d, i): Layer[] => [
@@ -54,7 +51,6 @@ const abilityCaltrops: Recipe = {
 /** Baraj Ateşi, kullanım anı: roketlerin fırlayışı + yaklaşan ıslık. */
 const abilityBarrage: Recipe = {
   dur: 1.7,
-  peak: 0.7,
   layers: () => [
     thump(120, 50, 0.15, 0.7),
     noise('bp', 800, 0.4, 0.6, { attack: 0.05, fEnd: 3000, sweepTau: 0.4 }),
@@ -65,7 +61,6 @@ const abilityBarrage: Recipe = {
 /** Baraj Ateşi, vuruş anı: art arda üç gümbürtü. */
 const abilityBarrageImpact: Recipe = {
   dur: 1.5,
-  peak: 1.0,
   layers: () => [
     ...[0, 0.12, 0.25].flatMap((d): Layer[] => [thump(75, 30, 0.35, 1, { delay: d }), noise('lp', 2800, 0.3, 0.9, { delay: d })]),
     noise('lp', 600, 0.6, 0.6, { delay: 0.1 }),
@@ -75,7 +70,6 @@ const abilityBarrageImpact: Recipe = {
 /** Durağanlık Alanı: kristalleşen, tiz ve uğuldayan buzlu ses. */
 const abilityStasis: Recipe = {
   dur: 2.2,
-  peak: 0.75,
   layers: () => [
     tone('sine', 1900, 0.7, 0.5, { fEnd: 300, sweep: 0.5, hold: 0.2 }),
     ring(1400, GLASS, 0.9, 0.5),
@@ -89,7 +83,6 @@ const abilityStasis: Recipe = {
 /** Bilinmeyen yetenek kimlikleri için yedek ses. */
 const abilityGeneric: Recipe = {
   dur: 1.0,
-  peak: 0.7,
   layers: () => [noise('bp', 600, 0.3, 0.6, { attack: 0.1, fEnd: 2500, sweepTau: 0.3 }), ring(900, GLASS, 0.5, 0.4, { delay: 0.1 }), thump(120, 60, 0.12, 0.6)],
 };
 

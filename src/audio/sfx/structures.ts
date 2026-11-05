@@ -6,7 +6,6 @@ import { AGE_WAVE, BRONZE, GLASS, IRON, byAge, noise, ring, thump, tone, type Re
 
 const towerFast: Recipe = {
   dur: 0.35,
-  peak: 0.6,
   layers: (age) =>
     byAge<Layer[]>(age, [
       // Sapan çıtırtısı
@@ -24,7 +23,6 @@ const towerFast: Recipe = {
 
 const towerHeavy: Recipe = {
   dur: 0.9,
-  peak: 0.8,
   layers: (age) =>
     byAge<Layer[]>(age, [
       // Kaya oluğu
@@ -47,7 +45,6 @@ const towerHeavy: Recipe = {
 
 const towerBuilt: Recipe = {
   dur: 0.7,
-  peak: 0.7,
   layers: (age) =>
     byAge<Layer[]>(age, [
       // Ahşap çekiç
@@ -71,7 +68,6 @@ const towerBuilt: Recipe = {
 
 const towerSold: Recipe = {
   dur: 0.7,
-  peak: 0.6,
   layers: (age) => {
     const k = byAge(age, [0.8, 0.9, 1, 1.1, 1.2]);
     return [
@@ -85,7 +81,6 @@ const towerSold: Recipe = {
 
 const slotUnlocked: Recipe = {
   dur: 0.7,
-  peak: 0.6,
   layers: (age) => {
     const wave = byAge(age, AGE_WAVE);
     return [
@@ -103,7 +98,6 @@ const slotUnlocked: Recipe = {
 const AGE_UP_ROOTS = [60, 62, 64, 65, 67] as const;
 const ageUp: Recipe = {
   dur: 3.0,
-  peak: 0.9,
   layers: (age) => {
     const root = byAge(age, AGE_UP_ROOTS);
     const wave = byAge(age, AGE_WAVE);
@@ -128,7 +122,6 @@ const ageUp: Recipe = {
 
 const stoneCapture: Recipe = {
   dur: 1.0,
-  peak: 0.7,
   layers: (age) => {
     const wave = byAge(age, AGE_WAVE);
     return [
@@ -142,7 +135,6 @@ const stoneCapture: Recipe = {
 
 const stoneLose: Recipe = {
   dur: 1.1,
-  peak: 0.7,
   layers: (age) => {
     const wave = byAge(age, AGE_WAVE);
     return [

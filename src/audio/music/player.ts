@@ -64,7 +64,7 @@ export class MusicPlayer {
     const gain = ctx.createGain();
     gain.gain.value = 0;
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(1, now + MUSIC.crossfadeSec);
+    gain.gain.linearRampToValueAtTime(MUSIC.levelTrim[Math.min(5, Math.max(1, age)) - 1]!, now + MUSIC.crossfadeSec);
     gain.connect(output);
 
     const song = composeSong(def);

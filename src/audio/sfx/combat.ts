@@ -9,7 +9,6 @@ import { BRONZE, GLASS, IRON, byAge, noise, ring, thump, tone, type Recipe } fro
 
 const meleeHit: Recipe = {
   dur: 0.35,
-  peak: 0.8,
   layers: (age) =>
     byAge<Layer[]>(age, [
       [thump(190, 80, 0.07, 0.9), noise('bp', 950, 0.05, 0.7, { q: 0.9 }), noise('lp', 500, 0.09, 0.4)],
@@ -22,7 +21,6 @@ const meleeHit: Recipe = {
 
 const shootRanged: Recipe = {
   dur: 0.45,
-  peak: 0.6,
   layers: (age) =>
     byAge<Layer[]>(age, [
       // Mızrak fırlatma: hışırtı + ahşap tok sesi
@@ -40,7 +38,6 @@ const shootRanged: Recipe = {
 
 const shootHeavy: Recipe = {
   dur: 0.9,
-  peak: 0.8,
   layers: (age) =>
     byAge<Layer[]>(age, [
       // Kaya kaldıracı: gıcırtı + fırlatma
@@ -70,7 +67,6 @@ const shootHeavy: Recipe = {
 
 const impact: Recipe = {
   dur: 0.3,
-  peak: 0.6,
   layers: (age) =>
     byAge<Layer[]>(age, [
       [thump(150, 70, 0.06, 0.9), noise('lp', 700, 0.06, 0.5)],
@@ -83,7 +79,6 @@ const impact: Recipe = {
 
 const explosion: Recipe = {
   dur: 1.1,
-  peak: 0.95,
   layers: (age) =>
     byAge<Layer[]>(age, [
       // Kaya yıkımı: gümbürtü + saçılan taş parçaları
@@ -111,7 +106,6 @@ const explosion: Recipe = {
 /** Birlik ölümü: kansız, hafif mizahi "pof" düşüşü. Rol, çalma hızıyla ince/kalın yapılır. */
 const unitDeath: Recipe = {
   dur: 0.6,
-  peak: 0.6,
   layers: (age) =>
     byAge<Layer[]>(age, [
       [tone('triangle', 520, 0.18, 0.7, { fEnd: 130, sweep: 0.18 }), noise('lp', 800, 0.08, 0.4, { delay: 0.15 }), thump(110, 60, 0.08, 0.5, { delay: 0.2 })],
@@ -124,7 +118,6 @@ const unitDeath: Recipe = {
 
 const unitSpawn: Recipe = {
   dur: 0.25,
-  peak: 0.4,
   layers: (age) => [
     tone(byAge(age, ['triangle', 'sine', 'square', 'saw', 'sine']), 300, 0.07, 0.7, { fEnd: 620, sweep: 0.05, attack: 0.01 }),
     noise('bp', 2200, 0.04, 0.25, { attack: 0.01 }),
@@ -134,7 +127,6 @@ const unitSpawn: Recipe = {
 
 const baseHit: Recipe = {
   dur: 1.0,
-  peak: 0.95,
   layers: (age) => [
     thump(75, 32, 0.3, 1),
     noise('lp', 600, 0.4, 0.7),

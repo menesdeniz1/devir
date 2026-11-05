@@ -4,8 +4,6 @@ import type { Layer, NoiseLayer, RingLayer, ToneLayer, Wave } from '../dsp';
 export interface Recipe {
   /** Arabellek uzunluğu (sn). */
   dur: number;
-  /** Normalleştirme doruğu (0..1); göreli gürlük `config.ts` içindeki kazançla ayarlanır. */
-  peak: number;
   layers(age: number): Layer[];
 }
 
