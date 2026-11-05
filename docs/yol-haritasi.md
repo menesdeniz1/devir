@@ -30,9 +30,12 @@ Her aşama **çalıştırılabilir** bir sürümle ve **komutla doğrulanabilir*
 | 9 | Üretim kalitesinde görsel ve ses | Tamamlandı (2026-11-05): özgün siluetler, çağa özgü mermiler, arka planlar, üs hasarı, sarsıntı; sentez ses ve 5 çağ müziği |
 | 10 | Denge, kalite ve yayın | Tamamlandı (2026-11-05): kod incelemesi düzeltmeleri, perf paneli, WebGL yok ekranı, üç tarayıcılı E2E, sürüm 1.0.0 paketi. Açık: insan oyun testi (maç süresi, Normal'in zorluğu), itch.io yüklemesi (kullanıcı hesabı) |
 
-**Bilinen açık noktalar (sürüm 1.0.0):** yapay zekâ–yapay zekâ maçlarının medyanı ≈ 8 dk (GDD §10, "Maç süresi ve
-geri dönüş"); Zor–Zor maçlarının ≈ %27'si 20 dakikada sonuçlanmaz; öğretici adımlarının süresi insan oyununda
-ölçülmedi; kodla üretilen ses ve müzik kulakla ayarlanmadı.
+**Sürüm 1.0.0 sonrası düzeltmeler:** ikinci denge turu (üs canı eğrisi; Normal–Normal medyan 10:41, zaman aşımı
+%13) ve ölçüme dayalı ses normalizasyonu (kırpılma, DC sapması ve çağlar arası düzey farkı düzeltildi).
+
+**Bilinen açık noktalar:** Normal–Normal zaman aşımı farklı tohum kümesinde %18'e çıkabiliyor (5. çağ aynalı
+çıkmazı); Zor–Zor maçlarının ≈ %25'i 20 dakikada sonuçlanmaz; ses düzeyleri ölçüme göre ayarlandı ama algısal
+gürlük ve tını kulakla değerlendirilmedi; öğreticinin insan oyunundaki süresi ölçülmedi.
 
 ---
 

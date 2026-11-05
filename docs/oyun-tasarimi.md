@@ -90,9 +90,10 @@ ancak üretim sırası ön hattı önde tuttuğunda işler. Önceden dizilmiş s
 ## 4. Ekonomi ve çağlar
 
 Çağ başına deneyim eşiği (toplam), geçiş ücreti, üs azami canı, temel gelir ve Sınır Taşı bonusları
-`src/data/ages.ts`'tedir (tek kaynak). Tasarım niyeti: eşikler her çağın ≈ 2,5–3 dk sürmesine göre, gelir ve
-maliyetler çağ başına ×1,75, üs canı çağ başına ×1,6 büyür (üs, birlik hasarından yavaş büyüdüğü için geç oyunda
-maçlar hızlanır).
+`src/data/ages.ts`'tedir (tek kaynak). Tasarım niyeti: gelir ve maliyetler çağ başına ×1,75 büyür. Üs canı ise
+çağlarla **yavaş** büyür (≈ 11000 × 1,03^(n−1)): erken çağda tek çağ farkı üssü hızla düşüremez (geride kalanın
+toparlanma süresi olur), geç çağda güçlenen birlikler üssü bitirebilir (çıkmaz oluşmaz). İlk değerlerdeki ×1,6
+büyüme, erken üssü bir dakikada düşürüp geç üssü yıkılmaz yaptığı için Aşama 10 denge turunda değiştirildi.
 
 - **Başlangıç:** 150 altın, 0 deneyim, İlkel Çağ, tam üs canı, yuva 1 açık ve boş, yetenek 30 sn beklemede.
 - **Geri dönüş hedefi (PRD E-06):** Sıfır altından, temel gelirle güncel çağın ön hat birliği **≤ 13 sn**'de
@@ -206,7 +207,8 @@ Her karar anında sırayla çalışır ve oyuncunun kullandığı komutların ay
 4. **Ordu bileşimi:** görünür düşman ordusuna göre bir **duruş** seçer ve ordusunu oranla değil duruşun
    **üretim dizisiyle** kurar (ör. ön hatta karşı ön-ön-menzilli), çünkü sipariş sırası dizilişi belirler (§3).
    Açılış dizisi maç başında karışık seçilir; karar anları rastgele dağılır, böylece aynı tohumlu iki yapay zekâ
-   aynı oyunu oynamaz. Kuyruğu hedef uzunlukta tutar.
+   aynı oyunu oynamaz. Saf ön hat yığınına karşı daha kalın ön hat dizisi (ön-ön-ön-menzilli) kullanır. Kuyruğu
+   hedef uzunlukta tutar.
 5. **Yetenek:** alan içindeki düşman değerini en çok yapan noktayı tarar; eşik üstündeyse kullanır.
 6. **Sınır Taşı:** taş kaybedilmişse ve güç oranı uygunsa ileri itmeyi ağırlıklandırır.
 
@@ -249,12 +251,12 @@ ilişkileri, kuleler, yetenekler ve çağ farkıyla sonuca dönüşür. Sonuçla
 - Aşama 1'in tek birlikli sürümünde rakip botun üretimi bilerek kısıtlıdır (`src/data/ai.ts`).
 - Aşama 6'da aynalı yapay zekâ maçlarının süresi bu koşula karşı izlenir; gerekirse ödül oranı düşürülür.
 
-**Maç süresi ve geri dönüş (Aşama 6–10 bulgusu).** Normal–Normal maçlarının çoğu, önce çağ atlayan tarafın
-geride kalanı üssüne sıkıştırmasıyla 5–8. dakikada biter; ≈ %18'i 20 dakikada sonuçlanmaz. Geride kalana çağ
-ücretinde indirim (%20–40) denendi ve reddedildi: maçları uzatmak yerine çıkmaza çevirdi (zaman aşımı %18 → %45)
-ve Zor'un Normal'i bitirmesini engelledi. Geri dönüş yolları temel gelir, kuleler ve bir çağ gerideyken çağ
-biriktiren yapay zekâdır. İnsan oyun testinde süre 10 dakikanın belirgin altında kalırsa sıradaki aday, öndeki
-tarafın bitirme gücüne dokunmadan erken sıkıştırmayı yumuşatan bir kuraldır (açık karar).
+**Maç süresi ve geri dönüş (Aşama 6–10 bulgusu).** İlk değerlerle Normal–Normal maçlarının çoğu, önce çağ atlayan
+tarafın geride kalanı üssüne sıkıştırmasıyla 5–8. dakikada bitiyordu. Reddedilen iki çözüm: geride kalana çağ
+ücreti indirimi (%20–40; zaman aşımı %18 → %45) ve çağ başına can/hasar çarpanını ×1,8–1,7'ye yumuşatmak (zaman
+aşımı %31–41). İkisi de maçları uzatmak yerine çıkmaza çevirdi. İşe yarayan kaldıraç üs canı eğrisidir (§4):
+Normal–Normal medyanı 10:41, zaman aşımı %13, maçların %71'i 4., %33'ü 5. çağı görür. Kalan zaman aşımları
+çoğunlukla 5. çağdaki aynalı çıkmazdır; insan oyununda belirleyici karşılık seçimi bunu kırar.
 
 ## 11. Arayüz ve kontroller
 
