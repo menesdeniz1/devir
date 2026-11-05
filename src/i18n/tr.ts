@@ -418,6 +418,8 @@ export const tr = {
     addXp: '+{n} deneyim',
     hash: 'Karma',
     tick: 'Tick',
+    perfFrame: 'FPS {fps} · Adım ort {avg} / en kötü {max} ms',
+    perfRender: 'Çizim {ms} ms · Birlik {units} · Mermi {projectiles} · Efekt {effects}',
   },
 } as const;
 

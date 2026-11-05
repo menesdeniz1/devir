@@ -88,3 +88,15 @@ export async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   });
   expect(problems).toEqual([]);
 }
+
+/** WebGL yokken oyun açıklayıcı hata ekranı gösterir (TDD §12): başlık, açıklama ve teknik ayrıntı. */
+export async function expectFatalScreen(page: Page): Promise<void> {
+  const fatal = page.locator('.fatal');
+  await expect(fatal).toBeVisible();
+  await expect(fatal).toHaveAttribute('role', 'alert');
+  await expect(fatal.locator('h1')).toHaveText('Oyun başlatılamadı');
+  await expect(fatal).toContainText('WebGL2');
+  await expect(fatal).toContainText('Ayrıntı:');
+  // Oyun arayüzü kurulmamıştır.
+  await expect(page.locator('.hud-bottom')).toHaveCount(0);
+}

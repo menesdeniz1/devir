@@ -13,6 +13,7 @@ import { mountKeyboard } from './ui/keyboard';
 import { mountScreens } from './ui/screens';
 import { createTargeting } from './ui/targeting';
 import { mountTargetingPointer } from './ui/targetingPointer';
+import { probeWebgl2 } from './ui/webgl';
 import './ui/style.css';
 
 function showFatal(root: HTMLElement, detail: string, texts: { title: string; text: string; tech: string } = noWebglTexts): void {
@@ -52,6 +53,12 @@ async function boot(): Promise<void> {
   const flow = new Flow({ session, storage: pickStorage() });
   const stage = el('div', 'stage', root);
   const targeting = createTargeting(session);
+  // WebGL2 yoksa Pixi 2B tuvale düşebilir; oyun WebGL2 gerektirir (TDD §12): açıklayıcı hata ekranı.
+  const webglProblem = probeWebgl2();
+  if (webglProblem !== null) {
+    showFatal(root, webglProblem);
+    return;
+  }
   let renderer: Renderer;
   try {
     renderer = await createRenderer(stage, session, { preview: () => targeting.previewArea() });
@@ -93,19 +100,31 @@ async function boot(): Promise<void> {
   globalThis.addEventListener('pagehide', () => flow.saveNow());
 
   let debugUpdate: (() => void) | null = null;
+  // Performans ölçümü yalnız geliştirme derlemesinde (?debug): dinamik içe aktarma üretim paketine girmez.
+  let perf: { record(timeMs: number, stepMs: number): void } | null = null;
   if (import.meta.env.DEV && new URLSearchParams(globalThis.location.search).has('debug')) {
     const { mountDebugPanel } = await import('./ui/debugPanel');
-    debugUpdate = mountDebugPanel(uiLayer, session).update;
+    const { PerfMeter } = await import('./game/perf');
+    const meter = new PerfMeter();
+    perf = meter;
+    debugUpdate = mountDebugPanel(uiLayer, session, {
+      frame: () => meter.snapshot(browserClock.now()),
+      render: () => renderer.stats,
+    }).update;
   }
 
   startFrameLoop(browserClock, (frameMs) => {
+    let stepMs = 0;
     if (flow.screen === 'battle') {
+      const t0 = perf === null ? 0 : browserClock.now();
       session.advance(frameMs);
+      if (perf !== null) stepMs = browserClock.now() - t0;
       flow.update();
       targeting.update();
       renderer.render(frameMs);
       hud.update(frameMs);
     }
+    perf?.record(browserClock.now(), stepMs);
     screens.update(frameMs);
     debugUpdate?.();
   }, {

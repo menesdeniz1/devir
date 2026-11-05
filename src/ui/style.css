@@ -373,7 +373,8 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
   z-index: 5;
 }
 .debug__row { display: flex; align-items: center; gap: 6px; }
-.debug__info { font-family: ui-monospace, Consolas, monospace; }
+.debug { width: 320px; }
+.debug__info, .debug__perf { font-family: ui-monospace, Consolas, monospace; white-space: nowrap; }
 
 /* Alt panel grupları daralmaz; sığmazsa aşağıdaki düzen iki satıra geçer. */
 .hud-gold, .hud-age, .hud-units, .hud-ability, .hud-queue, .hud-defense { flex: none; }

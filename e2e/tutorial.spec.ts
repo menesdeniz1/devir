@@ -3,6 +3,14 @@ import { KEYS, SIZES, action, expectNoHorizontalOverflow, pauseGame, screen, sho
 
 const panel = (page: Page) => page.locator('.tutorial');
 const expectStep = (page: Page, id: string) => expect(panel(page)).toHaveAttribute('data-step', id, { timeout: 60_000 });
+/** Tuş basışı tarayıcıya göre kaçabilir (odak/yük): adım ilerleyene dek tuşu aralıklı yeniden basar. */
+async function pressUntilStep(page: Page, key: string, nextStep: string): Promise<void> {
+  await expect(async () => {
+    await page.keyboard.press(key);
+    await expect(panel(page)).toHaveAttribute('data-step', nextStep, { timeout: 4000 });
+  }).toPass({ timeout: 60_000, intervals: [100, 500, 1000] });
+}
+
 const storage = (page: Page, key: string) => page.evaluate((k) => localStorage.getItem(k), key);
 
 test.describe('Öğretici', () => {
@@ -31,10 +39,9 @@ test.describe('Öğretici', () => {
       await expectStep(page, 'produceFront');
       await expect(action(page, 'tutorial-next')).toBeHidden();
       await shot(page, name('02-produce-front'));
-      await page.keyboard.press('Digit1');
+      await pressUntilStep(page, 'Digit1', 'firstKill');
 
       // 3. İlk çatışma (hızlandırarak bekle).
-      await expectStep(page, 'firstKill');
       await shot(page, name('03-first-kill'));
       await page.getByRole('button', { name: 'Hız ×16' }).click();
 
@@ -42,10 +49,9 @@ test.describe('Öğretici', () => {
       await expectStep(page, 'produceRanged');
       await page.getByRole('button', { name: 'Hız ×1', exact: true }).click();
       await shot(page, name('04-produce-ranged'));
-      await page.keyboard.press('Digit2');
+      await pressUntilStep(page, 'Digit2', 'cancelOrder');
 
       // 5. İki sipariş ver, bekleyeni iptal et.
-      await expectStep(page, 'cancelOrder');
       await page.keyboard.press('Digit1');
       await page.keyboard.press('Digit1');
       const waiting = page.locator('.queue-slot[data-kind="waiting"]').first();
@@ -70,10 +76,9 @@ test.describe('Öğretici', () => {
       // 8. Çağ atla (deneyim eşiği betikle dolduruldu).
       await expectStep(page, 'ageUp');
       await shot(page, name('08-age-up'));
-      await page.keyboard.press('KeyE');
+      await pressUntilStep(page, 'KeyE', 'captureStone');
 
       // 9. Sınır Taşı.
-      await expectStep(page, 'captureStone');
       await shot(page, name('09-capture-stone'));
       await page.getByRole('button', { name: 'Hız ×16' }).click();
       for (let i = 0; i < 100 && (await panel(page).getAttribute('data-step')) === 'captureStone'; i++) {
