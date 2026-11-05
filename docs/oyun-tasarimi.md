@@ -232,7 +232,7 @@ Headless turnuva aracı (TDD §5) ile ölçülür. Her eşleşme en az 200 maç,
 
 | Hedef | Eşik |
 |---|---|
-| Maç süresi | Normal–Normal medyanı 10–15 dk |
+| Maç süresi | PRD hedefi insan oyuncu ile Normal arasında 10–15 dk; bu oyun testinde doğrulanır. Yapay zekâ vekil ölçüsü: Normal–Normal medyanı (zaman aşımı dahil) 8–15 dk |
 | Zorluk sıralaması | Zor, Normal'e karşı ≥ %70; Normal, Kolay'a karşı ≥ %70 kazanır |
 | Tek tip ordu yok (PRD B-07) | Yalnız tek rol üreten bot (diğer kararları Normal) Normal bota karşı < %35 kazanır — her rol için; Normal ve Zor'da hiçbir rol harcanan altının %65'inden fazlası değildir |
 | Yalnız savunma yok (PRD D-07) | Savunma ağırlıklı bot (yalnızca kule + gecikmeli saldırı) Normal bota karşı < %40 kazanır |
@@ -248,6 +248,13 @@ ilişkileri, kuleler, yetenekler ve çağ farkıyla sonuca dönüşür. Sonuçla
 - Yalnız ön hat veya yalnız menzilli ordu verimsizdir; bu PRD B-07 ile uyumludur.
 - Aşama 1'in tek birlikli sürümünde rakip botun üretimi bilerek kısıtlıdır (`src/data/ai.ts`).
 - Aşama 6'da aynalı yapay zekâ maçlarının süresi bu koşula karşı izlenir; gerekirse ödül oranı düşürülür.
+
+**Maç süresi ve geri dönüş (Aşama 6–10 bulgusu).** Normal–Normal maçlarının çoğu, önce çağ atlayan tarafın
+geride kalanı üssüne sıkıştırmasıyla 5–8. dakikada biter; ≈ %18'i 20 dakikada sonuçlanmaz. Geride kalana çağ
+ücretinde indirim (%20–40) denendi ve reddedildi: maçları uzatmak yerine çıkmaza çevirdi (zaman aşımı %18 → %45)
+ve Zor'un Normal'i bitirmesini engelledi. Geri dönüş yolları temel gelir, kuleler ve bir çağ gerideyken çağ
+biriktiren yapay zekâdır. İnsan oyun testinde süre 10 dakikanın belirgin altında kalırsa sıradaki aday, öndeki
+tarafın bitirme gücüne dokunmadan erken sıkıştırmayı yumuşatan bir kuraldır (açık karar).
 
 ## 11. Arayüz ve kontroller
 

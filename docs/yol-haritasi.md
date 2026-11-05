@@ -24,11 +24,15 @@ Her aşama **çalıştırılabilir** bir sürümle ve **komutla doğrulanabilir*
 | 3 | Çağlar (+ Sınır Taşı) | Tamamlandı (2026-11-05): 180 test, soak 500 ihlalsiz, tarayıcıda 1→5 çağ geçişi doğrulandı |
 | 4 | Savunmalar | Tamamlandı (2026-11-05): 236 test, soak ihlalsiz, 10 kule ve yuva arayüzü tarayıcıda doğrulandı; savunmacı bot ölçümü Aşama 6 |
 | 5 | Özel yetenekler | Tamamlandı (2026-11-05): 5 yetenek, hedefleme arayüzü, efektler; tarayıcıda kullanım doğrulandı |
-| 6 | Bilgisayar rakibi ve ilk denge turu | Uygulandı (2026-11-05): 3 zorluk, GDD §10 turnuva hedefleri tuttu; yetenek kullanımı ve çağ temposu ayarı sürüyor |
-| 7 | Ekranlar, ayarlar, kayıt | Tamamlandı (2026-11-05): menüler, ayarlar, kayıt/devam, sonuç ekranı, ses bağlantısı, 11 E2E |
-| 8 | Öğretici | Bekliyor |
+| 6 | Bilgisayar rakibi ve ilk denge turu | Tamamlandı (2026-11-05): 3 zorluk, yetenek kullanımı; saf ön hat baskınlığı giderildi (Sürü 120 → 60); Zor–Normal %70,5, Normal–Kolay %92, tek rol botları ≤ %22,5 |
+| 7 | Ekranlar, ayarlar, kayıt | Tamamlandı (2026-11-05): menüler, ayarlar, kayıt/devam, sonuç ekranı, ses bağlantısı |
+| 8 | Öğretici | Tamamlandı (2026-11-05): 10 adım, atla, ilk açılış önerisi; kayda ve sonuçlara yazılmaz |
 | 9 | Üretim kalitesinde görsel ve ses | Tamamlandı (2026-11-05): özgün siluetler, çağa özgü mermiler, arka planlar, üs hasarı, sarsıntı; sentez ses ve 5 çağ müziği |
-| 10 | Denge, kalite ve yayın | Bekliyor |
+| 10 | Denge, kalite ve yayın | Tamamlandı (2026-11-05): kod incelemesi düzeltmeleri, perf paneli, WebGL yok ekranı, üç tarayıcılı E2E, sürüm 1.0.0 paketi. Açık: insan oyun testi (maç süresi, Normal'in zorluğu), itch.io yüklemesi (kullanıcı hesabı) |
+
+**Bilinen açık noktalar (sürüm 1.0.0):** yapay zekâ–yapay zekâ maçlarının medyanı ≈ 8 dk (GDD §10, "Maç süresi ve
+geri dönüş"); Zor–Zor maçlarının ≈ %27'si 20 dakikada sonuçlanmaz; öğretici adımlarının süresi insan oyununda
+ölçülmedi; kodla üretilen ses ve müzik kulakla ayarlanmadı.
 
 ---
 
