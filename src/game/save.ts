@@ -54,7 +54,7 @@ export function createSave(state: GameState, gameVersion: string, savedAt: numbe
     schemaVersion: SAVE_SCHEMA_VERSION,
     gameVersion,
     savedAt,
-    matchConfig: { seed: state.config.seed, opponent: state.config.opponent },
+    matchConfig: state.config.erosion === undefined ? { seed: state.config.seed, opponent: state.config.opponent } : { seed: state.config.seed, opponent: state.config.opponent, erosion: state.config.erosion },
     state,
     checksum: checksumOf(state),
   };
@@ -145,6 +145,9 @@ export function structureProblem(raw: unknown): string | null {
   if (!all(raw['strikes'], areaOk)) return 'strikes';
   const stone = raw['stone'];
   if (!isObj(stone) || !isNum(stone['counter']) || !(stone['owner'] === null || isSide(stone['owner']))) return 'stone';
+  // Kazan alanları 1.2 ile geldi: eski kayıtlarda yoktur (yüklemede 0 sayılır); varsa sayı olmalı.
+  for (const key of ['potGold', 'potXp']) if (stone[key] !== undefined && !isNum(stone[key])) return 'stone';
+  if (config['erosion'] !== undefined && typeof config['erosion'] !== 'boolean') return 'config';
   if (!Array.isArray(raw['ai']) || raw['ai'].length !== 2) return 'ai';
   return null;
 }
@@ -184,6 +187,9 @@ export function parseSave(text: string, currentVersion: string): ParseResult {
   const matchConfig = raw['matchConfig'];
   if (problem !== null) return { ok: false, failure: 'structure', detail: problem };
   const state = raw['state'] as GameState;
+  // 1.1 kayıtları: taşta kazan alanı yoktur; bütünlük karması doğrulandıktan sonra 0 ile tamamlanır.
+  state.stone.potGold ??= 0;
+  state.stone.potXp ??= 0;
   if (!isNum(raw['savedAt']) || !isObj(matchConfig) || matchConfig['seed'] !== state.config.seed || matchConfig['opponent'] !== state.config.opponent) {
     return { ok: false, failure: 'structure', detail: 'matchConfig' };
   }
@@ -202,7 +208,7 @@ export function parseSave(text: string, currentVersion: string): ParseResult {
       schemaVersion: raw['schemaVersion'] as number,
       gameVersion: raw['gameVersion'] as string,
       savedAt: raw['savedAt'] as number,
-      matchConfig: { seed: state.config.seed, opponent: state.config.opponent },
+      matchConfig: state.config.erosion === undefined ? { seed: state.config.seed, opponent: state.config.opponent } : { seed: state.config.seed, opponent: state.config.opponent, erosion: state.config.erosion },
       state,
       checksum: raw['checksum'] as string,
     },

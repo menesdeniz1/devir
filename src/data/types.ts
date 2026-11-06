@@ -137,6 +137,14 @@ export interface StoneDef {
   zoneEnd: number;
   /** Sayaç sınırı; tarafsızdan tam kontrole counterMax tick. */
   counterMax: number;
+  /** Taş ödülünün kazanda biriken payı (0..1); kalanı sahibine hemen ödenir. Kazanı taşı sahibinden söken alır (GDD §8). */
+  potShare: number;
+}
+
+/** Aşınma (GDD §8.1): maç kurulumunda açıksa, başlangıçtan sonra iki üs de her saniye azami canının binde perSecPermille'ini kaybeder. */
+export interface ErosionDef {
+  startSec: number;
+  perSecPermille: number;
 }
 
 export interface AgeDef {

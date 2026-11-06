@@ -184,8 +184,31 @@ arka sırasını silmez, aşındırır (Aşama 6 denge bulgusu: Sürü Hücumu 1
   Sayaç ±100'e ulaşınca o taraf **sahip** olur; sayaç sıfırı geçince sahiplik düşer.
 - **Ödül (sahip tarafa):** sahibin çağına göre saniyede ek altın (temel gelirin ≈%30'u) ve deneyim
   (≈ 1,5 × 1,75^(çağ−1)); tamsayı değerler `src/data/ages.ts`'te, bölge `src/data/stone.ts`'te.
+- **Kazan (1.2, kullanıcı kararı):** ödülün `potShare` (%50) kadarı sahibine hemen ödenmez, taşın **kazanında**
+  birikir (sahibe `round(ödül × (1 − potShare))`, kalanı kazana; toplam korunur). Taşı sahibinden **söken** taraf
+  (sayaç sıfırı geçince) kazanın tamamını, altın ve deneyim olarak alır; kazan boşalır. Taşı hiç kaybetmeyen
+  sahibin kazanı kimseye geçmez. Amaç: taşı tutmak hedef olmak demektir, sökmek büyük ödüldür; kartopu kırılır.
+  Ölçüm (Normal–Normal, 200 maç, aşınmayla; deney 2026-11-07): taşı ilk alan %81,5 → %48,2 kazanır, uzun tutan
+  %91,5 → %61,3; Zor–Normal %77,5, Normal–Kolay %98,5 (beceri farkı korunur). Kazan payı %80'de taşı ilk almak
+  dezavantaja döner (%40,5); %60–70 benzer ama zayıf tarafı güçlendirir.
+- **8.1 Aşınma (1.2):** maç kurulumunda açıksa (varsayılan; kapalısı "uzun maç") 13:00'ten sonra iki üs de her
+  saniye azami canının binde 5'ini kaybeder (`src/data/stone.ts` `EROSION`). Neden: taşın kartopu kırılınca
+  eşit güçteki ordular ortada kilitlenebilir (kazan tek başına: %33 maç 20 dakikayı aşar); üs hasarını artırmak
+  işe yaramaz çünkü birlikler üsse ulaşmaz. Aşınma birlikten bağımsızdır, maçı en geç ≈17 dakikada bitirir ve o
+  ana kadar rakibe daha çok hasar vermiş tarafı ödüllendirir; iki üs aynı adımda düşerse beraberlik (K-15).
+  Öğretici aşınmasız kurulur.
 - **Görsel:** taş, sahibinin amblemini ve rengini taşır; ilerleme halkası gösterilir. Sahibi her saniye gelir
-  aldığında taşın üstünden taşın altın payı ("+2 altın") yükselir.
+  aldığında taşın üstünden taşın altın payı ("+2 altın") yükselir; işaret o anki taşın tepesinin üstünden doğar.
+- **Çağa göre taş (insan oyun testi, 1.1.0):** getirisi çağla arttığı için taşın görünüşü de çağla değişir.
+  Taş savaş alanının çağını, yani arka plan gibi oyuncunun çağını izler; çağ değişince kısa (≈0,65 sn) yumuşak
+  geçiş yapar (eski taş hafifçe şişerek söner, yenisi büyüyerek belirir), yeni maçta geçişsiz başlar.
+  İlkel: oyma spiralli, yosunlu kaba dikili taş. Antik: basamaklı kaide üstünde bronz tepelikli, terakota frizli
+  mermer dikilitaş. Orta: demir kuşaklı, arduvaz başlıklı yontma sınır taşı; yuva armalı kalkan. Endüstri: tuğla
+  kaide üstünde dökme demir fener direği; yuva pirinç çerçeveli gösterge, fener camı sahibin renginde yanar.
+  Gelecek: altıgen yayıcı üstünde hafifçe süzülen eflatun kristal; yuva parlayan çekirdek. Her görünümde amblem,
+  ilerleme halkası, tarafsız işaret (yuvada üç çentik) ve bölge işaretleri aynıdır. Sahip halesi çağla biraz
+  güçlenir (büyür ve koyulaşır) ama yarı saydam ve yavaş nefes alır (yanıp sönme yok, PRD GR-06); birliklerin
+  arkasında kalır.
 - **Arayüzde getiri (insan oyun testi, 1.1.0):** ilk insan testinde taşın ne işe yaradığı anlaşılmadı; gelir
   satırı taşı saymıyordu. Artık gelir satırı taş sendeyken toplamı ve taşın payını ("+9/sn · taş +2"), üst
   şeritteki taş göstergesi sahibin kazancını ("Sen · +2 altın, +3 XP/sn"), yakalama/kaybetme bildirimleri de
@@ -272,10 +295,22 @@ zaman aşımı %5,5 / %7,5; Zor–Zor zaman aşımı %8,5 / %6,5.
 - **Üst şerit:** sol — oyuncu üs canı ve çağ simgesi; orta — maç süresi, Sınır Taşı göstergesi, oyun hızı (PRD G-08), duraklat
   düğmesi; sağ — rakip üs canı ve çağ simgesi.
 - **Orta:** koridor, üsler, kuleler, birlikler, mermiler, yetenek önizlemesi.
-- **Alt panel (soldan sağa):** altın ve gelir/sn · deneyim çubuğu (mevcut/eşik) ve **Çağ Atla** (ücretiyle) ·
-  3 birlik düğmesi (simge, ad, maliyet, kısayol) · 5 kutulu üretim kuyruğu (ilk kutuda ilerleme halkası;
-  bekleyen kutuya tıklamak iptal eder) · 3 kule yuvası (kilitli / boş / dolu; tıklayınca kur–sat menüsü) ·
-  yetenek düğmesi (bekleme halkası, kalan sn).
+- **Alt panel (soldan sağa):** altın (sikke simgesi) ve gelir/sn · deneyim çubuğu (yıldız simgesi, mevcut/eşik) ve
+  **Çağ Atla** (ücretiyle) · 3 birlik kartı (portre, ad, maliyet, kısayol rozeti, rol rengi şeridi) · 5 kutulu üretim
+  kuyruğu (kutuda birliğin mini portresi ve rol işareti; ilk kutuda ilerleme şeridi; bekleyen kutuya tıklamak iptal
+  eder) · 3 kule yuvası (kilitli / boş / dolu; dolu yuvada kurulu kulenin portresi; tıklayınca kur–sat menüsü, her
+  seçenekte kulenin portresi) · yetenek düğmesi (bekleme halkası içinde yetenek simgesi, kalan sn).
+- **Portreler:** birliğin durma pozu, kulenin kurulu hâli ve yetenek simgesi oyunun kendi kodla çizilmiş
+  iskeletlerinden (§14) oyuncu renkleriyle küçük resimlere çizilir; ayrı resim dosyası yoktur. Portreler süstür
+  (erişilebilir ad düğme metninden gelir). İlk çağınkiler açılışta, sonrakiler çağ değişince kare başına küçük bir
+  süre bütçesiyle üretilir; hazır olana kadar kart yer tutucuyla (harf / rol işareti) çizilir.
+- **Panel ölçüsü:** portreler kartın kendi yüksekliğine sığar; alt panel birliklerin yürüdüğü bandın altında kalır
+  (1280×720'de ekranın alt ≈ %22'si). 1880 px'ten dar pencerelerde alt panel iki satırdır (üstte altın · çağ ·
+  birlikler · yetenek, altta kuyruk · savunma). Değer değişince öğeler kaymaz (sabit genişlikler).
+- **Görünüm:** kartlar, menüler ve ekranlar kesik kâğıt çıkartma biçimindedir (koyu kontur, üstte ince ışık, altta
+  kâğıt gölgesi); panel kenarı ve portre zemini oyuncunun çağının paletinden hafif bir vurgu alır (§14). Düğme
+  durumları: üzerine gelince hafif yükselme, basınca inme, kapalıyken soluk ve gri portre, klavye odağında beyaz
+  halka. Metinler WCAG AA kontrastındadır; yanıp sönen öğe yoktur (PRD GR-06).
 - Her düğmenin araç ipucu, değerleri ve kullanılamıyorsa nedenini gösterir (PRD EK-04), örneğin
   "Yetersiz altın (35 eksik)", "Kuyruk dolu", "Deneyim yetersiz (320/800)", "Bekleme: 12 sn".
 
@@ -351,7 +386,7 @@ Kontrol: 32 px'e küçültülmüş gri tonlamalı görüntüde üç rol ayırt e
 | Endüstri | Tuğla, dökme demir, buhar beyazı | Bacalar, perçinli levhalar | Fabrika silueti, is |
 | Gelecek | Koyu lacivert, neon camgöbeği/eflatun | Altıgen paneller, enerji kalkanları | Gece gökyüzü, ışık şeritleri |
 
-Her üs kendi sahibinin çağını gösterir; arka plan oyuncunun çağını izler.
+Her üs kendi sahibinin çağını gösterir; arka plan ve Sınır Taşı (§8) oyuncunun çağını izler.
 
 ### Okunabilirlik ve efektler
 

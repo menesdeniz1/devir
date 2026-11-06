@@ -265,7 +265,7 @@ export class Session {
    * yine config'ten kurulur, yapay zekâ belleği durumdadır (TDD §5, §9). Her ikisinde de duraklatma kalkar.
    */
   startMatch(config: MatchConfig, state?: GameState): void {
-    this.config = { seed: config.seed, opponent: config.opponent };
+    this.config = config.erosion === undefined ? { seed: config.seed, opponent: config.opponent } : { seed: config.seed, opponent: config.opponent, erosion: config.erosion };
     this.gameState = state ?? createMatch(this.config);
     this.controllers = this.makeControllers();
     this.loop = this.newLoop();

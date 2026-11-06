@@ -11,6 +11,8 @@ export interface Settings {
   screenShake: boolean;
   /** Oyun hızı çarpanı (PRD G-08); yalnız GAME_SPEEDS değerleri. */
   gameSpeed: GameSpeed;
+  /** Yeni maçta aşınma (GDD §8.1); maç kurulumunda değiştirilir, son seçim hatırlanır. */
+  erosion: boolean;
   /** Arayüz dili (PRD G-04). Yoksa otomatik: tarayıcı dili uygulama katmanında çözülür; bu katman tarayıcıya dokunmaz. */
   language?: Language;
 }
@@ -43,6 +45,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   out.sfxVolume = volume(r['sfxVolume'], out.sfxVolume);
   if (typeof r['screenShake'] === 'boolean') out.screenShake = r['screenShake'];
   if (isGameSpeed(r['gameSpeed'])) out.gameSpeed = r['gameSpeed'];
+  if (typeof r['erosion'] === 'boolean') out.erosion = r['erosion'];
   if (isLanguage(r['language'])) out.language = r['language'];
   return out;
 }

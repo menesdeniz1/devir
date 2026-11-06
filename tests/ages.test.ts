@@ -305,7 +305,7 @@ describe('K-13: gözlem', () => {
     setAge(s, 1, 3);
     s.sides[1].queue.push({ unitId: 'medieval_front', progressTicks: 31337, paid: 8191 });
     const obs = buildObservation(s, 0);
-    expect(obs.stone).toEqual({ counter: 42, owner: null });
+    expect(obs.stone).toEqual({ counter: 42, owner: null, potGold: 0, potXp: 0 });
     obs.stone.counter = -1;
     expect(s.stone.counter).toBe(42);
     expect(obs.enemy).toEqual({

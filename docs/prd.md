@@ -264,6 +264,8 @@ Her kriterin nasıl doğrulandığı TDD §10'da, hangi aşamada geldiği [yol-h
 | K-14 (N) | Duraklatmada (elle veya sekme gizlenince) oyun zamanı ilerlemez ve komut kabul edilmez. |
 | K-15 (N) | İki üs aynı adımda yıkılırsa sonuç beraberliktir. |
 | K-16 (N) | Kullanılamayan her işlem, nedenini arayüzde gösterir. |
+| K-17 | Sınır Taşı ödülünün yarısı sahibine hemen, yarısı taşın kazanına gider; taşı sahibinden söken taraf kazanı (altın + deneyim) alır ve bu bildirilir (GDD §8). |
+| K-18 | Aşınma maç kurulumunda açılıp kapatılabilir (varsayılan açık, son seçim hatırlanır); açıksa 13:00'ten sonra iki üs her saniye azami canının ‰5'ini kaybeder ve başlangıcı bildirilir; kapalıyken üs canı yalnız birlik/kule hasarıyla azalır (GDD §8.1). |
 
 ## 17. Açık kararlar
 

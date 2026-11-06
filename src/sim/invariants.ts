@@ -64,6 +64,9 @@ export function checkInvariants(state: GameState, options: InvariantOptions = {}
   if (stone.owner === 0 && stone.counter < 0) problems.push(`taş sahibi 0 ama sayaç ${stone.counter}`);
   if (stone.owner === 1 && stone.counter > 0) problems.push(`taş sahibi 1 ama sayaç ${stone.counter}`);
   if (stone.owner === null && Math.abs(stone.counter) === STONE.counterMax) problems.push(`taş sayacı sınırda ama sahibi yok (${stone.counter})`);
+  if (!Number.isInteger(stone.potGold) || stone.potGold < 0 || !Number.isInteger(stone.potXp) || stone.potXp < 0) {
+    problems.push(`taş kazanı geçersiz (${stone.potGold} altın, ${stone.potXp} deneyim)`);
+  }
 
   const seen = new Set<number>();
   const perSide: [UnitState[], UnitState[]] = [[], []];
@@ -165,6 +168,9 @@ export function goldBalanceProblems(goldBefore: readonly [number, number], state
         break;
       case 'unitDied':
         expected[e.side === 0 ? 1 : 0] += e.bountyGold;
+        break;
+      case 'stonePotClaimed':
+        expected[e.side] += e.gold;
         break;
       default:
         break;

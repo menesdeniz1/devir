@@ -54,7 +54,7 @@ function createSide(): SideState {
 export function createMatch(config: MatchConfig): GameState {
   return {
     schemaVersion: 1,
-    config: { seed: config.seed, opponent: config.opponent },
+    config: config.erosion === undefined ? { seed: config.seed, opponent: config.opponent } : { seed: config.seed, opponent: config.opponent, erosion: config.erosion },
     tick: 0,
     nextId: 1,
     outcome: null,
@@ -63,7 +63,7 @@ export function createMatch(config: MatchConfig): GameState {
     projectiles: [],
     zones: [],
     strikes: [],
-    stone: { counter: 0, owner: null },
+    stone: { counter: 0, owner: null, potGold: 0, potXp: 0 },
     ai: [null, null],
   };
 }

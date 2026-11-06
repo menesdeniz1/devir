@@ -144,13 +144,15 @@ export class Flow {
    */
   startNewMatch(opponent: Difficulty, confirmed = false): boolean {
     if (this.currentSave !== null && !confirmed) return false;
-    this.begin({ seed: this.newSeed(), opponent });
+    this.begin({ seed: this.newSeed(), opponent, erosion: this.settings.value.erosion });
     return true;
   }
 
   /** Bitmiş maçı aynı rakiple, yeni tohumla yeniden oynar (PRD EK-06, K-08). */
   replay(): void {
-    this.begin({ seed: this.newSeed(), opponent: this.session.matchConfig.opponent });
+    // Yeniden oyna aynı kuralla: rakip ve aşınma seçimi korunur.
+    const { opponent, erosion } = this.session.matchConfig;
+    this.begin(erosion === undefined ? { seed: this.newSeed(), opponent } : { seed: this.newSeed(), opponent, erosion });
   }
 
   /** Kayıttan devam eder; maç duraklatılmış açılır. Kayıt artık geçerli değilse silinir, bildirilir ve false döner. */
@@ -186,7 +188,8 @@ export class Flow {
   startTutorial(): void {
     if (this.currentScreen !== 'menu' || this.runner !== null) return;
     this.offerAnswered = true;
-    this.session.startMatch({ seed: this.newSeed(), opponent: 'none' });
+    // Öğretici kısadır ve kendi senaryosunu kurar: aşınma kapalı.
+    this.session.startMatch({ seed: this.newSeed(), opponent: 'none', erosion: false });
     this.runner = new TutorialRunner(this.session);
     this.runner.subscribe(() => this.onTutorialChanged());
     this.runner.start();

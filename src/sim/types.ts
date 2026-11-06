@@ -141,6 +141,9 @@ export interface ProjectileState {
 export interface StoneState {
   counter: number;
   owner: SideId | null;
+  /** Kazan (GDD §8): sahibin taş ödülünün biriken payı; taşı sahibinden söken taraf alır. */
+  potGold: number;
+  potXp: number;
 }
 
 /** Yapay zekâ belleği: yalnızca JSON değerleri. Biçimi ai/ katmanı belirler. */
@@ -153,6 +156,13 @@ export interface MatchConfig {
    * 'basic-bot': Aşama 1–5 sabit bileşimli bot (test aracı). 'none': denetleyicisiz.
    */
   opponent: 'easy' | 'normal' | 'hard' | 'basic-bot' | 'none';
+  /** Aşınma (GDD §8.1). Yoksa açık sayılır; maç kurulumunda kapatılabilir (uzun maç), öğretici kapalı kurar. */
+  erosion?: boolean;
+}
+
+/** Aşınma bu maçta açık mı (alan yoksa açık). */
+export function erosionEnabled(config: MatchConfig): boolean {
+  return config.erosion !== false;
 }
 
 export interface GameState {
@@ -265,4 +275,8 @@ export type SimEvent =
   | { type: 'zoneExpired'; side: SideId; id: number; abilityId: string }
   | { type: 'stoneCaptured'; side: SideId }
   | { type: 'stoneLost'; side: SideId }
+  /** Taşı sahibinden söken taraf (side) taştaki kazanı aldı. */
+  | { type: 'stonePotClaimed'; side: SideId; gold: number; xp: number }
+  /** Aşınma başladı (maçta bir kez). */
+  | { type: 'erosionStarted' }
   | { type: 'matchEnded'; outcome: Outcome };

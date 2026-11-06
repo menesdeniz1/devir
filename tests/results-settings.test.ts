@@ -89,8 +89,8 @@ describe('Ayarlar (EK-07, ÖK-02)', () => {
     settings.update({ musicVolume: 25 });
     settings.update({ screenShake: false });
     expect(seen).toEqual([DEFAULT_SETTINGS.musicVolume, 25, 25]);
-    expect(JSON.parse(mem.data.get(STORAGE_KEYS.settings)!)).toEqual({ musicVolume: 25, sfxVolume: DEFAULT_SETTINGS.sfxVolume, screenShake: false, gameSpeed: 1 });
-    expect(new SettingsStore(new SafeStorage(mem)).value).toEqual({ musicVolume: 25, sfxVolume: DEFAULT_SETTINGS.sfxVolume, screenShake: false, gameSpeed: 1 });
+    expect(JSON.parse(mem.data.get(STORAGE_KEYS.settings)!)).toEqual({ musicVolume: 25, sfxVolume: DEFAULT_SETTINGS.sfxVolume, screenShake: false, gameSpeed: 1, erosion: true });
+    expect(new SettingsStore(new SafeStorage(mem)).value).toEqual({ musicVolume: 25, sfxVolume: DEFAULT_SETTINGS.sfxVolume, screenShake: false, gameSpeed: 1, erosion: true });
   });
 
   it('ses düzeyi 0..100 aralığına kırpılır ve yuvarlanır', () => {

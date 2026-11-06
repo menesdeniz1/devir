@@ -2,11 +2,11 @@ import { WORLD } from '../data/world';
 import { advanceAbilityEffects, detonateStrikes, type EffectFlags } from './abilities';
 import { applyCommand } from './commands';
 import { strike, type PendingDamage } from './combat';
-import { STONE } from '../data/stone';
+import { EROSION, STONE } from '../data/stone';
 import { EPS, mustGetAge, mustGetTower, mustGetUnit } from './compile';
 import { dirOf, enemyBaseFaceX, facingEdgeX, otherSide, ownBaseFaceX } from './geometry';
 import { selectTargets, type Target } from './targeting';
-import type { Command, GameState, Outcome, ProjectileState, SideId, SimEvent, UnitState } from './types';
+import { erosionEnabled, type Command, type GameState, type Outcome, type ProjectileState, type SideId, type SimEvent, type UnitState } from './types';
 import { isWellFormedCommand } from './validate';
 
 /**
@@ -55,14 +55,26 @@ function applyCommands(state: GameState, commands: readonly Command[], events: S
 function economy(state: GameState, events: SimEvent[]): void {
   // Tam bir saniye dolduğunda (adım sonunda) gelir yazılır.
   if ((state.tick + 1) % WORLD.tickRate !== 0) return;
+  // Aşınma (GDD §8.1): başlangıçtan sonra iki üs de her saniye azami canının binde perSecPermille'ini kaybeder.
+  if (erosionEnabled(state.config)) {
+    const elapsedSec = (state.tick + 1) / WORLD.tickRate;
+    if (elapsedSec === EROSION.startSec) events.push({ type: 'erosionStarted' });
+    if (elapsedSec > EROSION.startSec) {
+      for (const sd of state.sides) sd.baseHp = Math.max(0, sd.baseHp - Math.ceil((sd.baseMaxHp * EROSION.perSecPermille) / 1000));
+    }
+  }
   for (const side of [0, 1] as const) {
     const s = state.sides[side];
     const ageDef = mustGetAge(s.age);
     let amount = ageDef.incomePerSec;
-    // Sınır Taşı bonusu yalnız sahibine (GDD §8): ek altın ve deneyim.
+    // Sınır Taşı bonusu (GDD §8): payın bir kısmı sahibine hemen, kalanı kazanda birikir.
     if (state.stone.owner === side) {
-      amount += ageDef.stoneGoldPerSec;
-      s.xp += ageDef.stoneXpPerSec;
+      const keepGold = Math.round(ageDef.stoneGoldPerSec * (1 - STONE.potShare));
+      const keepXp = Math.round(ageDef.stoneXpPerSec * (1 - STONE.potShare));
+      amount += keepGold;
+      s.xp += keepXp;
+      state.stone.potGold += ageDef.stoneGoldPerSec - keepGold;
+      state.stone.potXp += ageDef.stoneXpPerSec - keepXp;
     }
     s.gold += amount;
     s.stats.goldEarned += amount;
@@ -382,6 +394,19 @@ function resolveDamage(state: GameState, pending: readonly PendingDamage[], effe
  * ilerler (±counterMax'ta durur); iki taraf da varsa ya da kimse yoksa değişmez. Sınıra ulaşan sahip olur;
  * sahip 0 iken sayaç < 0, sahip 1 iken sayaç > 0 olursa sahiplik düşer.
  */
+/** Taşı sahibinden söken taraf kazanın tamamını alır (GDD §8); kazan boşalır. */
+function claimPot(state: GameState, side: SideId, events: SimEvent[]): void {
+  const stone = state.stone;
+  if (stone.potGold === 0 && stone.potXp === 0) return;
+  const s = state.sides[side];
+  s.gold += stone.potGold;
+  s.stats.goldEarned += stone.potGold;
+  s.xp += stone.potXp;
+  events.push({ type: 'stonePotClaimed', side, gold: stone.potGold, xp: stone.potXp });
+  stone.potGold = 0;
+  stone.potXp = 0;
+}
+
 function updateStone(state: GameState, events: SimEvent[]): void {
   const stone = state.stone;
   const present: [boolean, boolean] = [false, false];
@@ -395,9 +420,11 @@ function updateStone(state: GameState, events: SimEvent[]): void {
   if (stone.owner === 0 && stone.counter < 0) {
     stone.owner = null;
     events.push({ type: 'stoneLost', side: 0 });
+    claimPot(state, 1, events);
   } else if (stone.owner === 1 && stone.counter > 0) {
     stone.owner = null;
     events.push({ type: 'stoneLost', side: 1 });
+    claimPot(state, 0, events);
   }
   if (stone.owner === null) {
     if (stone.counter === STONE.counterMax) {

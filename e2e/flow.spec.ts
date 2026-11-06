@@ -4,7 +4,9 @@ import {
   SIZES,
   action,
   debugInfo,
+  expectHudFits,
   expectNoHorizontalOverflow,
+  expectPortraitsLoaded,
   openGame,
   pauseGame,
   screen,
@@ -188,7 +190,7 @@ test.describe('Ayarlar', () => {
     await page.locator('#setting-sfx').fill('55');
     await page.locator('#setting-shake').uncheck();
     const stored = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? 'null') as unknown, KEYS.settings);
-    expect(stored).toEqual({ musicVolume: 30, sfxVolume: 55, screenShake: false, gameSpeed: 1 });
+    expect(stored).toEqual({ musicVolume: 30, sfxVolume: 55, screenShake: false, gameSpeed: 1, erosion: true });
 
     await page.reload();
     await action(page, 'settings').click();
@@ -248,6 +250,9 @@ for (const size of SIZES) {
 
       await startMatch(page, 'Kolay');
       await expectNoHorizontalOverflow(page);
+      await expectPortraitsLoaded(page, '.hud-units .btn__portrait', 3);
+      await expectPortraitsLoaded(page, '.hud-ability .ability__icon', 1);
+      await expectHudFits(page, `savaş ${size.name}`);
       await shot(page, `battle-${size.name}`);
       await pauseGame(page);
       await expectNoHorizontalOverflow(page);

@@ -135,7 +135,7 @@ describe('Arayüz: çağlar (Ç-01, E-08, EK-03, EK-04)', () => {
     session.restart();
     expect(session.state.sides[0].age).toBe(1);
     expect(session.state.sides[0].stats.ageUpTicks).toEqual([]);
-    expect(session.state.stone).toEqual({ counter: 0, owner: null });
+    expect(session.state.stone).toEqual({ counter: 0, owner: null, potGold: 0, potXp: 0 });
     session.dispose();
   });
 });

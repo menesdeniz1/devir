@@ -68,7 +68,7 @@ export function buildObservation(state: GameState, side: SideId): Observation {
       baseMaxHp: enemy.baseMaxHp,
       slots: enemy.slots.map((s) => ({ unlocked: s.unlocked, towerType: s.tower === null ? null : s.tower.type })),
     },
-    stone: { counter: state.stone.counter, owner: state.stone.owner },
+    stone: { counter: state.stone.counter, owner: state.stone.owner, potGold: state.stone.potGold, potXp: state.stone.potXp },
     units: state.units.map((u) => ({ id: u.id, side: u.side, type: u.type, x: u.x, hp: u.hp })),
     zones: state.zones.map((z) => ({ ...z })),
     strikes: state.strikes.map((s) => ({ ...s })),

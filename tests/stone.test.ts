@@ -31,7 +31,7 @@ describe('Sınır Taşı verisi', () => {
 describe('E-10 / GDD §8: Sınır Taşı ele geçirme', () => {
   it('başlangıç: sayaç 0, sahip yok', () => {
     const s = newState();
-    expect(s.stone).toEqual({ counter: 0, owner: null });
+    expect(s.stone).toEqual({ counter: 0, owner: null, potGold: 0, potXp: 0 });
   });
 
   it('tarafsızdan 100 tick\'te ele geçirme: 99. tick\'te sahip yok, 100. tick\'te sahip ve stoneCaptured olayı', () => {
@@ -89,18 +89,19 @@ describe('E-10 / GDD §8: Sınır Taşı ele geçirme', () => {
       ]);
       expect(events.some((e) => e.type === 'stoneCaptured' || e.type === 'stoneLost')).toBe(false);
     }
-    expect(s.stone).toEqual({ counter: 37, owner: null });
+    expect(s.stone).toEqual({ counter: 37, owner: null, potGold: 0, potXp: 0 });
   });
 
   it('bölge boşken sayaç ve sahiplik sabit kalır', () => {
     const s = newState();
     s.stone.counter = -64;
     for (let i = 0; i < 80; i++) step(s, []);
-    expect(s.stone).toEqual({ counter: -64, owner: null });
+    expect(s.stone).toEqual({ counter: -64, owner: null, potGold: 0, potXp: 0 });
     s.stone.counter = STONE.counterMax;
     s.stone.owner = 0;
     for (let i = 0; i < 80; i++) step(s, []);
-    expect(s.stone).toEqual({ counter: STONE.counterMax, owner: 0 });
+    // Sahip taşı tutarken kazan birikir (ayrı testte); sayaç ve sahiplik sabittir.
+    expect(s.stone).toMatchObject({ counter: STONE.counterMax, owner: 0 });
   });
 
   it('sayaç sıfırı geçince sahiplik düşer (sıfırda hâlâ sahip); stoneLost bir kez; −100\'de rakip ele geçirir', () => {
@@ -124,7 +125,7 @@ describe('E-10 / GDD §8: Sınır Taşı ele geçirme', () => {
     expect(lostAt).toBe(STONE.counterMax + 1);
     expect(lostEvents).toEqual([{ type: 'stoneLost', side: 0 }]);
     expect(capturedAt).toBe(2 * STONE.counterMax);
-    expect(s.stone).toEqual({ counter: -STONE.counterMax, owner: 1 });
+    expect(s.stone).toEqual({ counter: -STONE.counterMax, owner: 1, potGold: 0, potXp: 0 });
   });
 
   it('sayaç her zaman −counterMax..counterMax aralığında ve tamsayıdır', () => {
@@ -152,9 +153,14 @@ describe('GDD §8: Sınır Taşı bonusu', () => {
         const xpBefore = [s.sides[0].xp, s.sides[1].xp];
         const events: SimEvent[] = [];
         for (let t = 0; t < WORLD.tickRate; t++) events.push(...step(s, []));
-        const gain = ageDef.incomePerSec + ageDef.stoneGoldPerSec;
+        // Ödülün (1 − potShare) kadarı sahibine hemen, kalanı kazana (GDD §8); toplam ödül korunur.
+        const keepGold = Math.round(ageDef.stoneGoldPerSec * (1 - STONE.potShare));
+        const keepXp = Math.round(ageDef.stoneXpPerSec * (1 - STONE.potShare));
+        const gain = ageDef.incomePerSec + keepGold;
         expect(s.sides[owner].gold - before[owner]!).toBe(gain);
-        expect(s.sides[owner].xp - xpBefore[owner]!).toBe(ageDef.stoneXpPerSec);
+        expect(s.sides[owner].xp - xpBefore[owner]!).toBe(keepXp);
+        expect(s.stone.potGold + keepGold).toBe(ageDef.stoneGoldPerSec);
+        expect(s.stone.potXp + keepXp).toBe(ageDef.stoneXpPerSec);
         expect(s.sides[owner].stats.goldEarned).toBe(gain);
         expect(Number.isInteger(s.sides[owner].gold)).toBe(true);
         expect(Number.isInteger(s.sides[owner].xp)).toBe(true);
@@ -180,7 +186,10 @@ describe('GDD §8: Sınır Taşı bonusu', () => {
     s.stone.counter = STONE.counterMax;
     s.stone.owner = 0;
     for (let t = 0; t < 10 * WORLD.tickRate; t++) step(s, []);
-    expect(s.sides[0].xp).toBe(10 * AGES[0]!.stoneXpPerSec);
+    const keepXp = Math.round(AGES[0]!.stoneXpPerSec * (1 - STONE.potShare));
+    expect(keepXp).toBeGreaterThan(0);
+    expect(s.sides[0].xp).toBe(10 * keepXp);
+    expect(s.stone.potXp).toBe(10 * (AGES[0]!.stoneXpPerSec - keepXp));
   });
 });
 

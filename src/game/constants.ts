@@ -60,7 +60,7 @@ export const RESULTS_HISTORY_MAX = 20;
 export const GAME_SPEEDS = [1, 1.5, 2, 3] as const;
 export type GameSpeed = (typeof GAME_SPEEDS)[number];
 
-export const DEFAULT_SETTINGS = { musicVolume: 60, sfxVolume: 80, screenShake: true, gameSpeed: 1 as GameSpeed } as const;
+export const DEFAULT_SETTINGS = { musicVolume: 60, sfxVolume: 80, screenShake: true, gameSpeed: 1 as GameSpeed, erosion: true } as const;
 export const VOLUME_MIN = 0;
 export const VOLUME_MAX = 100;
 
