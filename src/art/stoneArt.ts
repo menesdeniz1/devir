@@ -1,70 +1,38 @@
 import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
-import { clamp01, easeOutCubic } from './anim';
+import { clamp01, easeInOut, easeOutCubic, lerp, TAU } from './anim';
 import { buildAtlas, mustTexture, type PartSpec } from './atlas';
-import { circle, detail, ellipse, line, shape, soft, stroke, type Ctx } from './paint';
-import { EMBLEM_FILL, GROUND_SHADOW, INK, TEAM, type ArtSide, type Tone } from './palette';
+import { circle, ellipse, line, shape, soft, stroke, type Ctx } from './paint';
+import { EMBLEM_FILL, INK, TEAM, type ArtAge, type ArtSide, type Tone } from './palette';
+import { LAMP_NEUTRAL_TINT, STONE_VARIANTS, type StoneVariant } from './stoneVariants';
 
 /**
- * Sınır Taşı (GDD §8): koridor ortasında oyma dikili taş. (0,0) taşın tabanı (zemin çizgisi).
- * Taşın göğsünde oyma bir yuva vardır: tarafsızken boş oyma işaret, sahipliğe geçince sahibin amblemi
- * (oyuncu daire / rakip elmas) kendi renginde yanar ve taşın ardında bir hale parlar. Yuvayı saran halka
- * ele geçirme ilerlemesini (|sayaç| / sayaçMax) gösterir: oyuncuya doğru mavi ve tepeden sola (oyuncu
- * tarafına), rakibe doğru turuncu ve tepeden sağa (rakip tarafına) dolar. Bölge sınırlarında zemin işaretleri.
- * Taş ve işaretler takım ayrımını yalnız renge bırakmaz: amblem şekli + halkanın dönüş yönü.
+ * Sınır Taşı (GDD §8): koridor ortasında, savaş alanının çağına (oyuncunun çağı, arka planla aynı) göre biçim
+ * değiştiren sınır taşı. (0,0) taşın tabanı (zemin çizgisi). Çağ görünümleri `stoneVariants.ts`'te: İlkel dikili
+ * taş, Antik dikilitaş, Orta armalı sınır taşı, Endüstri fener direği, Gelecek süzülen kristal.
+ * Taşın yuvasında tarafsızken oyma işaret, sahipliğe geçince sahibin amblemi (oyuncu daire / rakip elmas) kendi
+ * renginde yanar ve taşın ardında bir hale parlar (getiri çağla arttığından hale de çağla biraz güçlenir).
+ * Yuvayı saran halka ele geçirme ilerlemesini (|sayaç| / sayaçMax) gösterir: oyuncuya doğru mavi ve tepeden sola
+ * (oyuncu tarafına), rakibe doğru turuncu ve tepeden sağa (rakip tarafına) dolar. Bölge sınırlarında zemin
+ * işaretleri. Takım ayrımı yalnız renge bırakılmaz: amblem şekli + halkanın dönüş yönü.
+ * Çağ değişimi yumuşak geçiştir: eski taş hafifçe şişerek söner, yenisi küçükten büyüyerek belirir.
  */
 
 export const STONE_ART_RESOLUTION = 2;
 
-const STONE: Tone = { base: 0xa7a59c, shade: 0x7f7d75 };
-const MOSS: Tone = { base: 0x7f9a55, shade: 0x627c40 };
-const CARVE = 0x5f5d57;
 const MARKER: Tone = { base: 0xf3e9cf, shade: 0xcdbf9c };
 const RING_TRACK = 0x2a2438;
 const RING_NEUTRAL = 0xd8d2c0;
 
-/** Yuva merkezi (taş yerelinde) ve halka ölçüsü. */
-export const STONE_SOCKET = { x: 1, y: -74 } as const;
 const RING = { r: 25, width: 6, track: 9 } as const;
-const GLOW_SCALE = 2.4;
 const BREATHE_MS = 2600;
 const CAPTURE_POP_MS = 600;
+/** Çağ geçişi süresi (ms) ve ölçek "puf"u. */
+export const STONE_SWAP_MS = 650;
+const SWAP_IN_SCALE = 0.88;
+const SWAP_OUT_SCALE = 1.08;
+const SWAP_SWELL = 0.12;
 
-function bodyDraw(c: Ctx): void {
-  c.save();
-  c.globalAlpha = GROUND_SHADOW.alpha;
-  shape(c, ellipse(2, 2, 40, 7), GROUND_SHADOW.color, { line: 0, shadeOffset: null });
-  c.restore();
-  // Taban taşları.
-  shape(c, ellipse(-26, 0, 9, 5), STONE, { shadeOffset: [1.5, 1.5], line: 2.4 });
-  shape(c, ellipse(28, 1, 8, 4.5), STONE, { shadeOffset: [1.5, 1.5], line: 2.4 });
-  // Dikili taş gövdesi.
-  const body = soft([-24, 3, 26, 3, 29, -44, 22, -104, 7, -132, -10, -127, -21, -96, -28, -42], 9);
-  shape(c, body, STONE, { shadePath: soft([10, -130, 22, -104, 29, -44, 26, 3, 12, 3, 17, -50, 15, -104], 6) });
-  // Yosun.
-  shape(c, soft([-27, -30, -18, -38, -12, -30, -14, -18, -24, -14], 4), MOSS, { shadeOffset: [1, 1.5], line: 2 });
-  shape(c, soft([12, -124, 19, -116, 13, -110, 6, -118], 3), MOSS, { shadeOffset: [1, 1], line: 2 });
-  // Oyma desenler: spiral ve çentikler.
-  const spiral = (p: CanvasRenderingContext2D): void => {
-    for (let i = 0; i <= 28; i++) {
-      const a = i * 0.42;
-      const r = 1 + i * 0.32;
-      const x = -4 + Math.cos(a) * r;
-      const y = -24 + Math.sin(a) * r;
-      if (i === 0) p.moveTo(x, y);
-      else p.lineTo(x, y);
-    }
-  };
-  detail(c, spiral, CARVE, 2);
-  for (const y of [-112, -106, -100]) detail(c, line([-6, y, 8, y - 2]), CARVE, 2);
-  detail(c, line([18, -60, 22, -40, 18, -20]), CARVE, 1.8);
-  // Yuva: koyu oyuk + iç oyma halka + tarafsız işaret (üç çentik).
-  shape(c, circle(STONE_SOCKET.x, STONE_SOCKET.y, 17), STONE.shade, { line: 2.4, shadeOffset: [-2, -2] });
-  detail(c, circle(STONE_SOCKET.x, STONE_SOCKET.y, 13), CARVE, 1.6);
-  for (let i = 0; i < 3; i++) {
-    const a = -Math.PI / 2 + (i * Math.PI * 2) / 3;
-    detail(c, line([STONE_SOCKET.x + Math.cos(a) * 3, STONE_SOCKET.y + Math.sin(a) * 3, STONE_SOCKET.x + Math.cos(a) * 9, STONE_SOCKET.y + Math.sin(a) * 9]), CARVE, 2.4);
-  }
-}
+const AGES: readonly ArtAge[] = [1, 2, 3, 4, 5];
 
 /** Sahip amblemi: takım renginde dış şekil + krem iç şekil (oyuncu daire, rakip elmas). */
 function emblemDraw(side: ArtSide) {
@@ -106,18 +74,44 @@ function markerDraw(top: number, bottom: number) {
   };
 }
 
-let atlas: Map<string, Texture> | null = null;
+/** Parça adları (atlas ve test dokuları aynı adları kullanır). */
+export function stonePartNames(age: ArtAge): { body: string; float: string | null; lamp: string | null } {
+  const v = STONE_VARIANTS[age];
+  return { body: `stone.body.${age}`, float: v.float ? `stone.float.${age}` : null, lamp: v.lamp ? `stone.lamp.${age}` : null };
+}
 
-function textures(markerTop: number, markerBottom: number): Map<string, Texture> {
+/** Çağdan bağımsız tüm taş sanatı tek atlasta, ilk taşta bir kez pişirilir (karede yeniden çizim yok). */
+let artAtlas: Map<string, Texture> | null = null;
+/** Bölge işaretleri yürüme yolunun yüksekliğine bağlıdır: yerleşim başına bir küçük atlas. */
+const markerAtlases = new Map<string, Map<string, Texture>>();
+
+function artParts(): PartSpec[] {
   const parts: PartSpec[] = [
-    { name: 'stone.body', x0: -42, y0: -134, x1: 42, y1: 9, draw: bodyDraw },
     { name: 'stone.emblem.0', x0: -14, y0: -14, x1: 14, y1: 14, draw: emblemDraw(0) },
     { name: 'stone.emblem.1', x0: -15, y0: -17, x1: 15, y1: 17, draw: emblemDraw(1) },
     { name: 'stone.glow', x0: -30, y0: -30, x1: 30, y1: 30, draw: glowDraw },
-    { name: 'stone.marker', x0: -6, y0: markerTop - 16, x1: 9, y1: markerBottom + 3, draw: markerDraw(markerTop, markerBottom) },
   ];
-  atlas ??= buildAtlas('art.stone', parts, STONE_ART_RESOLUTION, 256);
-  return atlas;
+  for (const age of AGES) {
+    const v = STONE_VARIANTS[age];
+    const n = stonePartNames(age);
+    parts.push({ name: n.body, ...v.body });
+    if (v.float && n.float) parts.push({ name: n.float, ...v.float });
+    if (v.lamp && n.lamp) parts.push({ name: n.lamp, ...v.lamp });
+  }
+  return parts;
+}
+
+function defaultTextures(layout: StoneLayout): (name: string) => Texture {
+  const art = (artAtlas ??= buildAtlas('art.stone', artParts(), STONE_ART_RESOLUTION, 512));
+  const key = `${layout.pathTop}|${layout.pathBottom}`;
+  let marker = markerAtlases.get(key);
+  if (marker === undefined) {
+    const { pathTop: top, pathBottom: bottom } = layout;
+    marker = buildAtlas('art.stone.marker', [{ name: 'stone.marker', x0: -6, y0: top - 16, x1: 9, y1: bottom + 3, draw: markerDraw(top, bottom) }], STONE_ART_RESOLUTION, 32);
+    markerAtlases.set(key, marker);
+  }
+  const markers = marker;
+  return (name) => mustTexture(name === 'stone.marker' ? markers : art, name);
 }
 
 export interface StoneLayout {
@@ -128,37 +122,113 @@ export interface StoneLayout {
   pathBottom: number;
 }
 
+export interface StoneRigOptions {
+  /** Başlangıç çağı (geçişsiz). Varsayılan 1. */
+  age?: ArtAge;
+  /** Doku kaynağı; varsayılan taş atlası. Testler sahte doku verir (düğümde tuval yok). */
+  texture?: (name: string) => Texture;
+}
+
+interface VariantLayer {
+  root: Container;
+  /** Süzülen parça (yoksa null): çağın `bob` genliğiyle iner-kalkar. */
+  float: Container | null;
+  lamp: Sprite | null;
+}
+
+function part(tex: Texture, label: string): Sprite {
+  const s = new Sprite(tex);
+  s.label = label;
+  return s;
+}
+
 export class StoneRig {
   readonly root = new Container();
-  private readonly glow: Sprite;
+  private readonly aura: Sprite;
   private readonly emblems: [Sprite, Sprite];
   private readonly markers: [Sprite, Sprite];
   private readonly ring = new Graphics();
+  /** Çağ gövdeleri (geçişte iki tanesi görünür). */
+  private readonly bodies = new Container();
+  /** Halka + amblemler: çağın yuvasında, gövdenin önünde. */
+  private readonly socket = new Container();
+  private readonly layers = new Map<ArtAge, VariantLayer>();
+  private readonly tex: (name: string) => Texture;
+  private current: ArtAge;
+  private previous: ArtAge | null = null;
+  private previousAlpha = 1;
+  private swapMs = Infinity;
+  private builds = 0;
   private clockMs = 0;
   private popMs = Infinity;
   private lastCounter = Number.NaN;
   private lastOwner: ArtSide | null | undefined = undefined;
 
-  constructor(layout: StoneLayout) {
-    const map = textures(layout.pathTop, layout.pathBottom);
-    const tex = (n: string): Texture => mustTexture(map, n);
-    this.markers = [new Sprite(tex('stone.marker')), new Sprite(tex('stone.marker'))];
+  constructor(layout: StoneLayout, options: StoneRigOptions = {}) {
+    this.tex = options.texture ?? defaultTextures(layout);
+    this.markers = [part(this.tex('stone.marker'), 'stone.marker'), part(this.tex('stone.marker'), 'stone.marker')];
     this.markers[0].x = -layout.halfWidth;
     this.markers[1].x = layout.halfWidth;
     this.markers[1].scale.x = -1;
-    this.glow = new Sprite(tex('stone.glow'));
-    this.glow.anchor.set(0.5);
-    this.glow.position.set(STONE_SOCKET.x, STONE_SOCKET.y);
-    this.glow.scale.set(GLOW_SCALE);
-    this.glow.visible = false;
-    const body = new Sprite(tex('stone.body'));
-    this.emblems = [new Sprite(tex('stone.emblem.0')), new Sprite(tex('stone.emblem.1'))];
-    for (const e of this.emblems) {
-      e.position.set(STONE_SOCKET.x, STONE_SOCKET.y);
-      e.visible = false;
+    this.aura = part(this.tex('stone.glow'), 'stone.aura');
+    this.aura.anchor.set(0.5);
+    this.aura.visible = false;
+    this.emblems = [part(this.tex('stone.emblem.0'), 'stone.emblem.0'), part(this.tex('stone.emblem.1'), 'stone.emblem.1')];
+    for (const e of this.emblems) e.visible = false;
+    this.ring.label = 'stone.ring';
+    this.socket.label = 'stone.socket';
+    this.bodies.label = 'stone.bodies';
+    this.socket.addChild(this.ring, this.emblems[0], this.emblems[1]);
+    this.root.addChild(this.markers[0], this.markers[1], this.aura, this.bodies, this.socket);
+    this.current = options.age ?? 1;
+    this.layerOf(this.current).root.visible = true;
+    this.place();
+  }
+
+  /** Şu an gösterilen (geçişte hedef) çağ. */
+  get age(): ArtAge {
+    return this.current;
+  }
+
+  /** Çağ geçişi sürüyor mu. */
+  get swapping(): boolean {
+    return Number.isFinite(this.swapMs);
+  }
+
+  /** Kurulmuş çağ görünümü sayısı (her çağ en fazla bir kez kurulur; testler için). */
+  get variantBuildCount(): number {
+    return this.builds;
+  }
+
+  /** Hedef çağ taşının tepesi (taş yerelinde, negatif). Kazanç işareti bunun üstünden doğar. */
+  get topY(): number {
+    return STONE_VARIANTS[this.current].top;
+  }
+
+  /**
+   * Taşın çağını değiştirir. Aynı çağda hiçbir şey yapmaz (yeniden kurma yok). `animate` false ise (yeni maç)
+   * geçişsiz atlar; aksi hâlde eski taş söner, yenisi büyüyerek belirir.
+   */
+  setAge(age: ArtAge, animate = true): void {
+    if (age === this.current) return;
+    const next = this.layerOf(age);
+    const old = this.layers.get(this.current)!;
+    for (const [a, l] of this.layers) l.root.visible = a === age || (animate && a === this.current);
+    if (animate) {
+      // Süren geçiş kesilirse: o anki saydamlığından sönmeye devam eder (sıçrama yok).
+      this.previousAlpha = old.root.alpha;
+      this.previous = this.current;
+      this.swapMs = 0;
+    } else {
+      this.previous = null;
+      this.swapMs = Infinity;
+      old.root.alpha = 1;
+      old.root.scale.set(1);
     }
-    this.ring.position.set(STONE_SOCKET.x, STONE_SOCKET.y);
-    this.root.addChild(this.markers[0], this.markers[1], this.glow, body, this.ring, this.emblems[0], this.emblems[1]);
+    this.current = age;
+    this.bodies.addChild(next.root);
+    if (this.lastOwner !== undefined) this.tintLamp(next, this.lastOwner);
+    this.place();
   }
 
   /** counter: −max (rakip) … +max (oyuncu); owner: sahip taraf veya null. */
@@ -177,26 +247,126 @@ export class StoneRig {
       this.popMs += animMs;
       if (this.popMs >= CAPTURE_POP_MS) this.popMs = Infinity;
     }
+    if (Number.isFinite(this.swapMs)) {
+      this.swapMs += animMs;
+      if (this.swapMs >= STONE_SWAP_MS) this.finishSwap();
+    }
+    this.place();
     // Boşta: hale nefes alır, amblem hafifçe salınır; ele geçirilince kısa büyüme.
-    const breathe = 0.5 + 0.5 * Math.sin((this.clockMs / BREATHE_MS) * Math.PI * 2);
+    const breathe = 0.5 + 0.5 * Math.sin((this.clockMs / BREATHE_MS) * TAU);
     const pop = Number.isFinite(this.popMs) ? 1 - easeOutCubic(clamp01(this.popMs / CAPTURE_POP_MS)) : 0;
-    this.glow.alpha = 0.32 + 0.22 * breathe + 0.45 * pop;
-    this.glow.scale.set(GLOW_SCALE * (1 + 0.06 * breathe + 0.35 * pop));
+    const swell = Number.isFinite(this.swapMs) ? SWAP_SWELL * Math.sin(Math.PI * clamp01(this.swapMs / STONE_SWAP_MS)) : 0;
+    const aura = this.auraNow();
+    this.aura.alpha = aura.alpha + 0.22 * breathe + 0.45 * pop + swell;
+    this.aura.scale.set(aura.scale * (1 + 0.06 * breathe + 0.35 * pop));
     if (owner !== null) {
       const e = this.emblems[owner];
       e.scale.set(1 + 0.04 * breathe + 0.3 * pop);
-      e.y = STONE_SOCKET.y + Math.sin((this.clockMs / BREATHE_MS) * Math.PI * 2 + 1) * 0.8;
+      e.y = Math.sin((this.clockMs / BREATHE_MS) * TAU + 1) * 0.8;
     }
+  }
+
+  /** Çağ görünümü: ilk istendiğinde bir kez kurulur ve saklanır. */
+  private layerOf(age: ArtAge): VariantLayer {
+    const have = this.layers.get(age);
+    if (have !== undefined) return have;
+    const names = stonePartNames(age);
+    const root = new Container();
+    root.label = `stone.variant.${age}`;
+    root.visible = false;
+    root.addChild(part(this.tex(names.body), 'stone.body'));
+    let float: Container | null = null;
+    if (names.float !== null) {
+      float = new Container();
+      float.label = 'stone.float';
+      float.addChild(part(this.tex(names.float), 'stone.float.part'));
+      root.addChild(float);
+    }
+    let lamp: Sprite | null = null;
+    if (names.lamp !== null) {
+      lamp = part(this.tex(names.lamp), 'stone.lamp');
+      lamp.tint = LAMP_NEUTRAL_TINT;
+      root.addChild(lamp);
+    }
+    const layer: VariantLayer = { root, float, lamp };
+    this.layers.set(age, layer);
+    this.bodies.addChild(root);
+    this.builds += 1;
+    return layer;
+  }
+
+  private finishSwap(): void {
+    this.swapMs = Infinity;
+    if (this.previous !== null) {
+      const old = this.layers.get(this.previous)!;
+      old.root.visible = false;
+      old.root.alpha = 1;
+      old.root.scale.set(1);
+    }
+    this.previous = null;
+  }
+
+  private bobOf(v: StoneVariant): number {
+    return v.bob.amp === 0 ? 0 : v.bob.amp * Math.sin((this.clockMs / v.bob.periodMs) * TAU);
+  }
+
+  /** Geçiş ilerlemesi (0..1); geçiş yoksa 1. */
+  private swapT(): number {
+    return Number.isFinite(this.swapMs) && this.previous !== null ? clamp01(this.swapMs / STONE_SWAP_MS) : 1;
+  }
+
+  private auraNow(): { scale: number; alpha: number } {
+    const cur = STONE_VARIANTS[this.current].aura;
+    if (this.previous === null) return cur;
+    const prev = STONE_VARIANTS[this.previous].aura;
+    const k = easeInOut(this.swapT());
+    return { scale: lerp(prev.scale, cur.scale, k), alpha: lerp(prev.alpha, cur.alpha, k) };
+  }
+
+  /** Gövde saydamlık/ölçekleri, süzülme ve yuvanın konumu (geçişte iki çağ arası). */
+  private place(): void {
+    const cv = STONE_VARIANTS[this.current];
+    const cl = this.layers.get(this.current)!;
+    const t = this.swapT();
+    const k = easeInOut(t);
+    const m = easeOutCubic(t);
+    const curBob = this.bobOf(cv);
+    if (cl.float !== null) cl.float.y = curBob;
+    let sx = cv.socket.x;
+    let sy = cv.socket.y + curBob;
+    if (this.previous !== null && t < 1) {
+      const pv = STONE_VARIANTS[this.previous];
+      const pl = this.layers.get(this.previous)!;
+      const prevBob = this.bobOf(pv);
+      if (pl.float !== null) pl.float.y = prevBob;
+      cl.root.alpha = k;
+      cl.root.scale.set(lerp(SWAP_IN_SCALE, 1, m));
+      // Eski taş yenisinin ardında daha geç söner: ortada iki yarı saydam hayalet görünmez.
+      pl.root.alpha = this.previousAlpha * (1 - k * k);
+      pl.root.scale.set(lerp(1, SWAP_OUT_SCALE, m));
+      sx = lerp(pv.socket.x, sx, m);
+      sy = lerp(pv.socket.y + prevBob, sy, m);
+    } else {
+      cl.root.alpha = 1;
+      cl.root.scale.set(1);
+    }
+    this.socket.position.set(sx, sy);
+    this.aura.position.set(sx, sy);
+  }
+
+  private tintLamp(layer: VariantLayer, owner: ArtSide | null): void {
+    if (layer.lamp !== null) layer.lamp.tint = owner === null ? LAMP_NEUTRAL_TINT : TEAM[owner].cloth.base;
   }
 
   private applyOwner(owner: ArtSide | null): void {
     this.emblems[0].visible = owner === 0;
     this.emblems[1].visible = owner === 1;
-    this.glow.visible = owner !== null;
+    this.aura.visible = owner !== null;
     const tint = owner === null ? 0xffffff : TEAM[owner].trim.base;
-    if (owner !== null) this.glow.tint = TEAM[owner].cloth.base;
+    if (owner !== null) this.aura.tint = TEAM[owner].cloth.base;
     this.markers[0].tint = tint;
     this.markers[1].tint = tint;
+    for (const l of this.layers.values()) this.tintLamp(l, owner);
   }
 
   private drawRing(counter: number, counterMax: number): void {

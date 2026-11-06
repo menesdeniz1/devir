@@ -2,7 +2,7 @@ import { Application, ColorMatrixFilter, Container, Graphics, Sprite, type Textu
 import type { UnitAnimInput, UnitRig } from './anim';
 import { BaseRig, baseAtlasStats, baseDamageAtlasStats } from './baseRig';
 import type { ArtAge, ArtSide } from './palette';
-import { StoneRig } from './stoneArt';
+import { STONE_SWAP_MS, StoneRig } from './stoneArt';
 import { SLOT_SCALE, TowerSlot, towerAtlasStats } from './towerRig';
 import { createUnitRig, unitAtlasStats } from './unitArt';
 import { createBackground, createBaseView, setBaseAge, setTowerSlot, towerLaunchPoint, triggerTowerFire } from '../render/scene';
@@ -25,7 +25,8 @@ import { fxAtlasStats } from './projectileArt';
  *   gray    — aynı satırlar gri tonlamada, can çubuğu taklidiyle (takım ayrımı renk dışı: yön, amblem, çubuk)
  *   bases   — 5 çağ × 2 taraf üs
  *   rebuild — çağ geçişi film şeridi (oyuncu 1→2, rakip 4→5), sabit zaman kareleri
- *   stone   — Sınır Taşı durumları + canlı döngü
+ *   stone   — Sınır Taşı: çağ satırları × durumlar (tarafsız, ilerleme, oyuncu/rakip sahip) + canlı ele geçirme;
+ *             altta canlı çağ geçişi (`age=` süzgeci satırlara uygulanır)
  *   live    — `age=n` çağında canlı döngü (yürü → saldır → öl)
  *   towers  — 5 çağ üssü, yuvalarla: satır 1–2 (oyuncu/rakip) A + B + kilitli; satır 3 boş + eski çağ
  *             kuleleri; satır 4 (rakip) atış kareleri + boş yuva. Statik kareler.
@@ -496,49 +497,119 @@ function groundStrip(g: Graphics, x: number, y: number, w: number): void {
   g.rect(x, y + 4, w, 60).fill(0xc49b63);
 }
 
+/** Vitrin zemin şeridi renkleri (arka plan, yaka, yol), çağın arka planına yakın. */
+const STONE_STRIP: Record<ArtAge, { sky: number; collar: number; path: number; earth: number }> = {
+  1: { sky: 0xbfe0f0, collar: 0x88a858, path: 0xc49b63, earth: 0xd2ab72 },
+  2: { sky: 0xf3dcae, collar: 0xb7ae66, path: 0xe3d2ad, earth: 0xdaa676 },
+  3: { sky: 0xa9cde6, collar: 0x7fa556, path: 0xb99062, earth: 0x9cb664 },
+  4: { sky: 0xb9a998, collar: 0x8c8460, path: 0xa39b8f, earth: 0xa69176 },
+  5: { sky: 0x1f2547, collar: 0x7a85b6, path: 0x8f98c2, earth: 0x6770a0 },
+};
+
+function stoneStrip(g: Graphics, age: ArtAge, x: number, footY: number, w: number): void {
+  const c = STONE_STRIP[age];
+  g.rect(x, footY - 200, w, 200).fill(c.sky);
+  g.rect(x, footY - 40, w, 40).fill(c.collar);
+  g.rect(x, footY - 12, w, 60).fill(c.path);
+  g.rect(x, footY + 48, w, 22).fill(c.earth);
+}
+
+/**
+ * Sınır Taşı: satır başına bir çağ (taşın çağ görünümü), sütunlar tarafsız / oyuncuya doğru / oyuncu sahip /
+ * rakibe doğru / rakip sahip + canlı ele geçirme döngüsü. Altta canlı çağ geçişi (her 2,5 sn bir sonraki çağ):
+ * oyuncu/rakip sahipken ve tarafsızken; kazanç işaretinin başlangıç yüksekliği (taş tepesi + boşluk) sarı çizgi.
+ * En altta Orta → Endüstri geçişinin sabit zaman kareleri (0, 15, 30, 50, 70, 100 %).
+ */
 function stone(world: Container, app: Application): { w: number; h: number } {
   const states: Array<{ counter: number; owner: ArtSide | null }> = [
     { counter: 0, owner: null },
-    { counter: 40, owner: null },
-    { counter: -70, owner: null },
+    { counter: 45, owner: null },
     { counter: 100, owner: 0 },
+    { counter: -70, owner: null },
     { counter: -100, owner: 1 },
-    { counter: 55, owner: 0 },
-    { counter: -20, owner: 1 },
   ];
-  const cellW = 300;
+  const cellW = 230;
+  const rowH = 280;
+  const layout = { halfWidth: 92, pathTop: -12, pathBottom: 48 };
   const g = new Graphics();
   world.addChild(g);
-  const cells = [...states, null];
-  cells.forEach((st, i) => {
-    const col = i % 4;
-    const row = Math.floor(i / 4);
-    const cx = 20 + col * cellW + cellW / 2;
-    const footY = 200 + row * 250;
-    groundStrip(g, 20 + col * cellW + 4, footY + 4, cellW - 8);
-    const r = new StoneRig({ halfWidth: 100, pathTop: -12, pathBottom: 48 });
-    r.root.position.set(cx, footY);
-    world.addChild(r.root);
-    if (st !== null) {
-      r.update(st.counter, st.owner, 100, 0);
-      app.ticker.add((tk) => r.update(st.counter, st.owner, 100, tk.deltaMS));
-    } else {
-      // Canlı döngü: tarafsız → oyuncu sahip → rakip geri alır.
-      let clock = 0;
-      let counter = 0;
-      let owner: ArtSide | null = null;
-      app.ticker.add((tk) => {
-        clock += tk.deltaMS;
-        const target = Math.floor(clock / 7000) % 2 === 0 ? 100 : -100;
-        counter += Math.sign(target - counter);
-        if (counter >= 100) owner = 0;
-        else if (counter <= -100) owner = 1;
-        else if ((owner === 0 && counter <= 0) || (owner === 1 && counter >= 0)) owner = null;
-        r.update(counter, owner, 100, tk.deltaMS);
-      });
-    }
+  const liveCycle = (r: StoneRig, phaseMs: number): void => {
+    // Tarafsız → oyuncu sahip → rakip geri alır.
+    let clock = phaseMs;
+    let counter = 0;
+    let owner: ArtSide | null = null;
+    app.ticker.add((tk) => {
+      clock += tk.deltaMS;
+      const target = Math.floor(clock / 7000) % 2 === 0 ? 100 : -100;
+      counter += Math.sign(target - counter);
+      if (counter >= 100) owner = 0;
+      else if (counter <= -100) owner = 1;
+      else if ((owner === 0 && counter <= 0) || (owner === 1 && counter >= 0)) owner = null;
+      r.update(counter, owner, 100, tk.deltaMS);
+    });
+  };
+  AGES.forEach((age, row) => {
+    const footY = 210 + row * rowH;
+    const cells = [...states, null];
+    cells.forEach((st, col) => {
+      const x0 = 20 + col * cellW;
+      stoneStrip(g, age, x0 + 4, footY, cellW - 8);
+      const r = new StoneRig(layout, { age });
+      r.root.position.set(x0 + cellW / 2, footY);
+      world.addChild(r.root);
+      if (st !== null) {
+        r.update(st.counter, st.owner, 100, 0);
+        app.ticker.add((tk) => r.update(st.counter, st.owner, 100, tk.deltaMS));
+      } else liveCycle(r, row * 900);
+    });
   });
-  return { w: 40 + 4 * cellW, h: 540 };
+  // Canlı çağ geçişi.
+  const footY = 210 + AGES.length * rowH;
+  const swaps: Array<{ owner: ArtSide | null; counter: number }> = [
+    { owner: 0, counter: 100 },
+    { owner: 1, counter: -100 },
+    { owner: null, counter: 0 },
+  ];
+  swaps.forEach((st, col) => {
+    const x0 = 20 + col * cellW;
+    stoneStrip(g, 3, x0 + 4, footY, cellW - 8);
+    const r = new StoneRig(layout);
+    r.root.position.set(x0 + cellW / 2, footY);
+    world.addChild(r.root);
+    const top = new Graphics();
+    r.root.parent!.addChild(top);
+    let clock = col * 400;
+    let age: ArtAge = 1;
+    const mark = (): void => {
+      top.clear();
+      const y = footY + r.topY - 28;
+      top.moveTo(x0 + 30, y).lineTo(x0 + cellW - 30, y).stroke({ width: 2, color: 0xffd25a });
+    };
+    mark();
+    app.ticker.add((tk) => {
+      clock += tk.deltaMS;
+      if (clock > 2500) {
+        clock = 0;
+        age = ((age % 5) + 1) as ArtAge;
+        r.setAge(age);
+        mark();
+      }
+      r.update(st.counter, st.owner, 100, tk.deltaMS);
+    });
+  });
+  // Geçiş film şeridi (Orta → Endüstri, oyuncu sahip): sabit zaman kareleri.
+  const stripY = footY + rowH;
+  [0, 0.15, 0.3, 0.5, 0.7, 1].forEach((f, col) => {
+    const x0 = 20 + col * cellW;
+    stoneStrip(g, 4, x0 + 4, stripY, cellW - 8);
+    const r = new StoneRig(layout, { age: 3 });
+    r.root.position.set(x0 + cellW / 2, stripY);
+    world.addChild(r.root);
+    r.update(100, 0, 100, 0);
+    r.setAge(4);
+    r.update(100, 0, 100, f * STONE_SWAP_MS);
+  });
+  return { w: 40 + 6 * cellW, h: stripY + 80 };
 }
 
 function live(world: Container, app: Application): { w: number; h: number } {

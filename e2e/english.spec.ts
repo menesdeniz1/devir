@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { AGES } from '../src/data/ages';
 import { fmt } from '../src/i18n';
 import { en } from '../src/i18n/en';
-import { KEYS, action, debugInfo, dismissTutorialOfferInit, expectNoHorizontalOverflow, openGame, pauseGame, screen, shot } from './helpers';
+import { KEYS, action, debugInfo, dismissTutorialOfferInit, expectHudFits, expectNoHorizontalOverflow, expectPortraitsLoaded, openGame, pauseGame, screen, shot } from './helpers';
 
 /**
  * İngilizce arayüz (PRD G-04). Playwright yapılandırması varsayılanı tr-TR'ye sabitler; bu dosya en-US'a geçer, böylece
@@ -212,57 +212,6 @@ test.describe('İngilizce: dil değiştirme', () => {
   });
 });
 
-/** Üst şerit ve alt panelde kesilen metin, taşan ya da üst üste binen öğe yok. */
-async function expectHudFits(page: Page, label: string): Promise<void> {
-  const problems = await page.evaluate(() => {
-    const out: string[] = [];
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const visible = (node: Element): boolean => {
-      const r = node.getBoundingClientRect();
-      return r.width > 0 && r.height > 0 && getComputedStyle(node).visibility !== 'hidden';
-    };
-    const name = (node: Element): string => `${node.tagName.toLowerCase()}.${(node as HTMLElement).className}`;
-    // Kesilen metin: kutu içeriği kutudan büyük.
-    for (const node of document.querySelectorAll<HTMLElement>('.hud-top *, .hud-bottom *')) {
-      if (!visible(node) || getComputedStyle(node).display === 'inline') continue;
-      // Yetenek düğmesinin kısayol rozeti bilerek köşeden taşar (style.css .ability__key); yetenek adı ve durumu ayrıca denetlenir.
-      if (node.matches('.hud-ability, .btn--ability')) continue;
-      if (node.scrollWidth > node.clientWidth + 1) out.push(`kesiliyor (yatay): ${name(node)} ${node.scrollWidth}>${node.clientWidth} "${node.textContent?.slice(0, 40)}"`);
-      // Dikeyde yalnız düğmeler ve taşması gizlenen kutular denetlenir (satır yüksekliği küçük rakam kutularında yanlış alarm verir).
-      const clipsVertically = node.tagName === 'BUTTON' || getComputedStyle(node).overflowY !== 'visible';
-      if (clipsVertically && node.scrollHeight > node.clientHeight + 1) out.push(`kesiliyor (dikey): ${name(node)} ${node.scrollHeight}>${node.clientHeight} "${node.textContent?.slice(0, 40)}"`);
-    }
-    const rectOf = (selector: string): DOMRect | null => {
-      const node = document.querySelector(selector);
-      return node !== null && visible(node) ? node.getBoundingClientRect() : null;
-    };
-    const overlap = (a: DOMRect, b: DOMRect): boolean => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
-    // Üst şerit sütunları birbirine girmez.
-    const top = ['.hud-top .hud-base--player', '.hud-top .hud-center', '.hud-top .hud-base--enemy'].map(rectOf);
-    for (let i = 0; i < top.length; i++) {
-      for (let j = i + 1; j < top.length; j++) {
-        const a = top[i];
-        const b = top[j];
-        if (a && b && overlap(a, b)) out.push(`üst şerit sütunları çakışıyor (${i}/${j})`);
-      }
-    }
-    // Alt panel çocukları birbirine girmez ve ekranın içinde kalır.
-    const kids = [...document.querySelectorAll('.hud-bottom > *')].filter(visible);
-    for (let i = 0; i < kids.length; i++) {
-      const a = kids[i]!.getBoundingClientRect();
-      if (a.right > vw + 1 || a.left < -1 || a.bottom > vh + 1) out.push(`alt panel öğesi taşıyor: ${name(kids[i]!)}`);
-      for (let j = i + 1; j < kids.length; j++) {
-        if (overlap(a, kids[j]!.getBoundingClientRect())) out.push(`alt panel öğeleri çakışıyor: ${name(kids[i]!)} / ${name(kids[j]!)}`);
-      }
-    }
-    const bottom = rectOf('.hud-bottom');
-    if (bottom && bottom.bottom > vh + 1) out.push(`alt panel ekran dışında (${Math.round(bottom.bottom)} > ${vh})`);
-    return out;
-  });
-  expect(problems, label).toEqual([]);
-}
-
 /** Sınır Taşı değeri için ayrılan genişlik (CSS min-width: 25ch) olası en uzun metinlere yeter. */
 async function expectStoneTextsFit(page: Page): Promise<void> {
   const owners = [en.hud.you, en.hud.enemy];
@@ -335,6 +284,8 @@ test.describe('İngilizce: düzen 1280x720', () => {
       await debugClick(page, '+500 gold', 2);
       for (const key of ['Digit1', 'Digit2', 'Digit3']) await page.keyboard.press(key);
       await expect(page.locator('.queue-slot:not([data-kind="empty"])').first()).toBeVisible();
+      await expectPortraitsLoaded(page, '.hud-units .btn__portrait', 3);
+      await expectPortraitsLoaded(page, '.queue-slot:not([data-kind="empty"]) .queue-slot__portrait', 3);
       await expectNoHorizontalOverflow(page);
       await expectHudFits(page, `age ${age}`);
       await shot(page, `en-1280x720-battle-age${age}`);
@@ -342,6 +293,7 @@ test.describe('İngilizce: düzen 1280x720', () => {
       await slot.click();
       await expect(page.locator('.slot-menu')).toBeVisible();
       await expect(page.locator('.slot-menu__build')).toHaveCount(2);
+      await expectPortraitsLoaded(page, '.slot-menu .slot-menu__portrait', 2);
       const menuProblems = await page.evaluate(() => {
         const menu = document.querySelector('.slot-menu')!.getBoundingClientRect();
         const out: string[] = [];

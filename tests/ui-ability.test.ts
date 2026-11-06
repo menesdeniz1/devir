@@ -445,14 +445,14 @@ describe('Düzen: alt panel (1280×720 bütçesi)', () => {
   });
 
   it('tek satırlı geniş düzenin toplam genişliği 1880 px altında kalır (yetenek grubu dahil)', () => {
-    // Genişlikler style.css'teki sabit değerlerdir; toplam: dolgu 32 + gruplar + 5 boşluk (24).
-    const gold = 110;
+    // Genişlikler style.css'teki sabit değerlerdir; toplam: dolgu 32 + gruplar + 5 boşluk (20). Portreli kartlar dahil.
+    const gold = 122;
     const age = 190;
-    const units = 3 * 170 + 2 * 12;
+    const units = 3 * 172 + 2 * 12;
     const ability = abilityWidthPx();
     const queue = 5 * 62 + 4 * 8;
-    const defense = 3 * 128 + 2 * 8;
-    const total = 32 + gold + age + units + queue + defense + ability + 5 * 24;
+    const defense = 3 * 130 + 2 * 8;
+    const total = 32 + gold + age + units + queue + defense + ability + 5 * 20;
     expect(total).toBeLessThan(1880);
     expect(css).toContain('--p');
   });
@@ -460,7 +460,8 @@ describe('Düzen: alt panel (1280×720 bütçesi)', () => {
   it('1280 px düzeninde ilk satır (altın, çağ, 3 birlik, yetenek) 1280 px içinde kalır', () => {
     const ability = abilityWidthPx();
     expect(ability).toBeLessThanOrEqual(130);
-    const total = 24 + 96 + 240 + (3 * 150 + 2 * 12) + ability + 4 * 16;
+    // Dolgu 24 + altın 112 + çağ 276 + 3 birlik kartı (172, boşluk 10) + yetenek + 4 boşluk (16).
+    const total = 24 + 112 + 276 + (3 * 172 + 2 * 10) + ability + 4 * 16;
     expect(total).toBeLessThanOrEqual(1280);
   });
 });

@@ -14,6 +14,7 @@ import {
   createStoneView,
   setBaseAge,
   setBaseDamage,
+  setStoneAge,
   setTowerSlot,
   towerLaunchPoint,
   triggerBaseFlash,
@@ -22,6 +23,7 @@ import {
   updateStoneView,
   type BaseView,
 } from './scene';
+import { createPortraitGenerator, PortraitCache, prefetchAge, type PortraitKind, type PortraitStats } from './portraits';
 import { ProjectileLayer } from './projectileView';
 import { StoneFloat } from './stoneFloat';
 import { UnitView } from './unitView';
@@ -53,6 +55,13 @@ export interface Renderer {
   setScreenShake(enabled: boolean): void;
   /** Performans paneli için son karenin sayıları (TDD §4). */
   readonly stats: RenderStats;
+  /**
+   * Arayüz portresi (GDD §11; `portraits.ts`): hazırsa önbellekteki PNG veri URL'si, değilse null (iş kuyruğa alınır,
+   * sonraki karelerde süre bütçesiyle üretilir). Üretilemeyen portre için hep null.
+   */
+  portrait(kind: PortraitKind, id: string): string | null;
+  /** Portre üretiminin sayıları ve süreleri (ölçüm/hata ayıklama). */
+  readonly portraitStats: PortraitStats;
   destroy(): void;
 }
 
@@ -85,6 +94,11 @@ export async function createRenderer(host: HTMLElement, session: Session, option
   // Birlik ve mermi parçalarını açılışta bir kez dokuya pişir (ilk birlik/mermi doğduğunda takılma olmasın).
   prewarmUnitArt();
   prewarmFxArt();
+  // Arayüz portreleri (GDD §11): ilk çağınkiler açılışta (yükleme sırasında) üretilir; sonraki çağlarınkiler istendikçe
+  // kuyruğa alınır ve her karede süre bütçesiyle üretilir.
+  const portraits = new PortraitCache(createPortraitGenerator(), () => performance.now());
+  prefetchAge(portraits, session.state.sides[0].age);
+  portraits.drain();
 
   const world = new Container();
   const units = new Container();
@@ -95,8 +109,8 @@ export async function createRenderer(host: HTMLElement, session: Session, option
   const preview = new Graphics();
   preview.visible = false;
   let previewKey = '';
-  const stone = createStoneView();
-  const stoneFloat = new StoneFloat();
+  const stone = createStoneView(artAge(session.state.sides[0].age));
+  const stoneFloat = new StoneFloat(stone);
   // Arka plan oyuncunun çağını izler (GDD §14); çağ değişince yumuşak geçiş.
   const background = new BackgroundView(artAge(session.state.sides[0].age));
   const shake = new ScreenShake();
@@ -149,6 +163,7 @@ export async function createRenderer(host: HTMLElement, session: Session, option
       stoneFloat.clear();
       shake.reset();
       background.setAge(artAge(session.state.sides[0].age), false);
+      setStoneAge(stone, artAge(session.state.sides[0].age), false);
       // Yeni maç: üsler ve taş yeni durumdan çizilir; taşın görsel durumu da baştan başlar.
       setBaseAge(bases[0], session.state.sides[0].age, false);
       setBaseAge(bases[1], session.state.sides[1].age, false);
@@ -263,6 +278,7 @@ export async function createRenderer(host: HTMLElement, session: Session, option
         setBaseDamage(bases[side], s.baseMaxHp > 0 ? s.baseHp / s.baseMaxHp : 1);
       }
       background.setAge(artAge(state.sides[0].age));
+      setStoneAge(stone, artAge(state.sides[0].age));
       background.update(animMs);
       for (const side of [0, 1] as const) {
         state.sides[side].slots.forEach((slot, i) => setTowerSlot(bases[side], i, slot.tower?.type ?? null, slot.unlocked));
@@ -282,6 +298,14 @@ export async function createRenderer(host: HTMLElement, session: Session, option
       stats.projectiles = projectiles.projectileViewCount;
       stats.effects = projectiles.effectCount + abilityFx.effectCount + stoneFloat.count;
       stats.renderMs = performance.now() - t0;
+      // Sahne çizildikten sonra bekleyen portreler (kare başına süre bütçesi; çizim süresine sayılmaz).
+      portraits.pump();
+    },
+    portrait(kind: PortraitKind, id: string): string | null {
+      return portraits.get(kind, id);
+    },
+    get portraitStats(): PortraitStats {
+      return portraits.stats;
     },
     get unitViewCount(): number {
       return views.size;

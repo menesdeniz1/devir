@@ -10,6 +10,8 @@ export interface DebugPerfSource {
   frame(): { fps: number; stepAvgMs: number; stepMaxMs: number };
   /** Son karenin çizim sayıları ve süresi. */
   render(): { units: number; projectiles: number; effects: number; renderMs: number };
+  /** Arayüz portresi üretimi (GDD §11): üretilen sayı, toplam ve en uzun süre (ms), bekleyen iş. */
+  portraits?(): { generated: number; totalMs: number; maxMs: number };
 }
 
 const ENEMY_SIDE = PLAYER_SIDE === 0 ? 1 : 0;
@@ -55,6 +57,9 @@ export function mountDebugPanel(root: HTMLElement, session: Session, perf?: Debu
   const perfRender = perf === undefined ? null : el('div', 'debug__perf', panel);
   perfFrame?.setAttribute('data-role', 'perf-frame');
   perfRender?.setAttribute('data-role', 'perf-render');
+  const perfPortrait = perf?.portraits === undefined ? null : el('div', 'debug__perf', panel);
+  perfPortrait?.setAttribute('data-role', 'perf-portrait');
+  const writePerfPortrait = perfPortrait === null ? null : textWriter(perfPortrait);
   const writePerfFrame = perfFrame === null ? null : textWriter(perfFrame);
   const writePerfRender = perfRender === null ? null : textWriter(perfRender);
 
@@ -67,6 +72,11 @@ export function mountDebugPanel(root: HTMLElement, session: Session, perf?: Debu
         writePerfFrame(fmt(tr.debug.perfFrame, { fps: f.fps.toFixed(0), avg: f.stepAvgMs.toFixed(2), max: f.stepMaxMs.toFixed(2) }));
         const r = perf.render();
         writePerfRender(fmt(tr.debug.perfRender, { ms: r.renderMs.toFixed(2), units: r.units, projectiles: r.projectiles, effects: r.effects }));
+        const p = perf.portraits?.();
+        if (p !== undefined && writePerfPortrait !== null) {
+          const avg = p.generated > 0 ? p.totalMs / p.generated : 0;
+          writePerfPortrait(fmt(tr.debug.perfPortrait, { n: p.generated, avg: avg.toFixed(1), max: p.maxMs.toFixed(1) }));
+        }
       }
     },
     destroy(): void {

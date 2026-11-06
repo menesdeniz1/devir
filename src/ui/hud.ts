@@ -26,6 +26,7 @@ import {
   type SlotView,
 } from './towers';
 import { NoticeTimer, rejectNoticeText } from './notice';
+import { portraitBinder, portraitImage, type PortraitLookup } from './portrait';
 import { roleMarkOf, roleNameOf, unitTooltip } from './unitInfo';
 
 export interface HudHooks {
@@ -33,6 +34,11 @@ export interface HudHooks {
   onReject?: () => void;
   /** Oyun hızı (PRD G-08): düğme etiketi ve tıklayınca sıradaki hız. Verilmezse düğme gösterilmez. */
   speed?: { value(): number; cycle(): void };
+  /**
+   * Birlik, kule ve yetenek portreleri (GDD §11): hazırsa resim adresi, değilse null (sonraki güncellemede yeniden sorulur).
+   * Verilmezse kartlar yer tutucuyla (rol işareti / harf) çizilir.
+   */
+  portrait?: PortraitLookup;
 }
 
 export interface Hud {
@@ -84,6 +90,7 @@ function buildBase(parent: HTMLElement, side: SideId, label: string): BaseBar {
 interface UnitButton {
   unitId: string;
   button: HTMLButtonElement;
+  setPortrait: (id: string | null) => void;
   setDisabled: (v: boolean) => void;
   setReason: (v: string) => void;
   setTitle: (v: string | null) => void;
@@ -100,6 +107,7 @@ interface QueueSlot {
   setKind: (v: string) => void;
   setRole: (v: string | null) => void;
   mark: (v: string) => void;
+  setPortrait: (id: string | null) => void;
 }
 
 /**
@@ -110,6 +118,9 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
   const top = el('header', 'hud-top', root);
   const bottom = el('section', 'hud-bottom', root);
   bottom.setAttribute('aria-label', tr.hud.controls);
+  const lookup = hooks.portrait;
+  // Çağ vurgusu (panel kenarı, portre zemini) oyuncunun çağını izler: CSS `[data-age]`.
+  const writeAgeTheme: Array<(v: string | null) => void> = [attrWriter(top, 'data-age'), attrWriter(bottom, 'data-age')];
 
   // ---- Üst şerit ----
   const playerBar = buildBase(top, 0, tr.hud.you);
@@ -229,6 +240,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
   abilityButton.setAttribute('aria-keyshortcuts', tr.abilityUi.key);
   const abilityRing = el('span', 'ability__ring', abilityButton);
   abilityRing.setAttribute('aria-hidden', 'true');
+  const writeAbilityArt = portraitBinder(lookup, 'ability', portraitImage(abilityRing, 'ability__icon', abilityButton));
   const abilityRingText = el('span', 'ability__ring-text', abilityRing);
   const abilityNameEl = el('span', 'btn__name ability__name', abilityButton);
   const abilityKey = el('kbd', 'btn__key ability__key', abilityButton);
@@ -312,12 +324,15 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
       const button = el('button', 'btn btn--unit', cell);
       button.type = 'button';
       button.dataset['role'] = getUnit(unitId)?.role ?? '';
+      // Kart görseli: birliğin durma pozu portresi; kısayol rozeti çerçevenin köşesinde.
+      const art = el('span', 'btn__art', button);
+      const setPortrait = portraitBinder(lookup, 'unit', portraitImage(art, 'btn__portrait', button));
+      const keyEl = el('kbd', 'btn__key', art);
+      keyEl.textContent = UNIT_SHORTCUT_LABELS[index] ?? '';
       const nameEl = el('span', 'btn__name', button);
       nameEl.textContent = unitName(unitId);
       const costEl = el('span', 'btn__cost', button);
       costEl.textContent = String(getUnit(unitId)?.def.cost ?? 0);
-      const keyEl = el('kbd', 'btn__key', button);
-      keyEl.textContent = UNIT_SHORTCUT_LABELS[index] ?? '';
       const reason = el('span', 'unit-cell__reason', cell);
       reason.setAttribute('aria-hidden', 'true');
       button.addEventListener('click', () => {
@@ -329,6 +344,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
       return {
         unitId,
         button,
+        setPortrait,
         setDisabled: disabled,
         setReason: textWriter(reason),
         setTitle: attrWriter(button, 'title'),
@@ -346,6 +362,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     const button = el('button', 'queue-slot', queueBox);
     button.type = 'button';
     const progress = el('span', 'queue-slot__progress', button);
+    const setPortrait = portraitBinder(lookup, 'unit', portraitImage(button, 'queue-slot__portrait'));
     const glyph = el('span', 'queue-slot__glyph', button);
     const mark = el('span', 'queue-slot__mark', button);
     mark.setAttribute('aria-hidden', 'true');
@@ -366,6 +383,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
       setKind: (v) => kind(v),
       setRole: (v) => role(v),
       mark: textWriter(mark),
+      setPortrait,
     });
   }
 
@@ -375,6 +393,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
   defenseBox.setAttribute('aria-label', tr.defense.group);
   interface SlotCell {
     button: HTMLButtonElement;
+    setPortrait: (id: string | null) => void;
     setKind: (v: string | null) => void;
     setName: (v: string) => void;
     setSub: (v: string) => void;
@@ -385,6 +404,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
   }
   const slotCells: SlotCell[] = [];
   const slotMenu = el('div', 'slot-menu', root);
+  writeAgeTheme.push(attrWriter(slotMenu, 'data-age'));
   slotMenu.hidden = true;
   slotMenu.setAttribute('role', 'group');
   slotMenu.tabIndex = -1;
@@ -392,6 +412,8 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
   let openKind: SlotView['kind'] | null = null;
   interface MenuOption {
     check: () => ReturnType<Session['check']>;
+    setPortrait: (id: string | null) => void;
+    portraitId: string | null;
     setDisabled: (v: boolean) => void;
     setReason: (v: string) => void;
     setTitle: (v: string | null) => void;
@@ -437,9 +459,12 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     onClick: () => void,
     check: () => ReturnType<Session['check']>,
     towerId: string | null,
+    portraitId: string | null,
   ): void {
     const button = el('button', `btn slot-menu__option ${cls}`, slotMenu);
     button.type = 'button';
+    const art = el('span', 'slot-menu__art', button);
+    const setPortrait = portraitBinder(lookup, 'tower', portraitImage(art, 'slot-menu__portrait', button));
     const nameEl = el('span', 'btn__name', button);
     nameEl.textContent = lines.name;
     if (lines.cost !== undefined) {
@@ -453,8 +478,11 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     const reason = el('span', 'unit-cell__reason slot-menu__reason', slotMenu);
     reason.setAttribute('aria-hidden', 'true');
     button.addEventListener('click', onClick);
+    setPortrait(portraitId);
     menuOptions.push({
       check,
+      setPortrait,
+      portraitId,
       setDisabled: boolWriter((v) => {
         button.disabled = v;
       }),
@@ -479,12 +507,13 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
         const def = getTower(towerId)?.def;
         addOption(
           'slot-menu__build',
-          { name: towerName(towerId), cost: fmt(tr.defense.buildCost, { cost: def?.cost ?? 0 }), sub: towerKindText(towerId) },
+          { name: towerName(towerId), cost: String(def?.cost ?? 0), sub: towerKindText(towerId) },
           () => {
             const result = buildTower(session, slot, towerId);
             if (result.ok) closeMenu();
           },
           () => session.check(buildTowerCommand(slot, towerId)),
+          towerId,
           towerId,
         );
       }
@@ -499,6 +528,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
         },
         () => session.check(sellTowerCommand(slot)),
         null,
+        view.towerId,
       );
     }
     slotMenu.hidden = false;
@@ -510,6 +540,12 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     const cell = el('div', 'unit-cell slot-cell', defenseBox);
     const button = el('button', 'btn slot-btn', cell);
     button.type = 'button';
+    // Kurulu kulenin portresi; boş ve kilitli yuvada çerçeve simge gösterir (CSS).
+    const art = el('span', 'slot-btn__art', button);
+    const setPortrait = portraitBinder(lookup, 'tower', portraitImage(art, 'slot-btn__portrait', button));
+    const num = el('span', 'slot-btn__num', art);
+    num.setAttribute('aria-hidden', 'true');
+    num.textContent = String(i + 1);
     const label = el('span', 'slot-btn__label', button);
     label.textContent = fmt(tr.defense.slotLabel, { n: i + 1 });
     const nameEl = el('span', 'btn__name', button);
@@ -528,6 +564,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     });
     slotCells.push({
       button,
+      setPortrait,
       setKind: attrWriter(button, 'data-kind'),
       setName: textWriter(nameEl),
       setSub: textWriter(subEl),
@@ -560,6 +597,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
       const view = slotView(session, i);
       if (view === null) return;
       cell.setKind(view.kind);
+      cell.setPortrait(view.kind === 'built' ? view.towerId : null);
       if (view.kind === 'locked') {
         const check = session.check(unlockSlotCommand(i));
         cell.setName(fmt(tr.defense.locked, { cost: view.cost }));
@@ -605,6 +643,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
         return;
       }
       for (const option of menuOptions) {
+        option.setPortrait(option.portraitId);
         const check = option.check();
         option.setDisabled(!check.ok);
         const reason = check.ok ? undefined : rejectText(check.reason, check.missingGold);
@@ -714,6 +753,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     // Hazır oranı: kalan bekleme yeni yeteneğin tam beklemesine göre (çağ geçişinde kalan süre korunur; Y-05).
     const ready = cooling ? Math.max(0, Math.min(1, 1 - me.abilityCooldown / Math.max(1, ability.cooldownTicks))) : 1;
     writeAbilityName(name);
+    writeAbilityArt(ability.def.id);
     writeAbilityPct(`${(ready * 100).toFixed(1)}`);
     writeAbilityRing(cooling ? String(cooldownSeconds(me.abilityCooldown)) : '');
     writeAbilityDisabled(!check.ok);
@@ -738,6 +778,8 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     const state = session.state;
     const me = state.sides[PLAYER_SIDE];
     const foe = state.sides[PLAYER_SIDE === 0 ? 1 : 0];
+
+    for (const write of writeAgeTheme) write(String(me.age));
 
     // Üst şerit.
     playerBar.set(me.baseHp, me.baseMaxHp);
@@ -774,6 +816,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
       rebuildUnitButtons(ids);
     }
     unitButtons.forEach((ub, index) => {
+      ub.setPortrait(ub.unitId);
       const def = getUnit(ub.unitId)?.def;
       const cost = def?.cost ?? 0;
       const name = unitName(ub.unitId);
@@ -798,6 +841,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     // Kuyruk.
     slots.forEach((slot, i) => {
       const order = me.queue[i];
+      slot.setPortrait(order?.unitId ?? null);
       if (order === undefined) {
         slot.setKind('empty');
         slot.setRole(null);

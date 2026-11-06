@@ -99,7 +99,12 @@ async function boot(): Promise<void> {
   };
 
   const uiLayer = el('div', 'ui-layer', root);
-  const hud = mountHud(uiLayer, session, targeting, { onReject: () => audio.playUi('notice'), speed: speedControl });
+  // Portreler çizicinin önbelleğinden gelir (arayüz `src/render`'ı içe aktarmaz; GDD §11).
+  const hud = mountHud(uiLayer, session, targeting, {
+    onReject: () => audio.playUi('notice'),
+    speed: speedControl,
+    portrait: (kind, id) => renderer.portrait(kind, id),
+  });
   const screens = mountScreens(uiLayer, flow, { onNotice: () => audio.playUi('notice') });
   flow.subscribe((event) => {
     if (event.type === 'screen' && flow.screen !== 'battle') targeting.cancel();
@@ -138,6 +143,7 @@ async function boot(): Promise<void> {
     debugUpdate = mountDebugPanel(uiLayer, session, {
       frame: () => meter.snapshot(browserClock.now()),
       render: () => renderer.stats,
+      portraits: () => renderer.portraitStats,
     }).update;
   }
 

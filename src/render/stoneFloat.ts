@@ -4,14 +4,18 @@ import type { SideId } from '../sim/types';
 import { fmt, tr } from '../i18n';
 import { INK } from '../art/palette';
 import { UNIT_FEET_Y } from './constants';
+import { stoneTopWorldY, type StoneView } from './scene';
 
 /**
  * Sınır Taşı kazanç işareti: taşın sahibi her saniye gelir aldığında taşın üstünden "+N" yükselir ve söner.
  * Taşın ne işe yaradığı sahnede görünsün diye (insan oyun testi: "Sınır Taşı ne işe yarıyor anlamadım").
+ * Taşın boyu çağa göre değişir (GDD §8): işaret, doğduğu anda gösterilen çağ taşının tepesinin üstünden başlar.
  */
 
-/** Taşın tepesinin hemen üstü (dünya birimi; taş gövdesi ≈ 140 birim). */
-const START_Y = UNIT_FEET_Y - 22 - 160;
+/** İşaretin taban çizgisi ile taş tepesi arası boşluk (dünya birimi). */
+export const STONE_FLOAT_GAP = 28;
+/** Taş görünümü verilmezse: İlkel taşın tepesinin üstü (taban UNIT_FEET_Y − 22, tepe −132). */
+const DEFAULT_START_Y = UNIT_FEET_Y - 22 - 132 - STONE_FLOAT_GAP;
 /** Yükselme mesafesi ve ömür. */
 const RISE = 60;
 const LIFE_MS = 900;
@@ -22,6 +26,8 @@ const FILL: Record<SideId, number> = { 0: 0xffd25a, 1: 0xff9a7a };
 interface Pop {
   text: Text;
   ageMs: number;
+  /** Doğduğu andaki başlangıç y'si (dünya). */
+  startY: number;
 }
 
 export class StoneFloat {
@@ -29,8 +35,17 @@ export class StoneFloat {
   private readonly live: Pop[] = [];
   private readonly pool: Text[] = [];
 
-  constructor() {
-    this.container.position.set(STONE.zoneStart + (STONE.zoneEnd - STONE.zoneStart) / 2, START_Y);
+  private readonly stone: StoneView | undefined;
+
+  /** `stone`: işaretin başlangıç yüksekliği bu taşın (çağ görünümünün) tepesini izler. */
+  constructor(stone?: StoneView) {
+    this.stone = stone;
+    this.container.position.set(STONE.zoneStart + (STONE.zoneEnd - STONE.zoneStart) / 2, 0);
+  }
+
+  /** Yeni işaretin taban çizgisinin dünya y'si (taş tepesinin STONE_FLOAT_GAP üstü). */
+  get startY(): number {
+    return this.stone === undefined ? DEFAULT_START_Y : stoneTopWorldY(this.stone) - STONE_FLOAT_GAP;
   }
 
   /** Sahibin bu saniyeki taş altını. */
@@ -47,9 +62,10 @@ export class StoneFloat {
     text.style.fill = FILL[side];
     text.anchor.set(0.5, 1);
     text.alpha = 0;
-    text.position.set(0, 0);
+    const startY = this.startY;
+    text.position.set(0, startY);
     this.container.addChild(text);
-    this.live.push({ text, ageMs: 0 });
+    this.live.push({ text, ageMs: 0, startY });
   }
 
   /** animMs duraklatmada 0'dır: işaretler de donar. */
@@ -63,7 +79,7 @@ export class StoneFloat {
         this.release(p);
         continue;
       }
-      p.text.y = -RISE * t;
+      p.text.y = p.startY - RISE * t;
       // Hızlı belirir, son üçte birde söner.
       p.text.alpha = t < 0.15 ? t / 0.15 : t > 0.66 ? (1 - t) / 0.34 : 1;
     }

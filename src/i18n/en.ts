@@ -171,7 +171,7 @@ export const en: Strings = {
     xpAria: 'Experience: {xp}, {next} for the next age',
     xpAriaFinal: 'Experience: {xp}. You are in the final age',
     ageUp: 'Age Up',
-    ageUpCost: '{cost} gold',
+    ageUpCost: '{cost}',
     ageUpKey: 'E',
     ageUpAria: 'Age up: {name}, {cost} gold, shortcut {key}',
     ageUpAriaBlocked: 'Age up: {name}, {cost} gold, shortcut {key}. Unavailable: {reason}',
@@ -430,5 +430,6 @@ export const en: Strings = {
     tick: 'Tick',
     perfFrame: 'FPS {fps} · Step avg {avg} / worst {max} ms',
     perfRender: 'Draw {ms} ms · Units {units} · Shots {projectiles} · FX {effects}',
+    perfPortrait: 'Portraits {n} · avg {avg} · max {max} ms',
   },
 };

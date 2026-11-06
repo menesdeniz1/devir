@@ -4,6 +4,7 @@ import { BaseRig } from '../art/baseRig';
 import { StoneRig } from '../art/stoneArt';
 import { prewarmTowerArt } from '../art/towerRig';
 import { artAge, prewarmUnitArt } from '../art/unitArt';
+import type { ArtAge } from '../art/palette';
 import { STONE } from '../data/stone';
 import { baseDamageLevel } from './fxMath';
 import { WORLD } from '../data/world';
@@ -139,12 +140,26 @@ const STONE_FOOT_Y = UNIT_FEET_Y - 22;
 const PATH_TOP_Y = UNIT_FEET_Y - 34;
 const PATH_BOTTOM_Y = UNIT_FEET_Y + 26;
 
-export function createStoneView(): StoneView {
+/** `age`: savaş alanının (oyuncunun) çizim çağı; taş bu çağın görünümüyle geçişsiz başlar. */
+export function createStoneView(age: ArtAge = 1): StoneView {
   const half = (STONE.zoneEnd - STONE.zoneStart) / 2;
-  const rig = new StoneRig({ halfWidth: half, pathTop: PATH_TOP_Y - STONE_FOOT_Y, pathBottom: PATH_BOTTOM_Y - STONE_FOOT_Y });
+  const rig = new StoneRig({ halfWidth: half, pathTop: PATH_TOP_Y - STONE_FOOT_Y, pathBottom: PATH_BOTTOM_Y - STONE_FOOT_Y }, { age });
   rig.root.position.set(STONE.zoneStart + half, STONE_FOOT_Y);
   rig.update(0, null, STONE.counterMax, 0);
   return { container: rig.root, rig };
+}
+
+/**
+ * Taş savaş alanının çağını izler (arka planla aynı: oyuncunun çağı, GDD §8/§14). Her karede çağrılabilir: çağ
+ * değişmedikçe hiçbir şey yapmaz. `animate` false (yeni maç) ise geçişsiz atlar.
+ */
+export function setStoneAge(view: StoneView, age: ArtAge, animate = true): void {
+  view.rig.setAge(age, animate);
+}
+
+/** Taş tepesinin dünya y'si (hedef çağın görünümü); kazanç işareti bunun üstünden doğar. */
+export function stoneTopWorldY(view: StoneView): number {
+  return view.container.y + view.container.scale.y * view.rig.topY;
 }
 
 /** Taşı durumuna göre çizer: sahibin amblemi/rengi ve ele geçirme ilerlemesi (counter / counterMax). */

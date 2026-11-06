@@ -185,7 +185,8 @@ export const tr = {
     xpAria: 'Deneyim: {xp}, sonraki çağ için {next}',
     xpAriaFinal: 'Deneyim: {xp}. Son çağdasın',
     ageUp: 'Çağ Atla',
-    ageUpCost: '{cost} altın',
+    /** Çağ Atla düğmesindeki ücret: yalnız sayı, altın simgesi CSS'tedir (.btn__cost). */
+    ageUpCost: '{cost}',
     ageUpKey: 'E',
     ageUpAria: 'Çağ atla: {name}, {cost} altın, kısayol {key}',
     ageUpAriaBlocked: 'Çağ atla: {name}, {cost} altın, kısayol {key}. Kullanılamıyor: {reason}',
@@ -447,6 +448,7 @@ export const tr = {
     tick: 'Tick',
     perfFrame: 'FPS {fps} · Adım ort {avg} / en kötü {max} ms',
     perfRender: 'Çizim {ms} ms · Birlik {units} · Mermi {projectiles} · Efekt {effects}',
+    perfPortrait: 'Portre {n} · ort {avg} · en {max} ms',
   },
 } as const;
 
