@@ -44,6 +44,14 @@ eklediği yapay hışırtı ve tık gibi başlangıçlar giderildi; efektlerin 4
 (GDD §15, tests/audio-timbre). Ayrıca İngilizce dil desteği (PRD G-04; Ayarlar → Dil) ve kayıt uyumluluğu
 semver'e göre: 1.0 kayıtları 1.1'de açılır (TDD §9).
 
+**Sürüm 1.2.0 (hazırlanıyor, kullanıcı denemesi bekleniyor):** kullanıcı istekleri — oyun hızı 1×/1,5×/2×/3×
+(PRD G-08), çağa göre Sınır Taşı görünüşü, düğmelerde birlik/kule portreleri ve arayüz cilası, Sınır Taşı handikapı.
+Handikap 20 değişkenle ölçüldü (Normal–Normal 200 maç): taş hem kartopu motoru hem çıkmaz kırıcıydı; seçilen
+**%50 kazan + aşınma** (GDD §8, §8.1; PRD K-17, K-18) taşı ilk alanın kazanma oranını %81,5 → %48,2'ye indirir.
+Gerçek kodla: N–N %45/%54,5, kilitlenen %0, medyan 14:11; Zor–Normal %80,5; Normal–Kolay %95,5; soak 500 ihlalsiz;
+637 birim testi, E2E üç tarayıcıda yeşil. Açık: kullanıcının yeni kuralları oynayıp onaylaması, sonra 1.2.0 paketi ve
+itch.io güncellemesi.
+
 **Bilinen açık noktalar:** saf ön hat yığınıyla oynanan aynalı maçlar (normal-front – Normal) çoğunlukla 20
 dakikayı aşar (kazanamaz, %27–28,5); ses ve müziğin tınısı yalnız ölçümle (LUFS, bant dengesi) doğrulandı, kulakla
 dinlenmedi; öğretici ve maç süresi gerçek bir insan oyuncuyla ölçülmedi (betikli oyuncu ve lead'in canlı maçıyla tarayıcıda doğrulandı; ilk kez oynayan birinin Normal'i ne kadar zor bulduğu bilinmiyor).
