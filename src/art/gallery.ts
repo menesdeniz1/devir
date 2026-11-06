@@ -3,6 +3,7 @@ import type { UnitAnimInput, UnitRig } from './anim';
 import { BaseRig, baseAtlasStats, baseDamageAtlasStats } from './baseRig';
 import type { ArtAge, ArtSide } from './palette';
 import { STONE_SWAP_MS, StoneRig } from './stoneArt';
+import { STONE_STORE_STEPS } from './stoneStore';
 import { SLOT_SCALE, TowerSlot, towerAtlasStats } from './towerRig';
 import { createUnitRig, unitAtlasStats } from './unitArt';
 import { createBackground, createBaseView, setBaseAge, setTowerSlot, towerLaunchPoint, triggerTowerFire } from '../render/scene';
@@ -25,8 +26,8 @@ import { fxAtlasStats } from './projectileArt';
  *   gray    — aynı satırlar gri tonlamada, can çubuğu taklidiyle (takım ayrımı renk dışı: yön, amblem, çubuk)
  *   bases   — 5 çağ × 2 taraf üs
  *   rebuild — çağ geçişi film şeridi (oyuncu 1→2, rakip 4→5), sabit zaman kareleri
- *   stone   — Sınır Taşı: çağ satırları × durumlar (tarafsız, ilerleme, oyuncu/rakip sahip) + canlı ele geçirme;
- *             altta canlı çağ geçişi (`age=` süzgeci satırlara uygulanır)
+ *   stone   — Maden: çağ satırları × durumlar (tarafsız, ilerleme, oyuncu/rakip sahip) + canlı ele geçirme +
+ *             depo yığını basamakları (küçük, orta, büyük); altta canlı çağ geçişi (`age=` süzgeci satırlara uygulanır)
  *   live    — `age=n` çağında canlı döngü (yürü → saldır → öl)
  *   towers  — 5 çağ üssü, yuvalarla: satır 1–2 (oyuncu/rakip) A + B + kilitli; satır 3 boş + eski çağ
  *             kuleleri; satır 4 (rakip) atış kareleri + boş yuva. Statik kareler.
@@ -515,19 +516,22 @@ function stoneStrip(g: Graphics, age: ArtAge, x: number, footY: number, w: numbe
 }
 
 /**
- * Sınır Taşı: satır başına bir çağ (taşın çağ görünümü), sütunlar tarafsız / oyuncuya doğru / oyuncu sahip /
- * rakibe doğru / rakip sahip + canlı ele geçirme döngüsü. Altta canlı çağ geçişi (her 2,5 sn bir sonraki çağ):
+ * Maden: satır başına bir çağ (madenin çağ görünümü), sütunlar tarafsız / oyuncuya doğru / oyuncu sahip /
+ * rakibe doğru / rakip sahip + canlı ele geçirme döngüsü (depo dolar, söküldüğünde boşalır) + depo yığını
+ * basamakları (oyuncu sahip; küçük, orta, büyük). Altta canlı çağ geçişi (her 2,5 sn bir sonraki çağ):
  * oyuncu/rakip sahipken ve tarafsızken; kazanç işaretinin başlangıç yüksekliği (taş tepesi + boşluk) sarı çizgi.
  * En altta Orta → Endüstri geçişinin sabit zaman kareleri (0, 15, 30, 50, 70, 100 %).
  */
 function stone(world: Container, app: Application): { w: number; h: number } {
-  const states: Array<{ counter: number; owner: ArtSide | null }> = [
-    { counter: 0, owner: null },
-    { counter: 45, owner: null },
-    { counter: 100, owner: 0 },
-    { counter: -70, owner: null },
-    { counter: -100, owner: 1 },
+  const states: Array<{ counter: number; owner: ArtSide | null; stored: number }> = [
+    { counter: 0, owner: null, stored: 0 },
+    { counter: 45, owner: null, stored: 0 },
+    { counter: 100, owner: 0, stored: 0 },
+    { counter: -70, owner: null, stored: 0 },
+    { counter: -100, owner: 1, stored: 0 },
   ];
+  // Depo basamakları (eşikler stoneStore.ts): küçük, orta, büyük.
+  const stores = [STONE_STORE_STEPS.small + 1, STONE_STORE_STEPS.medium, STONE_STORE_STEPS.large].map((stored) => ({ counter: 100, owner: 0 as ArtSide | null, stored }));
   const cellW = 230;
   const rowH = 280;
   const layout = { halfWidth: 92, pathTop: -12, pathBottom: 48 };
@@ -538,19 +542,25 @@ function stone(world: Container, app: Application): { w: number; h: number } {
     let clock = phaseMs;
     let counter = 0;
     let owner: ArtSide | null = null;
+    let stored = 0;
     app.ticker.add((tk) => {
       clock += tk.deltaMS;
       const target = Math.floor(clock / 7000) % 2 === 0 ? 100 : -100;
       counter += Math.sign(target - counter);
+      const was = owner;
       if (counter >= 100) owner = 0;
       else if (counter <= -100) owner = 1;
       else if ((owner === 0 && counter <= 0) || (owner === 1 && counter >= 0)) owner = null;
+      // Sahipken depo dolar; sahibinden sökülünce boşalır.
+      if (owner !== null) stored += tk.deltaMS * 0.12;
+      else if (was !== null) stored = 0;
+      r.setStored(stored);
       r.update(counter, owner, 100, tk.deltaMS);
     });
   };
   AGES.forEach((age, row) => {
     const footY = 210 + row * rowH;
-    const cells = [...states, null];
+    const cells = [...states, null, ...stores];
     cells.forEach((st, col) => {
       const x0 = 20 + col * cellW;
       stoneStrip(g, age, x0 + 4, footY, cellW - 8);
@@ -558,6 +568,7 @@ function stone(world: Container, app: Application): { w: number; h: number } {
       r.root.position.set(x0 + cellW / 2, footY);
       world.addChild(r.root);
       if (st !== null) {
+        r.setStored(st.stored);
         r.update(st.counter, st.owner, 100, 0);
         app.ticker.add((tk) => r.update(st.counter, st.owner, 100, tk.deltaMS));
       } else liveCycle(r, row * 900);
@@ -565,15 +576,16 @@ function stone(world: Container, app: Application): { w: number; h: number } {
   });
   // Canlı çağ geçişi.
   const footY = 210 + AGES.length * rowH;
-  const swaps: Array<{ owner: ArtSide | null; counter: number }> = [
-    { owner: 0, counter: 100 },
-    { owner: 1, counter: -100 },
-    { owner: null, counter: 0 },
+  const swaps: Array<{ owner: ArtSide | null; counter: number; stored: number }> = [
+    { owner: 0, counter: 100, stored: STONE_STORE_STEPS.medium },
+    { owner: 1, counter: -100, stored: STONE_STORE_STEPS.large },
+    { owner: null, counter: 0, stored: 0 },
   ];
   swaps.forEach((st, col) => {
     const x0 = 20 + col * cellW;
     stoneStrip(g, 3, x0 + 4, footY, cellW - 8);
     const r = new StoneRig(layout);
+    r.setStored(st.stored);
     r.root.position.set(x0 + cellW / 2, footY);
     world.addChild(r.root);
     const top = new Graphics();
@@ -603,13 +615,14 @@ function stone(world: Container, app: Application): { w: number; h: number } {
     const x0 = 20 + col * cellW;
     stoneStrip(g, 4, x0 + 4, stripY, cellW - 8);
     const r = new StoneRig(layout, { age: 3 });
+    r.setStored(STONE_STORE_STEPS.medium);
     r.root.position.set(x0 + cellW / 2, stripY);
     world.addChild(r.root);
     r.update(100, 0, 100, 0);
     r.setAge(4);
     r.update(100, 0, 100, f * STONE_SWAP_MS);
   });
-  return { w: 40 + 6 * cellW, h: stripY + 80 };
+  return { w: 40 + (6 + stores.length) * cellW, h: stripY + 80 };
 }
 
 function live(world: Container, app: Application): { w: number; h: number } {

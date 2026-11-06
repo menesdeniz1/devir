@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { Container, Texture } from 'pixi.js';
 import { STONE_SWAP_MS, StoneRig, stonePartNames } from '../src/art/stoneArt';
 import { STONE_VARIANTS } from '../src/art/stoneVariants';
+import { STONE_STORE_STEPS, pileBounds, storeStep } from '../src/art/stoneStore';
 import type { ArtAge } from '../src/art/palette';
 import { stoneTopWorldY, type StoneView } from '../src/render/scene';
 import { STONE_FLOAT_GAP, StoneFloat } from '../src/render/stoneFloat';
 
 /**
- * Sınır Taşı'nın çağ görünümleri (GDD §8 "Görsel"). Düğümde tuval yok: taş sahte dokularla kurulur
+ * Maden'in (kod adı taş) çağ görünümleri ve depo yığını (GDD §8 "Görsel"). Düğümde tuval yok: maden sahte dokularla kurulur
  * (sprite/kapsayıcı yapısı ve geçiş mantığı gerçek koddur, yalnız piksel çizimi atlanır).
  */
 
@@ -43,7 +44,7 @@ function socketOf(rig: StoneRig): Container {
   return rig.root.getChildByLabel('stone.socket')!;
 }
 
-describe('Sınır Taşı çağ görünümleri (GDD §8)', () => {
+describe('Maden çağ görünümleri (GDD §8)', () => {
   it('çağ değişince görünüm değişir: kısa geçişte iki taş, sonunda yalnız yenisi', () => {
     const { rig } = fakeRig();
     rig.update(100, 0, 100, 16);
@@ -141,10 +142,12 @@ describe('Sınır Taşı çağ görünümleri (GDD §8)', () => {
     expect(order.indexOf('stone.bodies')).toBeLessThan(order.indexOf('stone.socket'));
   });
 
-  it('görünüm verisi: yuva gövdede, halka taşın tepesinin altında, tepe en yüksek parçada', () => {
+  it('görünüm verisi: yuva gövdede, halka madenin tepesinin altında, tepe en yüksek parçada', () => {
     for (const age of AGES) {
       const v = STONE_VARIANTS[age];
       const parts = [v.body, v.float, v.lamp].filter((p) => p !== undefined);
+      // En büyük depo yığını da tepenin altında kalır (kazanç işareti yığına binmez).
+      expect(v.store.y + pileBounds(3, v.store.scale).y0, `çağ ${age} yığın`).toBeGreaterThan(v.top);
       const highest = Math.min(...parts.map((p) => p.y0));
       expect(v.top, `çağ ${age}`).toBeLessThanOrEqual(highest + 3);
       expect(v.top - v.bob.amp, `çağ ${age}`).toBeGreaterThanOrEqual(highest - v.bob.amp - 3);
@@ -152,6 +155,17 @@ describe('Sınır Taşı çağ görünümleri (GDD §8)', () => {
       const holder = v.float ?? v.body;
       expect(v.socket.y).toBeGreaterThan(holder.y0);
       expect(v.socket.y).toBeLessThan(holder.y1);
+    }
+  });
+
+  it('maden çağla büyür: her çağ bir öncekinden yüksek; gövde ve yığın bölge işaretlerinin içinde', () => {
+    for (let i = 1; i < AGES.length; i++) {
+      expect(STONE_VARIANTS[AGES[i]!].top, `çağ ${AGES[i]}`).toBeLessThan(STONE_VARIANTS[AGES[i - 1]!].top);
+    }
+    for (const age of AGES) {
+      const v = STONE_VARIANTS[age];
+      const pile = pileBounds(3, v.store.scale);
+      for (const x of [v.body.x0, v.body.x1, v.store.x + pile.x0, v.store.x + pile.x1]) expect(Math.abs(x), `çağ ${age}`).toBeLessThan(LAYOUT.halfWidth);
     }
   });
 
@@ -168,7 +182,95 @@ describe('Sınır Taşı çağ görünümleri (GDD §8)', () => {
   });
 });
 
-describe('Sınır Taşı kazanç işareti başlangıç yüksekliği', () => {
+describe('Maden depo yığını (GDD §8)', () => {
+  function storeSprites(rig: StoneRig, age: ArtAge): Container[] {
+    const layer = variantLayers(rig).find((l) => l.label === `stone.variant.${age}`)!;
+    return [1, 2, 3].map((n) => layer.getChildByLabel(`stone.store.${n}`)!) as Container[];
+  }
+  const shown = (rig: StoneRig, age: ArtAge): number[] => storeSprites(rig, age).map((s) => (s.visible ? 1 : 0));
+
+  it('basamak eşikleri: 0 boş, > 0 küçük, ≥ orta eşiği orta, ≥ büyük eşiği büyük', () => {
+    expect(storeStep(0)).toBe(0);
+    expect(storeStep(-5)).toBe(0);
+    expect(storeStep(Number.NaN)).toBe(0);
+    expect(storeStep(1)).toBe(1);
+    expect(storeStep(STONE_STORE_STEPS.medium - 1)).toBe(1);
+    expect(storeStep(STONE_STORE_STEPS.medium)).toBe(2);
+    expect(storeStep(STONE_STORE_STEPS.large - 1)).toBe(2);
+    expect(storeStep(STONE_STORE_STEPS.large)).toBe(3);
+    expect(storeStep(1e6)).toBe(3);
+    expect(STONE_STORE_STEPS.small).toBeLessThan(STONE_STORE_STEPS.medium);
+    expect(STONE_STORE_STEPS.medium).toBeLessThan(STONE_STORE_STEPS.large);
+  });
+
+  it('her çağda yığın eşiklerde değişir; en fazla bir basamak görünür; başta boş', () => {
+    for (const age of AGES) {
+      const { rig, requests } = fakeRig(age);
+      for (const n of stonePartNames(age).store) expect(requests, `çağ ${age}`).toContain(n);
+      expect(rig.storedStep).toBe(0);
+      expect(shown(rig, age)).toEqual([0, 0, 0]);
+      rig.setStored(1);
+      expect(shown(rig, age)).toEqual([1, 0, 0]);
+      rig.setStored(STONE_STORE_STEPS.medium);
+      expect(shown(rig, age)).toEqual([0, 1, 0]);
+      rig.setStored(STONE_STORE_STEPS.large);
+      expect(shown(rig, age)).toEqual([0, 0, 1]);
+      expect(rig.storedStep).toBe(3);
+      // Söküldü: depo boşalır.
+      rig.setStored(0);
+      expect(shown(rig, age)).toEqual([0, 0, 0]);
+    }
+  });
+
+  it('basamak içinde hiçbir şey değişmez: doku isteği ve geçiş sayısı sabit', () => {
+    const { rig, requests } = fakeRig(3);
+    rig.update(100, 0, 100, 16);
+    const before = requests.length;
+    rig.setStored(5);
+    expect(rig.storeSwitchCount).toBe(1);
+    for (let g = 5; g < STONE_STORE_STEPS.medium; g += 0.5) {
+      rig.setStored(g);
+      rig.update(100, 0, 100, 16);
+    }
+    expect(rig.storeSwitchCount).toBe(1);
+    rig.setStored(STONE_STORE_STEPS.medium);
+    for (let g = STONE_STORE_STEPS.medium; g < STONE_STORE_STEPS.large; g++) rig.setStored(g);
+    expect(rig.storeSwitchCount).toBe(2);
+    expect(requests.length).toBe(before);
+    expect(rig.variantBuildCount).toBe(1);
+  });
+
+  it('çağ değişince yeni görünüm o anki basamağı gösterir; geçişte iki çağ da aynı basamakta', () => {
+    const { rig } = fakeRig(1);
+    rig.setStored(STONE_STORE_STEPS.medium + 10);
+    rig.setAge(2);
+    rig.update(100, 0, 100, STONE_SWAP_MS / 2);
+    expect(shown(rig, 1)).toEqual([0, 1, 0]);
+    expect(shown(rig, 2)).toEqual([0, 1, 0]);
+    rig.setStored(STONE_STORE_STEPS.large);
+    expect(shown(rig, 1)).toEqual([0, 0, 1]);
+    expect(shown(rig, 2)).toEqual([0, 0, 1]);
+  });
+
+  it('yığın gövdenin önünde, süzülen parça ve fenerin arkasında; süzülmez', () => {
+    for (const age of [4, 5] as const) {
+      const { rig } = fakeRig(age);
+      rig.setStored(STONE_STORE_STEPS.large);
+      const layer = variantLayers(rig).find((l) => l.label === `stone.variant.${age}`)!;
+      const order = layer.children.map((c) => c.label);
+      expect(order.indexOf('stone.body')).toBeLessThan(order.indexOf('stone.store.1'));
+      const after = age === 4 ? 'stone.lamp' : 'stone.float';
+      expect(order.indexOf('stone.store.3')).toBeLessThan(order.indexOf(after));
+      const pile = layer.getChildByLabel('stone.store.3')!;
+      const y0 = pile.y;
+      rig.update(100, 0, 100, 800);
+      expect(pile.y).toBe(y0);
+      expect(pile.x).toBe(STONE_VARIANTS[age].store.x);
+    }
+  });
+});
+
+describe('Maden kazanç işareti başlangıç yüksekliği', () => {
   it('işaret her çağda taşın tepesinin üstünden doğar', () => {
     const { rig } = fakeRig();
     rig.root.position.set(960, 610);

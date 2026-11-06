@@ -4,13 +4,16 @@ import { buildAtlas, mustTexture, type PartSpec } from './atlas';
 import { circle, ellipse, line, shape, soft, stroke, type Ctx } from './paint';
 import { EMBLEM_FILL, INK, TEAM, type ArtAge, type ArtSide, type Tone } from './palette';
 import { LAMP_NEUTRAL_TINT, STONE_VARIANTS, type StoneVariant } from './stoneVariants';
+import { pileBounds, pileDraw, storeStep, type StoreStep } from './stoneStore';
 
 /**
- * Sınır Taşı (GDD §8): koridor ortasında, savaş alanının çağına (oyuncunun çağı, arka planla aynı) göre biçim
- * değiştiren sınır taşı. (0,0) taşın tabanı (zemin çizgisi). Çağ görünümleri `stoneVariants.ts`'te: İlkel dikili
- * taş, Antik dikilitaş, Orta armalı sınır taşı, Endüstri fener direği, Gelecek süzülen kristal.
- * Taşın yuvasında tarafsızken oyma işaret, sahipliğe geçince sahibin amblemi (oyuncu daire / rakip elmas) kendi
- * renginde yanar ve taşın ardında bir hale parlar (getiri çağla arttığından hale de çağla biraz güçlenir).
+ * Maden (GDD §8; kod adı "stone"): koridor ortasında, savaş alanının çağına (oyuncunun çağı, arka planla aynı)
+ * göre büyüyen altın madeni. (0,0) madenin tabanı (zemin çizgisi). Çağ görünümleri `stoneVariants.ts`'te: İlkel
+ * altın damarlı kaya + kazma, Antik ahşap destekli maden ağzı + el arabası, Orta taş kuyu + ahşap kule + tekne,
+ * Endüstri perçinli demir kule + çark + konveyör + vagon, Gelecek kristal çıkarıcı. Madenin deposundaki altın
+ * yanında bir yığın olarak görünür ve birkaç basamakta büyür (`setStored`, `stoneStore.ts`).
+ * Yuvada tarafsızken oyma işaret, sahipliğe geçince sahibin amblemi (oyuncu daire / rakip elmas) kendi
+ * renginde yanar ve madenin ardında bir hale parlar (getiri çağla arttığından hale de çağla biraz güçlenir).
  * Yuvayı saran halka ele geçirme ilerlemesini (|sayaç| / sayaçMax) gösterir: oyuncuya doğru mavi ve tepeden sola
  * (oyuncu tarafına), rakibe doğru turuncu ve tepeden sağa (rakip tarafına) dolar. Bölge sınırlarında zemin
  * işaretleri. Takım ayrımı yalnız renge bırakılmaz: amblem şekli + halkanın dönüş yönü.
@@ -33,6 +36,7 @@ const SWAP_OUT_SCALE = 1.08;
 const SWAP_SWELL = 0.12;
 
 const AGES: readonly ArtAge[] = [1, 2, 3, 4, 5];
+const STORE_STEPS = [1, 2, 3] as const;
 
 /** Sahip amblemi: takım renginde dış şekil + krem iç şekil (oyuncu daire, rakip elmas). */
 function emblemDraw(side: ArtSide) {
@@ -75,9 +79,14 @@ function markerDraw(top: number, bottom: number) {
 }
 
 /** Parça adları (atlas ve test dokuları aynı adları kullanır). */
-export function stonePartNames(age: ArtAge): { body: string; float: string | null; lamp: string | null } {
+export function stonePartNames(age: ArtAge): { body: string; float: string | null; lamp: string | null; store: [string, string, string] } {
   const v = STONE_VARIANTS[age];
-  return { body: `stone.body.${age}`, float: v.float ? `stone.float.${age}` : null, lamp: v.lamp ? `stone.lamp.${age}` : null };
+  return {
+    body: `stone.body.${age}`,
+    float: v.float ? `stone.float.${age}` : null,
+    lamp: v.lamp ? `stone.lamp.${age}` : null,
+    store: [`stone.store.${age}.1`, `stone.store.${age}.2`, `stone.store.${age}.3`],
+  };
 }
 
 /** Çağdan bağımsız tüm taş sanatı tek atlasta, ilk taşta bir kez pişirilir (karede yeniden çizim yok). */
@@ -97,6 +106,7 @@ function artParts(): PartSpec[] {
     parts.push({ name: n.body, ...v.body });
     if (v.float && n.float) parts.push({ name: n.float, ...v.float });
     if (v.lamp && n.lamp) parts.push({ name: n.lamp, ...v.lamp });
+    for (const step of STORE_STEPS) parts.push({ name: n.store[step - 1]!, ...pileBounds(step, v.store.scale), draw: pileDraw(v.store.style, step, v.store.scale) });
   }
   return parts;
 }
@@ -134,6 +144,8 @@ interface VariantLayer {
   /** Süzülen parça (yoksa null): çağın `bob` genliğiyle iner-kalkar. */
   float: Container | null;
   lamp: Sprite | null;
+  /** Depo yığını basamakları (küçük, orta, büyük); en fazla biri görünür. */
+  store: [Sprite, Sprite, Sprite];
 }
 
 function part(tex: Texture, label: string): Sprite {
@@ -163,6 +175,8 @@ export class StoneRig {
   private popMs = Infinity;
   private lastCounter = Number.NaN;
   private lastOwner: ArtSide | null | undefined = undefined;
+  private stored: StoreStep = 0;
+  private storeSwitches = 0;
 
   constructor(layout: StoneLayout, options: StoneRigOptions = {}) {
     this.tex = options.texture ?? defaultTextures(layout);
@@ -198,6 +212,28 @@ export class StoneRig {
   /** Kurulmuş çağ görünümü sayısı (her çağ en fazla bir kez kurulur; testler için). */
   get variantBuildCount(): number {
     return this.builds;
+  }
+
+  /** Depo yığınının basamağı (0 boş, 1 küçük, 2 orta, 3 büyük). */
+  get storedStep(): StoreStep {
+    return this.stored;
+  }
+
+  /** Yığın basamağı kaç kez değişti (basamak içinde değişim yok; testler için). */
+  get storeSwitchCount(): number {
+    return this.storeSwitches;
+  }
+
+  /**
+   * Depodaki altın: yığın basamağı değişince yalnız görünürlükler değişir (doku isteği, kurma yok). Her kare
+   * çağrılabilir; basamak içinde hiçbir şey yapmaz.
+   */
+  setStored(gold: number): void {
+    const step = storeStep(gold);
+    if (step === this.stored) return;
+    this.stored = step;
+    this.storeSwitches += 1;
+    for (const l of this.layers.values()) this.showStore(l);
   }
 
   /** Hedef çağ taşının tepesi (taş yerelinde, negatif). Kazanç işareti bunun üstünden doğar. */
@@ -288,7 +324,18 @@ export class StoneRig {
       lamp.tint = LAMP_NEUTRAL_TINT;
       root.addChild(lamp);
     }
-    const layer: VariantLayer = { root, float, lamp };
+    const v = STONE_VARIANTS[age];
+    const store = names.store.map((n, i) => {
+      const s = part(this.tex(n), `stone.store.${i + 1}`);
+      s.position.set(v.store.x, v.store.y);
+      return s;
+    }) as [Sprite, Sprite, Sprite];
+    // Yığın gövdenin önünde, süzülen parça ve fenerin arkasında.
+    root.addChildAt(store[0], 1);
+    root.addChildAt(store[1], 2);
+    root.addChildAt(store[2], 3);
+    const layer: VariantLayer = { root, float, lamp, store };
+    this.showStore(layer);
     this.layers.set(age, layer);
     this.bodies.addChild(root);
     this.builds += 1;
@@ -352,6 +399,10 @@ export class StoneRig {
     }
     this.socket.position.set(sx, sy);
     this.aura.position.set(sx, sy);
+  }
+
+  private showStore(layer: VariantLayer): void {
+    layer.store.forEach((s, i) => (s.visible = this.stored === i + 1));
   }
 
   private tintLamp(layer: VariantLayer, owner: ArtSide | null): void {

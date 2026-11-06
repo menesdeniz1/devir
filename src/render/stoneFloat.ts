@@ -14,8 +14,8 @@ import { stoneTopWorldY, type StoneView } from './scene';
 
 /** İşaretin taban çizgisi ile taş tepesi arası boşluk (dünya birimi). */
 export const STONE_FLOAT_GAP = 28;
-/** Taş görünümü verilmezse: İlkel taşın tepesinin üstü (taban UNIT_FEET_Y − 22, tepe −132). */
-const DEFAULT_START_Y = UNIT_FEET_Y - 22 - 132 - STONE_FLOAT_GAP;
+/** Maden görünümü verilmezse: İlkel madenin tepesinin üstü (taban UNIT_FEET_Y − 22, tepe −108; stoneVariants.ts). */
+const DEFAULT_START_Y = UNIT_FEET_Y - 22 - 108 - STONE_FLOAT_GAP;
 /** Yükselme mesafesi ve ömür. */
 const RISE = 60;
 const LIFE_MS = 900;

@@ -129,7 +129,7 @@ export function towerLaunchPoint(view: BaseView, slot: number): { x: number; y: 
   return { x: c.x + c.scale.x * p.x, y: c.y + c.scale.y * p.y };
 }
 
-/** Koridorun ortasındaki Sınır Taşı görünümü. Kapsayıcı dünya koordinatındadır (arka plan ile birlikler arası katman). */
+/** Koridorun ortasındaki Maden (kod adı taş) görünümü. Kapsayıcı dünya koordinatındadır (arka plan ile birlikler arası katman). */
 export interface StoneView {
   container: Container;
   rig: StoneRig;
@@ -162,7 +162,16 @@ export function stoneTopWorldY(view: StoneView): number {
   return view.container.y + view.container.scale.y * view.rig.topY;
 }
 
-/** Taşı durumuna göre çizer: sahibin amblemi/rengi ve ele geçirme ilerlemesi (counter / counterMax). */
+/** Maden deposundaki altın: madenin yanındaki yığın birkaç basamakta büyür (basamak içinde değişim yok). */
+export function setStoneStored(view: StoneView, gold: number): void {
+  view.rig.setStored(gold);
+}
+
+/**
+ * Madeni durumuna göre çizer: sahibin amblemi/rengi, ele geçirme ilerlemesi (counter / counterMax) ve depo
+ * yığını (`potGold`). Yeni maçta da (renderer 'reset') çağrıldığından yığın hemen boşalır.
+ */
 export function updateStoneView(view: StoneView, stone: StoneState, animMs: number): void {
   view.rig.update(stone.counter, stone.owner, STONE.counterMax, animMs);
+  setStoneStored(view, stone.potGold);
 }
