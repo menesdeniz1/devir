@@ -44,14 +44,14 @@ eklediği yapay hışırtı ve tık gibi başlangıçlar giderildi; efektlerin 4
 (GDD §15, tests/audio-timbre). Ayrıca İngilizce dil desteği (PRD G-04; Ayarlar → Dil) ve kayıt uyumluluğu
 semver'e göre: 1.0 kayıtları 1.1'de açılır (TDD §9).
 
-**Sürüm 1.2.0 (hazırlanıyor, kullanıcı denemesi bekleniyor):** kullanıcı istekleri — oyun hızı 1×/1,5×/2×/3×
+**Sürüm 1.2.0 (2026-11-07, kullanıcı oynayıp onayladı: "beğendim"):** kullanıcı istekleri — oyun hızı 1×/1,5×/2×/3×
 (PRD G-08), düğmelerde birlik/kule portreleri ve arayüz cilası, Sınır Taşı handikapı ve ardından kullanıcının
 önerisiyle **Maden**: ortadaki hedef yalnız altın verir (2/4/6/10/16), yarısı depoya gider, madeni sahibinden alan
 depoyu yağmalar; çağla büyüyen maden çizimi ve depo yığını; deneyim öldürmeler ve üs baskısından (her 100 hasar 15,
 PRD E-10); isteğe bağlı aşınma (GDD §8, §8.1; PRD K-17, K-18). Ölçüm yolu: 20+ değişken (Normal–Normal 200 maç);
 taş hem kartopu motoru hem çıkmaz kırıcıydı; madeni ilk alanın kazanma oranı %81,5 → %50,5. Gerçek kodla: N–N
 %47,5/%52,5, kilitlenen %0, medyan 14:08; Zor–Normal %77; Normal–Kolay %96,5; soak 500 ihlalsiz; 647 birim testi,
-E2E üç tarayıcıda 112 geçti. Açık: kullanıcının madeni oynayıp onaylaması, sonra 1.2.0 paketi ve itch.io güncellemesi.
+E2E üç tarayıcıda 112 geçti. Kullanıcı yeni kuralları ve madeni oynadı, onayladı (ikinci insan oyun testi).
 
 **Bilinen açık noktalar:** saf ön hat yığınıyla oynanan aynalı maçlar (normal-front – Normal) çoğunlukla 20
 dakikayı aşar (kazanamaz, %27–28,5); ses ve müziğin tınısı yalnız ölçümle (LUFS, bant dengesi) doğrulandı, kulakla
