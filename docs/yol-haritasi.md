@@ -28,7 +28,7 @@ Her aşama **çalıştırılabilir** bir sürümle ve **komutla doğrulanabilir*
 | 7 | Ekranlar, ayarlar, kayıt | Tamamlandı (2026-11-05): menüler, ayarlar, kayıt/devam, sonuç ekranı, ses bağlantısı |
 | 8 | Öğretici | Tamamlandı (2026-11-05): 10 adım, atla, ilk açılış önerisi; kayda ve sonuçlara yazılmaz |
 | 9 | Üretim kalitesinde görsel ve ses | Tamamlandı (2026-11-05): özgün siluetler, çağa özgü mermiler, arka planlar, üs hasarı, sarsıntı; sentez ses ve 5 çağ müziği |
-| 10 | Denge, kalite ve yayın | Tamamlandı (2026-11-05): kod incelemesi düzeltmeleri, perf paneli, WebGL yok ekranı, üç tarayıcılı E2E, sürüm 1.0.0 paketi. Yayında (2026-11-06): https://menesdeniz.itch.io/devir; önce 1.0.1, aynı gün 1.1.0 (İngilizce sayfa; itch.io sunucusundaki paket yerel derlemeyle bayt bayt aynı; oradan İngilizce ve Türkçe açılış, maç ve üretim konsol hatasız). İlk insan oyun testi yapıldı (2026-11-06; bkz. Sürüm 1.1.0). Kullanıcı 1.1.0'ın yeni seslerini dinledi ve beğendi (2026-11-06). Açık: Normal'in zorluğu için daha fazla insan oyuncu |
+| 10 | Denge, kalite ve yayın | Tamamlandı (2026-11-05): kod incelemesi düzeltmeleri, perf paneli, WebGL yok ekranı, üç tarayıcılı E2E, sürüm 1.0.0 paketi. Yayında (2026-11-06): https://menesdeniz.itch.io/devir; önce 1.0.1, aynı gün 1.1.0 (İngilizce sayfa; itch.io sunucusundaki paket yerel derlemeyle bayt bayt aynı; oradan İngilizce ve Türkçe açılış, maç ve üretim konsol hatasız). İlk insan oyun testi yapıldı (2026-11-06; bkz. Sürüm 1.1.0). Kullanıcı 1.1.0'ın yeni seslerini dinledi ve beğendi (2026-11-06). 1.2.0 kullanıcı tarafından oynanıp onaylandı ve itch.io'da yayında (2026-11-07). Aşamanın teslimleri tamam; yayın sonrası izleme "Bilinen açık noktalar"da |
 
 **Sürüm 1.0.0 sonrası düzeltmeler:** ikinci ve üçüncü denge turu (üs canı eğrisi; Yürüyen Kale hasarı; iki tohum
 kümesinde Normal–Normal medyan ≈ 10:45, zaman aşımı ≤ %7,5; Zor–Zor zaman aşımı ≤ %8,5), ölçüme dayalı ses
@@ -54,6 +54,10 @@ taş hem kartopu motoru hem çıkmaz kırıcıydı; madeni ilk alanın kazanma o
 E2E üç tarayıcıda 112 geçti. Kullanıcı yeni kuralları ve madeni oynadı, onayladı (ikinci insan oyun testi).
 itch.io'da yayında (2026-11-07): https://menesdeniz.itch.io/devir 1.2.0; oradaki paket yerel derlemeyle bayt bayt aynı,
 İngilizce ve Türkçe açılış, maç ve üretim konsol hatasız.
+
+**Yayın sonrası izleme (sürekli):** Normal'in zorluğu şimdiye kadar yalnız kullanıcının kendi oyunlarıyla ve yapay zekâ
+turnuvalarıyla ölçüldü; yeni oyunculardan gelen geri bildirim (itch.io yorumları) toplandıkça zorluk ve maç süresi
+yeniden değerlendirilir. Bu bir aşama işi değildir: oyun yayında kaldıkça sürer.
 
 **Bilinen açık noktalar:** saf ön hat yığınıyla oynanan aynalı maçlar (normal-front – Normal) çoğunlukla 20
 dakikayı aşar (kazanamaz, %27–28,5); ses ve müziğin tınısı yalnız ölçümle (LUFS, bant dengesi) doğrulandı, kulakla
