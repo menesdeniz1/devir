@@ -2,7 +2,7 @@
 
 Yayında: https://menesdeniz.itch.io/devir.
 - 2026-11-06: 1.0.1 olarak yayınlandı, aynı gün 1.1.0'a güncellendi (İngilizce sayfa).
-- 1.2.0: bu dosyadaki adımlarla güncellenir.
+- 2026-11-07: bu dosyadaki adımlarla 1.2.0'a güncellendi (paket yerel derlemeyle aynı, iki dilde hatasız).
 
 Görseller bu klasörde (1.2.0 arayüzü): `en-*` İngilizce, önek olmayanlar Türkçe.
 Paket: GitHub sürüm sayfasındaki `devir-1.2.0-html5.zip` (yerelde `release/devir-1.2.0-html5.zip`).

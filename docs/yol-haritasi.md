@@ -52,6 +52,8 @@ PRD E-10); isteğe bağlı aşınma (GDD §8, §8.1; PRD K-17, K-18). Ölçüm y
 taş hem kartopu motoru hem çıkmaz kırıcıydı; madeni ilk alanın kazanma oranı %81,5 → %50,5. Gerçek kodla: N–N
 %47,5/%52,5, kilitlenen %0, medyan 14:08; Zor–Normal %77; Normal–Kolay %96,5; soak 500 ihlalsiz; 647 birim testi,
 E2E üç tarayıcıda 112 geçti. Kullanıcı yeni kuralları ve madeni oynadı, onayladı (ikinci insan oyun testi).
+itch.io'da yayında (2026-11-07): https://menesdeniz.itch.io/devir 1.2.0; oradaki paket yerel derlemeyle bayt bayt aynı,
+İngilizce ve Türkçe açılış, maç ve üretim konsol hatasız.
 
 **Bilinen açık noktalar:** saf ön hat yığınıyla oynanan aynalı maçlar (normal-front – Normal) çoğunlukla 20
 dakikayı aşar (kazanamaz, %27–28,5); ses ve müziğin tınısı yalnız ölçümle (LUFS, bant dengesi) doğrulandı, kulakla
