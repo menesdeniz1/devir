@@ -45,12 +45,13 @@ eklediği yapay hışırtı ve tık gibi başlangıçlar giderildi; efektlerin 4
 semver'e göre: 1.0 kayıtları 1.1'de açılır (TDD §9).
 
 **Sürüm 1.2.0 (hazırlanıyor, kullanıcı denemesi bekleniyor):** kullanıcı istekleri — oyun hızı 1×/1,5×/2×/3×
-(PRD G-08), çağa göre Sınır Taşı görünüşü, düğmelerde birlik/kule portreleri ve arayüz cilası, Sınır Taşı handikapı.
-Handikap 20 değişkenle ölçüldü (Normal–Normal 200 maç): taş hem kartopu motoru hem çıkmaz kırıcıydı; seçilen
-**%50 kazan + aşınma** (GDD §8, §8.1; PRD K-17, K-18) taşı ilk alanın kazanma oranını %81,5 → %48,2'ye indirir.
-Gerçek kodla: N–N %45/%54,5, kilitlenen %0, medyan 14:11; Zor–Normal %80,5; Normal–Kolay %95,5; soak 500 ihlalsiz;
-637 birim testi, E2E üç tarayıcıda yeşil. Açık: kullanıcının yeni kuralları oynayıp onaylaması, sonra 1.2.0 paketi ve
-itch.io güncellemesi.
+(PRD G-08), düğmelerde birlik/kule portreleri ve arayüz cilası, Sınır Taşı handikapı ve ardından kullanıcının
+önerisiyle **Maden**: ortadaki hedef yalnız altın verir (2/4/6/10/16), yarısı depoya gider, madeni sahibinden alan
+depoyu yağmalar; çağla büyüyen maden çizimi ve depo yığını; deneyim öldürmeler ve üs baskısından (her 100 hasar 15,
+PRD E-10); isteğe bağlı aşınma (GDD §8, §8.1; PRD K-17, K-18). Ölçüm yolu: 20+ değişken (Normal–Normal 200 maç);
+taş hem kartopu motoru hem çıkmaz kırıcıydı; madeni ilk alanın kazanma oranı %81,5 → %50,5. Gerçek kodla: N–N
+%47,5/%52,5, kilitlenen %0, medyan 14:08; Zor–Normal %77; Normal–Kolay %96,5; soak 500 ihlalsiz; 647 birim testi,
+E2E üç tarayıcıda 112 geçti. Açık: kullanıcının madeni oynayıp onaylaması, sonra 1.2.0 paketi ve itch.io güncellemesi.
 
 **Bilinen açık noktalar:** saf ön hat yığınıyla oynanan aynalı maçlar (normal-front – Normal) çoğunlukla 20
 dakikayı aşar (kazanamaz, %27–28,5); ses ve müziğin tınısı yalnız ölçümle (LUFS, bant dengesi) doğrulandı, kulakla
