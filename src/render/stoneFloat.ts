@@ -22,6 +22,9 @@ const LIFE_MS = 900;
 /** Aynı anda en fazla bu kadar işaret (saniyede bir doğar; ömür < 1 sn, normal hızda üst üste binmez). */
 const MAX_LIVE = 3;
 const FILL: Record<SideId, number> = { 0: 0xffd25a, 1: 0xff9a7a };
+/** Kazan etiketi (GDD §8): taşın tepesinin üstünde durur; işaretler onun üstünden doğar. */
+const POT_LABEL_H = 40;
+const POT_FILL = 0xffe9a8;
 
 interface Pop {
   text: Text;
@@ -36,6 +39,8 @@ export class StoneFloat {
   private readonly pool: Text[] = [];
 
   private readonly stone: StoneView | undefined;
+  private potLabel: Text | null = null;
+  private potShown = -1;
 
   /** `stone`: işaretin başlangıç yüksekliği bu taşın (çağ görünümünün) tepesini izler. */
   constructor(stone?: StoneView) {
@@ -45,7 +50,38 @@ export class StoneFloat {
 
   /** Yeni işaretin taban çizgisinin dünya y'si (taş tepesinin STONE_FLOAT_GAP üstü). */
   get startY(): number {
+    const base = this.baseY;
+    return this.potLabel !== null && this.potLabel.visible ? base - POT_LABEL_H : base;
+  }
+
+  /** Taş tepesinin STONE_FLOAT_GAP üstü (kazan etiketinin taban çizgisi). */
+  private get baseY(): number {
     return this.stone === undefined ? DEFAULT_START_Y : stoneTopWorldY(this.stone) - STONE_FLOAT_GAP;
+  }
+
+  /** Taştaki kazanın altını; 0 ise etiket gizlenir. Metin yalnız değer değişince yeniden yazılır. */
+  setPot(gold: number): void {
+    if (gold === this.potShown) return;
+    this.potShown = gold;
+    if (gold <= 0) {
+      if (this.potLabel !== null) this.potLabel.visible = false;
+      return;
+    }
+    if (this.potLabel === null) {
+      this.potLabel = new Text({
+        text: '',
+        style: { fontFamily: 'system-ui, "Segoe UI", Roboto, Arial, sans-serif', fontSize: 28, fontWeight: '800', fill: POT_FILL, stroke: { color: INK, width: 6 } },
+      });
+      this.potLabel.anchor.set(0.5, 1);
+      this.container.addChild(this.potLabel);
+    }
+    this.potLabel.text = fmt(tr.hud.stonePotLabel, { gold });
+    this.potLabel.visible = true;
+    this.potLabel.y = this.baseY;
+  }
+
+  get potText(): string | null {
+    return this.potLabel !== null && this.potLabel.visible ? this.potLabel.text : null;
   }
 
   /** Sahibin bu saniyeki taş altını. */
@@ -70,6 +106,8 @@ export class StoneFloat {
 
   /** animMs duraklatmada 0'dır: işaretler de donar. */
   update(animMs: number): void {
+    // Taş çağla boy değiştirir (ve Gelecek taşı süzülür): etiket tepeyi izler.
+    if (this.potLabel !== null && this.potLabel.visible) this.potLabel.y = this.baseY;
     for (let i = this.live.length - 1; i >= 0; i--) {
       const p = this.live[i]!;
       p.ageMs += animMs;
@@ -87,6 +125,7 @@ export class StoneFloat {
 
   clear(): void {
     while (this.live.length > 0) this.release(this.live.pop()!);
+    this.setPot(0);
   }
 
   get count(): number {
@@ -101,6 +140,8 @@ export class StoneFloat {
   destroy(): void {
     this.clear();
     for (const t of this.pool) t.destroy();
+    this.potLabel?.destroy();
+    this.potLabel = null;
     this.pool.length = 0;
     this.container.destroy();
   }

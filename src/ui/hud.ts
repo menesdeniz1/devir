@@ -1,10 +1,10 @@
-import { STONE } from '../data/stone';
+import { EROSION, STONE } from '../data/stone';
 import { ECONOMY, WORLD } from '../data/world';
 import { PLAYER_SIDE } from '../game/constants';
 import type { Session } from '../game/session';
 import { abilityName, ageName, ageNameTo, fmt, formatSpeed, rejectText, towerName, tr, unitName } from '../i18n';
 import { getAge, getUnit } from '../sim/compile';
-import type { SideId } from '../sim/types';
+import { erosionEnabled, type SideId } from '../sim/types';
 import { abilityDescription, abilityReasonText, abilityTooltip, checkAbility, cooldownSeconds, playerAbility } from './ability';
 import { createTargeting, type Targeting } from './targeting';
 import { ageUp, ageUpCommand, availableUnitIds, cancelCommand, cancelOrderAt, produceUnit, queueCommand } from './actions';
@@ -167,6 +167,10 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
   stoneTrack.setAttribute('aria-valuemax', String(STONE.counterMax));
   const stoneFill = el('div', 'hud-stone__fill', stoneTrack);
   const stoneValue = el('span', 'hud-stone__value', stoneBox);
+  const stonePot = el('span', 'hud-stone__pot', stoneBox);
+  const writeStonePot = textWriter(stonePot);
+  const writeStonePotAria = attrWriter(stonePot, 'aria-label');
+  const writeStonePotShown = attrWriter(stonePot, 'data-shown');
   const writeStoneWidth = styleWriter(stoneFill, 'width');
   const writeStoneLeft = styleWriter(stoneFill, 'left');
   const writeStoneText = textWriter(stoneValue);
@@ -176,6 +180,8 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
 
   const writeClockText = textWriter(clock);
   const writeClockAria = attrWriter(clock, 'aria-label');
+  const writeClockEroding = attrWriter(clock, 'data-eroding');
+  const writeClockTitle = attrWriter(clock, 'title');
   const writeClock = (value: string): void => {
     writeClockText(value);
     // Erişilebilir ad değeri de içerir (yalnız etiket yazılırsa süre okunmaz).
@@ -306,6 +312,11 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
         showNotice(e.side === PLAYER_SIDE ? fmt(tr.hud.noticeStoneCaptured, { gold: bonus.gold, xp: bonus.xp }) : tr.hud.noticeStoneCapturedFoe);
       } else if (e.type === 'stoneLost' && e.side === PLAYER_SIDE) {
         showNotice(tr.hud.noticeStoneLost);
+      } else if (e.type === 'stonePotClaimed') {
+        // Aynı adımdaki stoneLost bildiriminin üstüne yazılır: kazanın kime geçtiği daha önemli.
+        showNotice(e.side === PLAYER_SIDE ? fmt(tr.hud.noticePotClaimed, { gold: e.gold, xp: e.xp }) : fmt(tr.hud.noticePotClaimedFoe, { gold: e.gold }));
+      } else if (e.type === 'erosionStarted') {
+        showNotice(tr.hud.noticeErosion);
       } else if (e.type === 'abilityCast' && e.side !== PLAYER_SIDE) {
         showNotice(fmt(tr.abilityUi.castFoe, { name: abilityName(e.abilityId) }));
       }
@@ -668,10 +679,14 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     }
   }
 
-  /** Tarafın şu anki çağında Sınır Taşı'ndan saniyede kazandığı ek altın ve deneyim (ages.ts). */
+  /**
+   * Tarafın şu anki çağında Sınır Taşı'ndan saniyede HEMEN aldığı altın ve deneyim (ages.ts; kalanı kazana gider, GDD §8).
+   * Simülasyondaki bölüşümle aynı: round(ödül × (1 − potShare)).
+   */
   function stoneBonus(side: SideId): { gold: number; xp: number } {
     const age = getAge(session.state.sides[side].age);
-    return { gold: age?.stoneGoldPerSec ?? 0, xp: age?.stoneXpPerSec ?? 0 };
+    const keep = (n: number): number => Math.round(n * (1 - STONE.potShare));
+    return { gold: keep(age?.stoneGoldPerSec ?? 0), xp: keep(age?.stoneXpPerSec ?? 0) };
   }
 
   function updateStone(): void {
@@ -692,6 +707,11 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
       });
     }
     writeStoneText(text);
+    // Kazan rozeti: yalnız kazanda bir şey varken görünür.
+    const potShown = stone.potGold > 0 || stone.potXp > 0;
+    writeStonePotShown(potShown ? 'true' : 'false');
+    writeStonePot(potShown ? fmt(tr.hud.stonePot, { gold: stone.potGold }) : '');
+    writeStonePotAria(fmt(tr.hud.stonePotAria, { gold: stone.potGold, xp: stone.potXp }));
     writeStoneOwner(stone.owner === null ? 'none' : stone.owner === PLAYER_SIDE ? 'player' : 'enemy');
     // Çubuk ortadan sayacın yönüne dolar; sahadaki konumu izler (taraf 0 solda, taraf 1 sağda): sayaç > 0 ortanın soluna dolar.
     const half = (Math.abs(stone.counter) / STONE.counterMax) * 50;
@@ -787,6 +807,10 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     playerBar.setAge(me.age);
     enemyBar.setAge(foe.age);
     writeClock(formatClock(state.tick / WORLD.tickRate));
+    // Aşınma sürerken saat uyarı renginde (GDD §8.1).
+    const eroding = erosionEnabled(state.config) && state.tick / WORLD.tickRate >= EROSION.startSec;
+    writeClockEroding(eroding ? 'true' : 'false');
+    writeClockTitle(eroding ? tr.hud.erosionTip : null);
     writePauseDisabled(session.ended);
     updateSpeed();
     updateStone();

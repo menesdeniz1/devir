@@ -2,6 +2,7 @@ import { Application, Container, Graphics } from 'pixi.js';
 import { prewarmFxArt } from '../art/projectileArt';
 import { artAge, prewarmUnitArt } from '../art/unitArt';
 import { getAge } from '../sim/compile';
+import { STONE } from '../data/stone';
 import { WORLD } from '../data/world';
 import type { Session, SessionEvent } from '../game/session';
 import { battlefieldBounds } from '../sim/geometry';
@@ -192,7 +193,8 @@ export async function createRenderer(host: HTMLElement, session: Session, option
       else if (e.type === 'unitDied') views.get(e.id)?.startDying();
       // Taşın sahibi saniyelik gelirini aldı: taşın payı taşın üstünden yükselir.
       else if (e.type === 'income' && session.state.stone.owner === e.side) {
-        stoneFloat.pop(e.side, getAge(session.state.sides[e.side].age)?.stoneGoldPerSec ?? 0);
+        // Yalnız hemen ödenen pay yükselir (kalanı kazanda birikir, GDD §8).
+        stoneFloat.pop(e.side, Math.round((getAge(session.state.sides[e.side].age)?.stoneGoldPerSec ?? 0) * (1 - STONE.potShare)));
       }
     }
   });
@@ -285,6 +287,7 @@ export async function createRenderer(host: HTMLElement, session: Session, option
       }
       updateStoneView(stone, state.stone, animMs);
       abilityFx.sync(state.zones, state.strikes, animMs);
+      stoneFloat.setPot(state.stone.potGold);
       stoneFloat.update(animMs);
       updatePreview(options.preview?.() ?? null);
       updateBaseFlash(bases[0], animMs);

@@ -185,11 +185,18 @@ export const en: Strings = {
     stoneLeaning: 'Neutral ({owner} {pct}%)',
     stoneAria: 'Border Stone: {state}',
     stoneTip:
-      'While only your units are near the stone, its meter fills toward you; when full, the stone is yours and earns you extra gold and XP every second. If both sides are there, the meter holds; if only the enemy remains, it drains back and you lose the stone.',
-    noticeStoneCaptured: 'The Border Stone is yours: +{gold} gold, +{xp} XP per second',
+      'While only your units are near the stone, its meter fills toward you; when full, the stone is yours. Every second it pays extra gold and XP: half goes to you right away, half piles up in the stone’s pot. Whoever takes the stone from its owner claims the whole pot. If both sides are there, the meter holds; if only the enemy remains, it drains back.',
+    noticeStoneCaptured: 'The Border Stone is yours: +{gold} gold, +{xp} XP per second; the rest fills its pot',
+    stonePot: 'Pot {gold}',
+    stonePotAria: 'Stone pot: {gold} gold, {xp} XP',
+    noticePotClaimed: 'You took the enemy’s pot: +{gold} gold, +{xp} XP',
+    noticePotClaimedFoe: 'The enemy took your pot: +{gold} gold',
+    noticeErosion: 'Erosion has started: both bases lose health every second',
+    erosionTip: 'Erosion: both bases lose 0.5% of their max health every second',
     noticeStoneLost: 'Border Stone lost: bonus income stopped',
     noticeStoneCapturedFoe: 'The enemy took the Border Stone: the bonus gold and XP are now theirs',
     stoneFloat: '+{gold} gold',
+    stonePotLabel: 'Pot {gold}',
   },
   abilityUi: {
     group: 'Special ability',
@@ -296,6 +303,8 @@ export const en: Strings = {
     historyTitle: 'Recent results',
     historyEmpty: 'No results yet',
     historyRow: '{result} · {difficulty} · {time} · {age}',
+    erosion: 'Erosion',
+    erosionHint: 'When on, both bases start eroding after 13:00, so a match can’t stall. When off, a match can run very long.',
     confirmTitle: 'Delete the saved match?',
     confirmText: 'Starting a new match deletes your saved match.',
     confirmYes: 'Delete and start',
@@ -391,7 +400,7 @@ export const en: Strings = {
       },
       captureStone: {
         title: 'Capture the Border Stone',
-        text: 'If only your units stay near the stone in the middle of the lane, it becomes yours: you earn extra gold and XP every second (the gold line shows “stone +N”). Produce units and send them to the stone.',
+        text: 'If only your units stay near the stone in the middle of the lane, it becomes yours: you earn extra gold and XP every second (the gold line shows “stone +N”), and the rest fills the stone’s pot. Take the stone from the enemy to claim their pot. Produce units and send them to the stone.',
       },
       destroyBase: {
         title: 'Destroy the enemy base',

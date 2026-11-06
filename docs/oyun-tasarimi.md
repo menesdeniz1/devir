@@ -293,8 +293,14 @@ zaman aşımı %5,5 / %7,5; Zor–Zor zaman aşımı %8,5 / %6,5.
 ### Savaş ekranı düzeni (16:9, 1920×1080 mantıksal)
 
 - **Üst şerit:** sol — oyuncu üs canı ve çağ simgesi; orta — maç süresi, Sınır Taşı göstergesi, oyun hızı (PRD G-08), duraklat
-  düğmesi; sağ — rakip üs canı ve çağ simgesi.
-- **Orta:** koridor, üsler, kuleler, birlikler, mermiler, yetenek önizlemesi.
+  düğmesi; sağ — rakip üs canı ve çağ simgesi. Taş göstergesi sahibin hemen aldığı payı ("Sen · +1 altın, +1 XP/sn")
+  ve yanında kazan rozetini ("Kazan 120"; yeri hep ayrılır, yalnız kazan doluyken görünür) gösterir; aşınma
+  sürerken saat uyarı renginde ve ipucu verir (GDD §8, §8.1).
+- **Orta:** koridor, üsler, kuleler, birlikler, mermiler, yetenek önizlemesi. Taşın üstünde kazan etiketi
+  ("Kazan 120"); "+N altın" işaretleri yalnız hemen ödenen payı gösterir.
+- **Bildirimler (taş ve aşınma):** taşı alınca kazanç ve kalanın kazanda biriktiği; kazanı söken taraf ("Rakibin
+  kazanını söktün: +340 altın, +250 deneyim" / "Rakip kazanını söktü"); aşınmanın başladığı.
+- **Maç kurulumu:** zorluk kartlarının altında aşınma seçeneği (varsayılan açık, son seçim hatırlanır).
 - **Alt panel (soldan sağa):** altın (sikke simgesi) ve gelir/sn · deneyim çubuğu (yıldız simgesi, mevcut/eşik) ve
   **Çağ Atla** (ücretiyle) · 3 birlik kartı (portre, ad, maliyet, kısayol rozeti, rol rengi şeridi) · 5 kutulu üretim
   kuyruğu (kutuda birliğin mini portresi ve rol işareti; ilk kutuda ilerleme şeridi; bekleyen kutuya tıklamak iptal

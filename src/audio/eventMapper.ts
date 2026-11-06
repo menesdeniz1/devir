@@ -197,6 +197,13 @@ export class EventSoundMapper {
           // Rakibin taşı kaybetmesi ayrıca sesli değil; kendi kaybımız bildirilir.
           if (event.side === player) add('stoneLose', null, sideAge(player));
           break;
+        case 'stonePotClaimed':
+          // Kazanı biz söktüysek kazanç sesi, rakip söktüyse kayıp sesi (GDD §8).
+          add(event.side === player ? 'stoneCapture' : 'stoneLose', null, sideAge(player));
+          break;
+        case 'erosionStarted':
+          add('uiNotice', null, sideAge(player));
+          break;
         case 'commandRejected':
           if (event.command.side === player) add('uiError', null, 1);
           break;

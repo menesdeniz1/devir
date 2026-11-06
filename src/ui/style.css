@@ -171,6 +171,9 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
 .hud-stone[data-owner="enemy"] .hud-stone__value { color: var(--c-enemy); }
 /* En uzun metne ("Rakip · +11 altın, +14 XP/sn") yer ayrılır: sahip değişince üst şerit zıplamaz. */
 .hud-stone__value { min-width: 25ch; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Kazan rozeti (GDD §8): yeri hep ayrılır, yalnız kazan doluyken görünür; düzen zıplamaz. */
+.hud-stone__pot { min-width: 10ch; padding: 1px 7px; border-radius: 999px; background: rgba(255, 210, 90, 0.16); color: var(--c-gold); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; visibility: hidden; }
+.hud-stone__pot[data-shown="true"] { visibility: visible; }
 
 /* Bildirim */
 .hud-notice {
@@ -191,6 +194,8 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
   z-index: 4;
 }
 .hud-clock { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 4ch; text-align: center; text-shadow: 0 2px 0 var(--c-ink); }
+/* Aşınma sürerken saat uyarı renginde (GDD §8.1). */
+.hud-clock[data-eroding="true"] { color: var(--c-enemy-hi); }
 .btn--pause, .btn--speed { padding-top: 6px; padding-bottom: 6px; }
 /* Oyun hızı düğmesi: "1×" ile "1,5×" arasında genişlik değişmez (üst şerit zıplamaz). */
 .btn--speed { min-width: 4.6em; padding-left: 10px; padding-right: 10px; font-variant-numeric: tabular-nums; }
@@ -804,3 +809,11 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
 @keyframes tutorial-pulse { 50% { box-shadow: 0 0 0 2px rgba(29, 27, 43, 0.9), 0 0 30px 10px rgba(255, 210, 90, 0.35); } }
 @media (prefers-reduced-motion: reduce) { .tutorial-highlight { animation: none; } }
 .screen--tutorial-done { z-index: 13; }
+
+/* Maç kurulumu: aşınma seçeneği (GDD §8.1). */
+.setup-option { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 8px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); border: 2px solid var(--c-panel-edge); cursor: pointer; text-align: left; }
+.setup-option__check { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--c-gold); cursor: pointer; }
+.setup-option__text { display: flex; flex-direction: column; gap: 2px; }
+.setup-option__name { font-weight: 800; color: var(--c-text); }
+.setup-option__hint { font-size: 12px; color: var(--c-muted); line-height: 1.3; }
+.setup-option:focus-within { outline: 3px solid #fff; outline-offset: 2px; }

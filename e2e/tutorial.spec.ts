@@ -88,11 +88,12 @@ test.describe('Öğretici', () => {
 
       // 10. Rakip üssü yık.
       await expectStep(page, 'destroyBase');
-      // Taş yeni alındı: göstergede sahibin kazancı, gelir satırında taşın payı görünür (Antik Çağ: +2 altın, +3 XP/sn).
+      // Taş yeni alındı: göstergede sahibin hemen aldığı pay, gelir satırında taşın payı görünür. Antik Çağ ödülü
+      // +2 altın, +3 XP/sn; yarısı kazana gider (GDD §8): hemen +1 altın, +2 XP.
       await page.keyboard.press('KeyP');
       await expect(page.locator('.hud-stone')).toHaveAttribute('data-owner', 'player');
-      await expect(page.locator('.hud-stone__value')).toHaveText('Sen · +2 altın, +3 XP/sn');
-      await expect(page.locator('.hud-gold__income')).toHaveText('+9/sn · taş +2');
+      await expect(page.locator('.hud-stone__value')).toHaveText('Sen · +1 altın, +2 XP/sn');
+      await expect(page.locator('.hud-gold__income')).toHaveText('+8/sn · taş +1');
       await shot(page, name('10-stone-owned'));
       await page.keyboard.press('KeyP');
       await shot(page, name('10-destroy-base'));

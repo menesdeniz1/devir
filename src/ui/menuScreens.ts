@@ -101,6 +101,22 @@ export function mountSetup(root: HTMLElement, flow: Flow): MountedScreen & { dis
   }
   syncSelection();
 
+  // Aşınma (GDD §8.1): kural maçın parçasıdır (yapılandırmaya yazılır); son seçim ayarlarda hatırlanır.
+  const erosionRow = el('label', 'setup-option', card);
+  const erosionInput = el('input', 'setup-option__check', erosionRow);
+  erosionInput.type = 'checkbox';
+  erosionInput.id = 'setup-erosion';
+  erosionInput.dataset['action'] = 'setup-erosion';
+  const erosionText = el('span', 'setup-option__text', erosionRow);
+  const erosionName = el('span', 'setup-option__name', erosionText);
+  erosionName.textContent = tr.setup.erosion;
+  const erosionHint = el('span', 'setup-option__hint', erosionText);
+  erosionHint.textContent = tr.setup.erosionHint;
+  erosionInput.addEventListener('change', () => flow.settings.update({ erosion: erosionInput.checked }));
+  flow.settings.subscribe((s) => {
+    erosionInput.checked = s.erosion;
+  });
+
   const history = el('section', 'history', card);
   const historyTitle = el('h3', 'history__title', history);
   historyTitle.textContent = tr.setup.historyTitle;

@@ -201,12 +201,22 @@ export const tr = {
     stoneLeaning: 'Tarafsız ({owner} %{pct})',
     stoneAria: 'Sınır Taşı: {state}',
     stoneTip:
-      'Taşın yanında yalnız senin birliklerin varken sayaç senin yönüne dolar; dolunca taş senin olur ve saniyede ek altın ile deneyim kazanırsın. İki taraf da oradaysa sayaç durur; yalnız rakip kalırsa geri döner ve taş elden çıkar.',
-    noticeStoneCaptured: 'Sınır Taşı senin: saniyede +{gold} altın, +{xp} deneyim',
+      'Taşın yanında yalnız senin birliklerin varken sayaç senin yönüne dolar; dolunca taş senin olur. Taş her saniye ek altın ve deneyim verir: yarısı hemen sana, yarısı taşın kazanında birikir. Taşı sahibinden söken kazanın tamamını alır. İki taraf da oradaysa sayaç durur; yalnız rakip kalırsa geri döner.',
+    noticeStoneCaptured: 'Sınır Taşı senin: saniyede +{gold} altın, +{xp} deneyim; kalanı kazanda birikir',
+    /** Kazan (GDD §8): taşta biriken ödül; taşı sahibinden söken alır. */
+    stonePot: 'Kazan {gold}',
+    stonePotAria: 'Taştaki kazan: {gold} altın, {xp} deneyim',
+    noticePotClaimed: 'Rakibin kazanını söktün: +{gold} altın, +{xp} deneyim',
+    noticePotClaimedFoe: 'Rakip kazanını söktü: +{gold} altın',
+    /** Aşınma (GDD §8.1). */
+    noticeErosion: 'Aşınma başladı: iki üs de her saniye can kaybediyor',
+    erosionTip: 'Aşınma: iki üs de her saniye azami canının binde 5’ini kaybediyor',
     noticeStoneLost: 'Sınır Taşı elden çıktı: ek gelir durdu',
     noticeStoneCapturedFoe: "Rakip Sınır Taşı'nı aldı: ek altın ve deneyim artık onun",
     /** Taşın üstünde her saniye yükselen kazanç işareti. */
     stoneFloat: '+{gold} altın',
+    /** Taşın üstündeki kazan etiketi. */
+    stonePotLabel: 'Kazan {gold}',
   },
   abilityUi: {
     group: 'Özel yetenek',
@@ -313,6 +323,8 @@ export const tr = {
     historyTitle: 'Son sonuçlar',
     historyEmpty: 'Henüz sonuç yok',
     historyRow: '{result} · {difficulty} · {time} · {age}',
+    erosion: 'Aşınma',
+    erosionHint: 'Açıkken 13:00’ten sonra iki üs de aşınır ve maç kilitlenmez. Kapalıysa maç çok uzayabilir.',
     confirmTitle: 'Kayıtlı maç silinsin mi?',
     confirmText: 'Yeni bir maç başlatırsan kayıtlı maçın silinir.',
     confirmYes: 'Sil ve başla',
@@ -409,7 +421,7 @@ export const tr = {
       },
       captureStone: {
         title: 'Sınır Taşı’nı ele geç',
-        text: 'Koridorun ortasındaki taşın yanında yalnız senin birliklerin kalırsa taş senin olur: her saniye ek altın ve deneyim kazanırsın (altın satırında “taş +N” görünür). Birlik üretip taşa gönder.',
+        text: 'Koridorun ortasındaki taşın yanında yalnız senin birliklerin kalırsa taş senin olur: her saniye ek altın ve deneyim kazanırsın (altın satırında “taş +N” görünür), kalanı taşın kazanında birikir. Taşı rakipten sökersen onun kazanını alırsın. Birlik üretip taşa gönder.',
       },
       destroyBase: {
         title: 'Rakip üssü yık',
