@@ -309,12 +309,12 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
         showNotice(fmt(e.side === PLAYER_SIDE ? tr.hud.ageUpNotice : tr.hud.ageUpNoticeFoe, { dative: ageNameTo(e.age) }));
       } else if (e.type === 'stoneCaptured') {
         const bonus = stoneBonus(PLAYER_SIDE);
-        showNotice(e.side === PLAYER_SIDE ? fmt(tr.hud.noticeStoneCaptured, { gold: bonus.gold, xp: bonus.xp }) : tr.hud.noticeStoneCapturedFoe);
+        showNotice(e.side === PLAYER_SIDE ? fmt(tr.hud.noticeStoneCaptured, { gold: bonus.gold }) : tr.hud.noticeStoneCapturedFoe);
       } else if (e.type === 'stoneLost' && e.side === PLAYER_SIDE) {
         showNotice(tr.hud.noticeStoneLost);
       } else if (e.type === 'stonePotClaimed') {
         // Aynı adımdaki stoneLost bildiriminin üstüne yazılır: kazanın kime geçtiği daha önemli.
-        showNotice(e.side === PLAYER_SIDE ? fmt(tr.hud.noticePotClaimed, { gold: e.gold, xp: e.xp }) : fmt(tr.hud.noticePotClaimedFoe, { gold: e.gold }));
+        showNotice(e.side === PLAYER_SIDE ? fmt(tr.hud.noticePotClaimed, { gold: e.gold }) : fmt(tr.hud.noticePotClaimedFoe, { gold: e.gold }));
       } else if (e.type === 'erosionStarted') {
         showNotice(tr.hud.noticeErosion);
       } else if (e.type === 'abilityCast' && e.side !== PLAYER_SIDE) {
@@ -696,7 +696,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     if (stone.owner !== null) {
       // Sahibin kazancı görünür olsun: taşın ne işe yaradığı göstergede okunur (insan oyun testi geri bildirimi).
       const bonus = stoneBonus(stone.owner);
-      text = fmt(tr.hud.stoneOwned, { owner: ownerName(stone.owner), gold: bonus.gold, xp: bonus.xp });
+      text = fmt(tr.hud.stoneOwned, { owner: ownerName(stone.owner), gold: bonus.gold });
     } else if (stone.counter === 0) {
       text = tr.hud.stoneNeutral;
     } else {
@@ -707,11 +707,11 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
       });
     }
     writeStoneText(text);
-    // Kazan rozeti: yalnız kazanda bir şey varken görünür.
-    const potShown = stone.potGold > 0 || stone.potXp > 0;
+    // Depo rozeti (GDD §8): yalnız depoda altın varken görünür.
+    const potShown = stone.potGold > 0;
     writeStonePotShown(potShown ? 'true' : 'false');
     writeStonePot(potShown ? fmt(tr.hud.stonePot, { gold: stone.potGold }) : '');
-    writeStonePotAria(fmt(tr.hud.stonePotAria, { gold: stone.potGold, xp: stone.potXp }));
+    writeStonePotAria(fmt(tr.hud.stonePotAria, { gold: stone.potGold }));
     writeStoneOwner(stone.owner === null ? 'none' : stone.owner === PLAYER_SIDE ? 'player' : 'enemy');
     // Çubuk ortadan sayacın yönüne dolar; sahadaki konumu izler (taraf 0 solda, taraf 1 sağda): sayaç > 0 ortanın soluna dolar.
     const half = (Math.abs(stone.counter) / STONE.counterMax) * 50;

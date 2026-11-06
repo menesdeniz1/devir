@@ -12,7 +12,8 @@
   ağır birlik, menzilli kümesini ezer; menzilli birlik, ön hattı yıpratır.
 - **Altın** zamanla ve düşman öldürerek gelir. **Deneyim** öldürerek birikir ve yeni çağın kilidini açar.
 - **Kuleler** üssünü savunur ama üssü tek başına korumaz. **Özel yetenek** her çağda değişir.
-- **Sınır Taşı:** koridorun ortasındaki taşı tutan taraf ek altın ve deneyim kazanır.
+- **Maden:** koridorun ortasındaki madeni tutan taraf her saniye altın kazanır; yarısı madenin deposunda birikir,
+  madeni sahibinden alan depoyu yağmalar. Deneyim öldürmelerden ve rakip üsse verilen hasardan gelir.
 - İlk açılışta öğretici önerilir; ana menüden istediğin zaman tekrar açabilirsin.
 
 | Eylem | Klavye |

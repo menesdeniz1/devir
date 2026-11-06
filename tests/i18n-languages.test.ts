@@ -130,8 +130,8 @@ describe('G-04: etkin dil', () => {
     expect(formatNumber(2)).toBe('2');
   });
 
-  it('Sınır Taşı adı ve oyun adı İngilizcede korunur', () => {
-    expect(en.hud.stone).toBe('Border Stone');
+  it('Maden (eski Sınır Taşı) İngilizcede "Mine"; oyun adı korunur', () => {
+    expect(en.hud.stone).toBe('Mine');
     expect(en.appTitle).toBe('Devir');
     expect(en.menu.title).toBe('Devir');
   });

@@ -110,7 +110,7 @@ devir/
 1. Sonuç belirlenmişse hiçbir şey yapma (PRD S-11, K-06).
 2. Bu tick'e damgalı komutları uygula (önce taraf 0, sonra taraf 1). Yapay zekâ komutları `match` katmanında,
    bu adımdan hemen önce gözlemden üretilir.
-3. Ekonomi: temel gelir (+ Sınır Taşı bonusu).
+3. Ekonomi: temel gelir (+ maden altınının hemen ödenen payı; kalanı depoya), açıksa aşınma.
 4. Üretim: aktif siparişi ilerlet; tamamlanınca doğma alanı boşsa doğur, değilse beklet (PRD B-06).
 5. Durum etkileri ve alanlar: süreleri azalt, alan etkilerini **bekleyen hasara** ekle.
 6. Hedefleme: tüm birlikler tick başındaki konumlara göre hedef seçer (iki taraf aynı anlık görüntüyü görür).
@@ -120,7 +120,7 @@ devir/
 9. Mermiler ilerler; çarpanlar bekleyen hasara eklenir. Kuleler saldırır. Gecikmeli vuruşlar patlar.
 10. **Bekleyen hasar eşzamanlı uygulanır** (PRD S-09). Canı ≤ 0 olan birlikler kaldırılır, ödül karşı tarafa
     verilir; birlik listeden aynı adımda çıktığı için ödül ikinci kez verilemez (PRD K-03).
-11. Sınır Taşı kontrol değeri güncellenir.
+11. Maden kontrol değeri güncellenir; sahiplik düşerse depo, madeni alan tarafa geçer.
 12. Sonuç: iki üs ≤ 0 → beraberlik; biri ≤ 0 → diğeri kazanır; `outcome` bir kez yazılır (PRD K-06, K-15).
 13. `tick++`, istatistikler.
 

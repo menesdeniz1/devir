@@ -160,8 +160,8 @@ export const tr = {
     time: 'Süre',
     gold: 'Altın',
     incomePerSec: '+{n}/sn',
-    /** Sınır Taşı sendeyken gelir satırı: toplam gelir ve taşın payı. */
-    incomeWithStone: '+{n}/sn · taş +{stone}',
+    /** Maden sendeyken gelir satırı: toplam gelir ve madenin hemen ödenen payı. */
+    incomeWithStone: '+{n}/sn · maden +{stone}',
     pause: 'Duraklat',
     /** Oyun hızı düğmesi (PRD G-08). */
     speed: '{n}×',
@@ -194,29 +194,28 @@ export const tr = {
     ageUpTipFinal: 'Son çağdasın',
     ageUpNotice: '{dative} geçtin',
     ageUpNoticeFoe: 'Rakip {dative} geçti',
-    stone: 'Sınır Taşı',
+    stone: 'Maden',
     stoneNeutral: 'Tarafsız',
-    /** Sahibin taştan saniyede kazandığı ek altın ve deneyim (sahibin çağına göre). */
-    stoneOwned: '{owner} · +{gold} altın, +{xp} XP/sn',
+    /** Sahibin madenden saniyede hemen aldığı altın (sahibin çağına göre; kalanı depoya, GDD §8). */
+    stoneOwned: '{owner} · +{gold} altın/sn',
     stoneLeaning: 'Tarafsız ({owner} %{pct})',
-    stoneAria: 'Sınır Taşı: {state}',
-    stoneTip:
-      'Taşın yanında yalnız senin birliklerin varken sayaç senin yönüne dolar; dolunca taş senin olur. Taş her saniye ek altın ve deneyim verir: yarısı hemen sana, yarısı taşın kazanında birikir. Taşı sahibinden söken kazanın tamamını alır. İki taraf da oradaysa sayaç durur; yalnız rakip kalırsa geri döner.',
-    noticeStoneCaptured: 'Sınır Taşı senin: saniyede +{gold} altın, +{xp} deneyim; kalanı kazanda birikir',
-    /** Kazan (GDD §8): taşta biriken ödül; taşı sahibinden söken alır. */
-    stonePot: 'Kazan {gold}',
-    stonePotAria: 'Taştaki kazan: {gold} altın, {xp} deneyim',
-    noticePotClaimed: 'Rakibin kazanını söktün: +{gold} altın, +{xp} deneyim',
-    noticePotClaimedFoe: 'Rakip kazanını söktü: +{gold} altın',
+    stoneAria: 'Maden: {state}',
+    stoneTip: 'Madenin yanında yalnız senin birliklerin varken sayaç senin yönüne dolar; dolunca maden senin olur. Maden her saniye altın çıkarır: yarısı hemen sana gelir, yarısı madenin deposunda birikir. Madeni sahibinden alan, depodaki altının tamamını yağmalar. İki taraf da oradaysa sayaç durur; yalnız rakip kalırsa geri döner.',
+    noticeStoneCaptured: 'Maden senin: saniyede +{gold} altın; kalanı depoda birikir',
+    /** Depo (GDD §8): madende biriken altın; madeni sahibinden alan yağmalar. */
+    stonePot: 'Depo {gold}',
+    stonePotAria: 'Madenin deposu: {gold} altın',
+    noticePotClaimed: 'Rakibin deposunu yağmaladın: +{gold} altın',
+    noticePotClaimedFoe: 'Rakip deponu yağmaladı: +{gold} altın',
     /** Aşınma (GDD §8.1). */
     noticeErosion: 'Aşınma başladı: iki üs de her saniye can kaybediyor',
     erosionTip: 'Aşınma: iki üs de her saniye azami canının binde 5’ini kaybediyor',
-    noticeStoneLost: 'Sınır Taşı elden çıktı: ek gelir durdu',
-    noticeStoneCapturedFoe: "Rakip Sınır Taşı'nı aldı: ek altın ve deneyim artık onun",
-    /** Taşın üstünde her saniye yükselen kazanç işareti. */
+    noticeStoneLost: 'Maden elden çıktı: ek gelir durdu',
+    noticeStoneCapturedFoe: 'Rakip madeni aldı: madenin altını artık onun',
+    /** Madenin üstünde her saniye yükselen kazanç işareti. */
     stoneFloat: '+{gold} altın',
-    /** Taşın üstündeki kazan etiketi. */
-    stonePotLabel: 'Kazan {gold}',
+    /** Madenin üstündeki depo etiketi. */
+    stonePotLabel: 'Depo {gold}',
   },
   abilityUi: {
     group: 'Özel yetenek',
@@ -420,8 +419,8 @@ export const tr = {
         text: 'Deneyim eşiği doldu. Çağ Atla düğmesine tıkla ya da E tuşuna bas: yeni çağda daha güçlü birlikler, kuleler ve yetenek açılır.',
       },
       captureStone: {
-        title: 'Sınır Taşı’nı ele geç',
-        text: 'Koridorun ortasındaki taşın yanında yalnız senin birliklerin kalırsa taş senin olur: her saniye ek altın ve deneyim kazanırsın (altın satırında “taş +N” görünür), kalanı taşın kazanında birikir. Taşı rakipten sökersen onun kazanını alırsın. Birlik üretip taşa gönder.',
+        title: 'Madeni ele geçir',
+        text: 'Koridorun ortasındaki madenin yanında yalnız senin birliklerin kalırsa maden senin olur: her saniye altın çıkarır (altın satırında “maden +N” görünür); yarısı hemen gelir, yarısı depoda birikir. Madeni rakipten alırsan deposunu yağmalarsın. Birlik üretip madene gönder.',
       },
       destroyBase: {
         title: 'Rakip üssü yık',

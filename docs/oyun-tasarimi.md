@@ -89,7 +89,7 @@ ancak üretim sırası ön hattı önde tuttuğunda işler. Önceden dizilmiş s
 
 ## 4. Ekonomi ve çağlar
 
-Çağ başına deneyim eşiği (toplam), geçiş ücreti, üs azami canı, temel gelir ve Sınır Taşı bonusları
+Çağ başına deneyim eşiği (toplam), geçiş ücreti, üs azami canı, temel gelir ve maden altını
 `src/data/ages.ts`'tedir (tek kaynak). Tasarım niyeti: gelir ve maliyetler çağ başına ×1,75 büyür. Üs canı ise
 çağlarla **yavaş** büyür (≈ 11000 × 1,03^(n−1)): erken çağda tek çağ farkı üssü hızla düşüremez (geride kalanın
 toparlanma süresi olur), geç çağda güçlenen birlikler üssü bitirebilir (çıkmaz oluşmaz). İlk değerlerdeki ×1,6
@@ -175,46 +175,62 @@ arka sırasını silmez, aşındırır (Aşama 6 denge bulgusu: Sürü Hücumu 1
 - **Durum etkileri:** sersemletme ve donma (hareket ve saldırı yok), yavaşlatma (hız çarpanı), savunmasızlık
   (alınan hasar çarpanı). Aynı tür etki üst üste binmez; süresi yenilenir.
 
-## 8. Sınır Taşı
+## 8. Maden (1.1'e kadar adı Sınır Taşı)
+
+Koridorun ortasındaki hedef 1.2'de kullanıcı kararıyla **madene** dönüştü: yalnız altın verir, biriken altını
+(**depo**) madeni sahibinden alan taraf yağmalar. Kodda iç adlar (`stone…`) korunur.
+
 
 - **Bölge:** koridorun ortası, x = 860–1060.
 - **Ele geçirme:** Kontrol, −100 (rakip) ile +100 (oyuncu) arasında bir tamsayı sayaçtır. Gövdesi bölgeyle
   kesişen birlikler bölgede sayılır. Bölgede yalnız bir tarafın birliği varsa sayaç her tick o tarafa doğru 1
   ilerler (tarafsızdan tam kontrole 100 tick = 5 sn). İki taraf da varsa veya kimse yoksa sayaç değişmez.
   Sayaç ±100'e ulaşınca o taraf **sahip** olur; sayaç sıfırı geçince sahiplik düşer.
-- **Ödül (sahip tarafa):** sahibin çağına göre saniyede ek altın (temel gelirin ≈%30'u) ve deneyim
-  (≈ 1,5 × 1,75^(çağ−1)); tamsayı değerler `src/data/ages.ts`'te, bölge `src/data/stone.ts`'te.
-- **Kazan (1.2, kullanıcı kararı):** ödülün `potShare` (%50) kadarı sahibine hemen ödenmez, taşın **kazanında**
-  birikir (sahibe `round(ödül × (1 − potShare))`, kalanı kazana; toplam korunur). Taşı sahibinden **söken** taraf
-  (sayaç sıfırı geçince) kazanın tamamını, altın ve deneyim olarak alır; kazan boşalır. Taşı hiç kaybetmeyen
-  sahibin kazanı kimseye geçmez. Amaç: taşı tutmak hedef olmak demektir, sökmek büyük ödüldür; kartopu kırılır.
-  Ölçüm (Normal–Normal, 200 maç, aşınmayla; deney 2026-11-07): taşı ilk alan %81,5 → %48,2 kazanır, uzun tutan
-  %91,5 → %61,3; Zor–Normal %77,5, Normal–Kolay %98,5 (beceri farkı korunur). Kazan payı %80'de taşı ilk almak
-  dezavantaja döner (%40,5); %60–70 benzer ama zayıf tarafı güçlendirir.
+- **Ödül (sahip tarafa):** sahibin çağına göre saniyede **yalnız altın**: 2 / 4 / 6 / 10 / 16 (çift sayılar: yarı
+  yarıya bölüşüm her çağda tam çıkar). Deneyim vermez (1.2, kullanıcı: "orası exp kazandırmasın, sadece gold").
+  Tamsayı değerler `src/data/ages.ts`'te, bölge `src/data/stone.ts`'te.
+- **Depo (1.2, kullanıcı kararı):** altının `potShare` (%50) kadarı sahibine hemen ödenmez, madenin **deposunda**
+  birikir (sahibe `round(altın × (1 − potShare))`, kalanı depoya; toplam korunur). Madeni sahibinden **alan** taraf
+  (sayaç sıfırı geçince) deponun tamamını **yağmalar**; depo boşalır. Madeni hiç kaybetmeyen sahibin deposu kimseye
+  geçmez. Amaç: madeni tutmak hedef olmak demektir, yağma büyük ödüldür; kartopu kırılır.
+- **Deneyim nereden gelir (1.2):** öldürmeler ve rakip üsse verilen hasar (her 100 hasar 15 deneyim,
+  `src/data/combat.ts` `baseDamageXpPer100`; eski "yedek plan", PRD E-10). Madenden deneyim kalkınca beceri farkı
+  daralıyordu (Normal–Kolay %75); üs baskısı deneyimi baskı kuran, yani daha iyi oynayan tarafı ödüllendirir.
+- **Ölçüm (deney 2026-11-07, Normal–Normal 200 maç, aşınmayla):** madeni ilk alan %50,5 kazanır (1.1: %81,5), uzun
+  tutan %53,5 (1.1: %91,5); kilitlenen %0; medyan 14:09; 2./3. çağ 5:01 / 7:36, ortalama son çağ 4,72;
+  Normal–Kolay %95,5, Zor–Normal %77. Ara aşamalar: kazan + deneyim (%48,2 ilk alan, Normal–Kolay %98,5); depo payı
+  %80'de madeni ilk almak dezavantaja döner (%40,5); eşikleri düşürmek beceri farkını düzeltmez.
 - **8.1 Aşınma (1.2):** maç kurulumunda açıksa (varsayılan; kapalısı "uzun maç") 13:00'ten sonra iki üs de her
   saniye azami canının binde 5'ini kaybeder (`src/data/stone.ts` `EROSION`). Neden: taşın kartopu kırılınca
   eşit güçteki ordular ortada kilitlenebilir (kazan tek başına: %33 maç 20 dakikayı aşar); üs hasarını artırmak
   işe yaramaz çünkü birlikler üsse ulaşmaz. Aşınma birlikten bağımsızdır, maçı en geç ≈17 dakikada bitirir ve o
   ana kadar rakibe daha çok hasar vermiş tarafı ödüllendirir; iki üs aynı adımda düşerse beraberlik (K-15).
   Öğretici aşınmasız kurulur.
-- **Görsel:** taş, sahibinin amblemini ve rengini taşır; ilerleme halkası gösterilir. Sahibi her saniye gelir
-  aldığında taşın üstünden taşın altın payı ("+2 altın") yükselir; işaret o anki taşın tepesinin üstünden doğar.
-- **Çağa göre taş (insan oyun testi, 1.1.0):** getirisi çağla arttığı için taşın görünüşü de çağla değişir.
-  Taş savaş alanının çağını, yani arka plan gibi oyuncunun çağını izler; çağ değişince kısa (≈0,65 sn) yumuşak
-  geçiş yapar (eski taş hafifçe şişerek söner, yenisi büyüyerek belirir), yeni maçta geçişsiz başlar.
-  İlkel: oyma spiralli, yosunlu kaba dikili taş. Antik: basamaklı kaide üstünde bronz tepelikli, terakota frizli
-  mermer dikilitaş. Orta: demir kuşaklı, arduvaz başlıklı yontma sınır taşı; yuva armalı kalkan. Endüstri: tuğla
-  kaide üstünde dökme demir fener direği; yuva pirinç çerçeveli gösterge, fener camı sahibin renginde yanar.
-  Gelecek: altıgen yayıcı üstünde hafifçe süzülen eflatun kristal; yuva parlayan çekirdek. Her görünümde amblem,
-  ilerleme halkası, tarafsız işaret (yuvada üç çentik) ve bölge işaretleri aynıdır. Sahip halesi çağla biraz
-  güçlenir (büyür ve koyulaşır) ama yarı saydam ve yavaş nefes alır (yanıp sönme yok, PRD GR-06); birliklerin
-  arkasında kalır.
-- **Arayüzde getiri (insan oyun testi, 1.1.0):** ilk insan testinde taşın ne işe yaradığı anlaşılmadı; gelir
-  satırı taşı saymıyordu. Artık gelir satırı taş sendeyken toplamı ve taşın payını ("+9/sn · taş +2"), üst
-  şeritteki taş göstergesi sahibin kazancını ("Sen · +2 altın, +3 XP/sn"), yakalama/kaybetme bildirimleri de
-  kazancı söyler; ipucu ve öğretici adımı kuralı açıkça anlatır.
-- **Yedek plan:** Denge testlerinde taş, yalnız savunma stratejisini önlemekte yetersiz kalırsa üsse verilen
-  her 100 hasar 15 deneyim kazandırır (PRD E-10). Varsayılan olarak kapalıdır (veride 0).
+- **Görsel:** maden, sahibinin amblemini ve rengini taşır (çağın levhasında, kalkanında, göstergesinde veya
+  çekirdeğinde); ele geçirme halkası gösterilir. Sahibi her saniye gelir aldığında madenin üstünden hemen ödenen
+  pay ("+2 altın") yükselir; işaret ve depo etiketi o anki madenin tepesinin üstünden doğar. **Depo yığını:**
+  deponun altını madenin yanında (arabasında, teknesinde, vagonunda, tepsisinde) altın yığını olarak görünür ve
+  kesik basamaklarla büyür: boş (0), küçük (> 0), orta (≥ 100), büyük (≥ 300 altın; eşikler görseldir,
+  `src/art/stoneStore.ts`). Yığın yalnız basamak değişince değişir; madenden sökülünce depo boşalır, yığın kaybolur.
+- **Çağa göre maden (insan oyun testi):** getirisi çağla arttığı için maden de çağla büyür ve zenginleşir.
+  Maden savaş alanının çağını, yani arka plan gibi oyuncunun çağını izler; çağ değişince kısa (≈0,65 sn) yumuşak
+  geçiş yapar (eski görünüm hafifçe şişerek söner, yenisi büyüyerek belirir), yeni maçta geçişsiz başlar.
+  İlkel: altın damarlı, yosunlu kaya çıkıntısı, yanına yaslanmış kaba taş kazma; yuva kayada düzleştirilmiş yüz,
+  yığın kayanın dibinde ham cevher. Antik: tepe yamacında ahşap destekli maden ağzı, içte kandil, bronz kazma;
+  yuva bronz madalyon, yığın el arabasında. Orta: taş kuyu ağzı üstünde makaralı ahşap kule, halatlı çıkrık;
+  yuva armalı kalkan, yığın demir kuşaklı teknede. Endüstri: perçinli demir kule ve büyük çark, bacalı tuğla
+  makine evi, konveyör ve raylı vagon; yuva pirinç çerçeveli gösterge, fener camı sahibin renginde yanar, yığın
+  vagonda. Gelecek: altıgen platformda matkap ve iki eflatun yayıcı direk arasında hafifçe süzülen altın kristal;
+  yuva parlayan çekirdek, yığın platformda altıgen altın taşlar. Her görünümde amblem, ele geçirme halkası,
+  tarafsız işaret (yuvada üç çentik) ve bölge işaretleri aynıdır; yuva birliklerin başı üstünde kalır. Sahip
+  halesi çağla biraz güçlenir (büyür ve koyulaşır) ama yarı saydam ve yavaş nefes alır (yanıp sönme yok, PRD
+  GR-06); maden birliklerin arkasında kalır.
+- **Arayüzde getiri (insan oyun testi):** gelir satırı maden sendeyken toplamı ve madenin hemen ödenen payını
+  ("+9/sn · maden +2"), üst şeritteki gösterge sahibin kazancını ("Sen · +2 altın/sn") ve depo rozetini
+  ("Depo 120") gösterir; bildirimler ele geçirmeyi, kaybı ve yağmayı ("Rakibin deposunu yağmaladın: +340 altın")
+  söyler; ipucu ve öğretici adımı kuralı anlatır.
+- **E-10 (yalnız savunmaya karşı):** savunan taraf kuleleriyle öldürerek deneyim kazanır; saldıran taraf üs
+  hasarıyla da kazanır. 1.2'de üs baskısı deneyimi açıldı (yukarıda).
 
 ## 9. Bilgisayar rakibi
 
@@ -238,7 +254,7 @@ Her karar anında sırayla çalışır ve oyuncunun kullandığı komutların ay
    aynı oyunu oynamaz. Saf ön hat yığınına karşı daha kalın ön hat dizisi (ön-ön-ön-menzilli) kullanır. Kuyruğu
    hedef uzunlukta tutar.
 5. **Yetenek:** alan içindeki düşman değerini en çok yapan noktayı tarar; eşik üstündeyse kullanır.
-6. **Sınır Taşı:** taş kaybedilmişse ve güç oranı uygunsa ileri itmeyi ağırlıklandırır.
+6. **Maden:** maden kaybedilmişse ve güç oranı uygunsa ileri itmeyi ağırlıklandırır.
 
 ### Zorluk parametreleri
 
@@ -250,7 +266,7 @@ Her karar anında sırayla çalışır ve oyuncunun kullandığı komutların ay
 | Kule kullanımı | Üs canı %50'nin altına inince, yalnız yuva 1 | Baskı altındayken, en fazla 2 yuva | Baskıyı öngörür, 3 yuva, uygun tür, yenileme |
 | Yetenek eşiği ve nişan | ≥1 hedef, ±80 birim sapma, rastgele gecikme | ≥3 hedef veya eşik değeri | En yüksek değerli nokta, savunma anlarında öncelik |
 | Kuyruk ve altın | Altın boşta bekler, kuyruk 1 | Kuyruk 2–3 | Kuyruk dolu, çağ rezervi hesaplı |
-| Sınır Taşı | Yok sayar | Dikkate alır | Aktif hedefler |
+| Maden | Yok sayar | Dikkate alır | Aktif hedefler |
 
 "Doğru karşılık seçme olasılığı", her kararda duruşun güncellenme olasılığıdır (sipariş başına değil). Kesin
 profil değerleri `src/data/ai.ts`'tedir. Rastgele seçimler, kayda giren tohumlu üreteçten gelir (TDD §3).
@@ -292,7 +308,7 @@ zaman aşımı %5,5 / %7,5; Zor–Zor zaman aşımı %8,5 / %6,5.
 
 ### Savaş ekranı düzeni (16:9, 1920×1080 mantıksal)
 
-- **Üst şerit:** sol — oyuncu üs canı ve çağ simgesi; orta — maç süresi, Sınır Taşı göstergesi, oyun hızı (PRD G-08), duraklat
+- **Üst şerit:** sol — oyuncu üs canı ve çağ simgesi; orta — maç süresi, maden göstergesi, oyun hızı (PRD G-08), duraklat
   düğmesi; sağ — rakip üs canı ve çağ simgesi. Taş göstergesi sahibin hemen aldığı payı ("Sen · +1 altın, +1 XP/sn")
   ve yanında kazan rozetini ("Kazan 120"; yeri hep ayrılır, yalnız kazan doluyken görünür) gösterir; aşınma
   sürerken saat uyarı renginde ve ipucu verir (GDD §8, §8.1).
@@ -348,7 +364,7 @@ başlangıç altını yüksektir. Her adım bir oyun olayıyla tamamlanır; "Atl
 6. Yuva 1'e kule kur. → kurulunca ilerler.
 7. Rakip küme hâlinde gelir; yeteneği kullan. → kullanınca ilerler.
 8. Deneyim eşiği doldu; çağ atla. → geçişte ilerler.
-9. Sınır Taşı'nı ele geçir. → sahiplikte ilerler.
+9. Madeni ele geçir. → sahiplikte ilerler.
 10. Rakip üssü yık. → "Öğretici tamamlandı", ana menü.
 
 ## 13. Sonuç ekranı ve istatistikler
@@ -392,7 +408,7 @@ Kontrol: 32 px'e küçültülmüş gri tonlamalı görüntüde üç rol ayırt e
 | Endüstri | Tuğla, dökme demir, buhar beyazı | Bacalar, perçinli levhalar | Fabrika silueti, is |
 | Gelecek | Koyu lacivert, neon camgöbeği/eflatun | Altıgen paneller, enerji kalkanları | Gece gökyüzü, ışık şeritleri |
 
-Her üs kendi sahibinin çağını gösterir; arka plan ve Sınır Taşı (§8) oyuncunun çağını izler.
+Her üs kendi sahibinin çağını gösterir; arka plan ve maden (§8) oyuncunun çağını izler.
 
 ### Okunabilirlik ve efektler
 

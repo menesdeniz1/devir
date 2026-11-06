@@ -1,3 +1,4 @@
+import { COMBAT } from '../data/combat';
 import { WORLD } from '../data/world';
 import { advanceAbilityEffects, detonateStrikes, type EffectFlags } from './abilities';
 import { applyCommand } from './commands';
@@ -344,6 +345,10 @@ function resolveDamage(state: GameState, pending: readonly PendingDamage[], effe
       const applied = Math.min(p.damage, base.baseHp);
       base.baseHp -= applied;
       if (applied > 0) {
+        // Üs baskısı deneyimi (PRD E-10, GDD §4): toplam üs hasarı her 100'ü geçtikçe saldırana deneyim.
+        const attacker = state.sides[p.attackerSide];
+        const before = attacker.stats.baseDamageDealt;
+        attacker.xp += (Math.floor((before + applied) / 100) - Math.floor(before / 100)) * COMBAT.baseDamageXpPer100;
         state.sides[p.attackerSide].stats.baseDamageDealt += applied;
         events.push({ type: 'baseDamaged', side: victim, amount: applied });
       }

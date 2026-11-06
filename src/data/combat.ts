@@ -18,4 +18,7 @@ export const COMBAT: CombatDef = {
     ranged: 600,
     heavy: 400,
   },
+  // Maden yalnız altın verince (1.2) deneyim yalnız öldürmelerden gelir ve beceri farkı daralır (Normal–Kolay %75);
+  // üs baskısına deneyim farkı geri getirir: Normal–Kolay %95,5, Zor–Normal %77 (GDD §8 ölçümü).
+  baseDamageXpPer100: 15,
 };

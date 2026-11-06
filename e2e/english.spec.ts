@@ -73,7 +73,7 @@ test.describe('İngilizce: açılış ve oynanış', () => {
 
     await expect(page.locator('.hud-base--player .hud-base__name')).toHaveText('You');
     await expect(page.locator('.hud-base--enemy .hud-base__name')).toHaveText('Enemy');
-    await expect(page.locator('.hud-stone__label')).toHaveText('Border Stone');
+    await expect(page.locator('.hud-stone__label')).toHaveText('Mine');
     await expect(page.locator('.hud-stone__value')).toHaveText('Neutral');
     await expect(page.locator('.hud-base--player .hud-base__age')).toHaveText('Primitive Age');
     await expect(page.locator('.btn--age')).toContainText('Age Up');

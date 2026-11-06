@@ -181,15 +181,15 @@ describe('GDD §8: Sınır Taşı bonusu', () => {
     expect(s.sides[0].xp).toBe(0);
   });
 
-  it('E-10: yalnız savunma yapan taraf bile taşla deneyim kazanabilir (saniyede stoneXpPerSec)', () => {
+  it('maden (1.2) yalnız altın verir: deneyim vermez, depoda deneyim birikmez', () => {
+    for (const ageDef of AGES) expect(ageDef.stoneXpPerSec).toBe(0);
     const s = newState();
     s.stone.counter = STONE.counterMax;
     s.stone.owner = 0;
     for (let t = 0; t < 10 * WORLD.tickRate; t++) step(s, []);
-    const keepXp = Math.round(AGES[0]!.stoneXpPerSec * (1 - STONE.potShare));
-    expect(keepXp).toBeGreaterThan(0);
-    expect(s.sides[0].xp).toBe(10 * keepXp);
-    expect(s.stone.potXp).toBe(10 * (AGES[0]!.stoneXpPerSec - keepXp));
+    expect(s.sides[0].xp).toBe(0);
+    expect(s.stone.potXp).toBe(0);
+    expect(s.stone.potGold).toBeGreaterThan(0);
   });
 });
 

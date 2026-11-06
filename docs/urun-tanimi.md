@@ -24,7 +24,7 @@ dengeleyerek rakip üssü yıktığın, 10–15 dakikalık, tek oyunculu bir tar
 4. **Adil rakip.** Bilgisayar hile yapmaz; zorluk, karar kalitesinden gelir.
 5. **Kesintisiz oturum.** Duraklat, kapat, geri gel, kaldığın yerden devam et.
 
-## Ayırt edici özellik: Sınır Taşı (A1)
+## Ayırt edici özellik: Maden (A1; 1.1'e kadar adı Sınır Taşı)
 
 Koridorun ortasındaki taşı elinde tutan taraf ek gelir ve deneyim kazanır.
 Kuralları [GDD §8](oyun-tasarimi.md)'de.

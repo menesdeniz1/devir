@@ -38,6 +38,8 @@ export interface CombatDef {
   roleMultipliers: Record<Role, Record<TargetClass, number>>;
   /** Rol başına mermi hızı (birim/sn); null ise saldırı anlıktır (yakın dövüş). */
   projectileSpeed: Record<Role, number | null>;
+  /** Rakip üsse verilen her 100 hasar bu kadar deneyim kazandırır (PRD E-10, GDD §4); 0 ise kapalı. */
+  baseDamageXpPer100: number;
 }
 
 export interface UnitDef {

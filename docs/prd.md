@@ -111,8 +111,9 @@ Derinlik, çok sayıda düğmeden değil, bu kararların sonuçlarından doğar.
 - **E-07** Düşman birliklerini yenerek kazanılır (birlik, kule veya yetenekle).
 - **E-08** Toplam deneyim sonraki çağın eşiğine ulaşınca o çağa geçiş açılır; geçiş ayrıca altın ister.
 - **E-09** Deneyim harcanmaz; toplam ilerlemeyi gösterir.
-- **E-10 (N)** Yalnızca savunma yaparak rakibin deneyim kazanmasını tamamen kesmek mümkün olmamalıdır.
-  Koridorun ortasındaki Sınır Taşı'nı tutan taraf ek gelir ve deneyim kazanır (GDD §8).
+- **E-10 (N)** Yalnızca savunma yaparak rakibin deneyim kazanmasını tamamen kesmek mümkün olmamalıdır. (1.2: rakip üsse
+  verilen her 100 hasar 15 deneyim kazandırır; maden deneyim vermez — GDD §8.)
+  Koridorun ortasındaki madeni (1.1'e kadar Sınır Taşı) tutan taraf ek altın kazanır; yarısı depoda birikir (GDD §8).
 
 ## 7. Çağlar ve gelişim
 
@@ -177,7 +178,7 @@ Derinlik, çok sayıda düğmeden değil, bu kararların sonuçlarından doğar.
 - **R-02** Oyuncuyla aynı kurallar, maliyetler ve gelirle, kendi bütçesiyle oynar. Gizli hasar veya kaynak
   bonusu yoktur.
 - **R-03 (N)** Yalnızca görünür durumu kullanır: sahadaki birlikler ve canları, kuleler, iki üssün canı, iki
-  tarafın çağı, aktif yetenek alanları ve Sınır Taşı durumu. Oyuncunun altınını, deneyimini,
+  tarafın çağı, aktif yetenek alanları ve maden durumu (depo dahil). Oyuncunun altınını, deneyimini,
   üretim kuyruğunu ve yetenek bekleme süresini **göremez** — oyuncu da rakibinkileri görmez.
 - **R-04** Kolay, Normal ve Zor seviyeleri vardır. Zorluk; karar sıklığı, ordu bileşimi, kaynak yönetimi ve
   **(N)** kule/yetenek kullanım kalitesi üzerinden değişir.
@@ -189,7 +190,7 @@ Derinlik, çok sayıda düğmeden değil, bu kararların sonuçlarından doğar.
 - **EK-02 Maç kurulumu:** Zorluk seçimi ve maça başlama. **(N)** Zorluk başına kazanma/kaybetme sayısı gösterilir.
 - **EK-03 Savaş ekranı:** İki tarafın üs canı ve çağı; altın; deneyim (sonraki eşiğe ilerleme); birlik
   seçenekleri; üretim kuyruğu; kule yuvaları; özel yetenek; çağ atlama; duraklatma; **(N)** maç süresi ve
-  Sınır Taşı durumu.
+  maden durumu.
 - **EK-04** Kullanılamayan işlemin nedeni gösterilir: yetersiz altın (eksik miktarla), dolu kuyruk, yetersiz
   deneyim (mevcut/eşik), **(N)** kilitli yuva, bekleme süresi, son çağa ulaşıldı, oyun duraklatıldı.
 - **EK-05 (N) Duraklatma menüsü:** Devam et, Ayarlar, Ana menüye dön (maç kaydedilir).
@@ -240,7 +241,7 @@ Stil ve üretim yolu (A2): görseller ve sesler kodla üretilir; ayrıntı GDD �
 - Üç zorluk seviyesi.
 - Öğretici, ayarlar ve sonuç ekranları.
 - Yerel kayıt ve devam etme.
-- **(N)** Ayırt edici mekanik: Sınır Taşı.
+- **(N)** Ayırt edici mekanik: Maden (1.1'e kadar Sınır Taşı; 1.2'de kullanıcı kararıyla madene dönüştü).
 
 ## 16. Kabul kriterleri
 
@@ -264,7 +265,7 @@ Her kriterin nasıl doğrulandığı TDD §10'da, hangi aşamada geldiği [yol-h
 | K-14 (N) | Duraklatmada (elle veya sekme gizlenince) oyun zamanı ilerlemez ve komut kabul edilmez. |
 | K-15 (N) | İki üs aynı adımda yıkılırsa sonuç beraberliktir. |
 | K-16 (N) | Kullanılamayan her işlem, nedenini arayüzde gösterir. |
-| K-17 | Sınır Taşı ödülünün yarısı sahibine hemen, yarısı taşın kazanına gider; taşı sahibinden söken taraf kazanı (altın + deneyim) alır ve bu bildirilir (GDD §8). |
+| K-17 | Maden (eski Sınır Taşı) yalnız altın verir; altının yarısı sahibine hemen, yarısı madenin deposuna gider; madeni sahibinden alan taraf depoyu yağmalar ve bu bildirilir (GDD §8). Deneyim öldürmelerden ve üs hasarından gelir (her 100 hasar 15). |
 | K-18 | Aşınma maç kurulumunda açılıp kapatılabilir (varsayılan açık, son seçim hatırlanır); açıksa 13:00'ten sonra iki üs her saniye azami canının ‰5'ini kaybeder ve başlangıcı bildirilir; kapalıyken üs canı yalnız birlik/kule hasarıyla azalır (GDD §8.1). |
 
 ## 17. Açık kararlar
