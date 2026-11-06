@@ -32,6 +32,11 @@ export function activeLocale(): string {
 }
 
 /** `{ad}` yer tutucularını doldurur. */
+/** Oyun hızı çarpanını etkin dilin ondalık ayırıcısıyla yazar: 1,5 / 1.5. */
+export function formatSpeed(n: number): string {
+  return String(n).replace('.', tr.format.decimal);
+}
+
 export function fmt(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (whole, key: string) => {
     const value = vars[key];

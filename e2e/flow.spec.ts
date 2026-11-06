@@ -188,7 +188,7 @@ test.describe('Ayarlar', () => {
     await page.locator('#setting-sfx').fill('55');
     await page.locator('#setting-shake').uncheck();
     const stored = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? 'null') as unknown, KEYS.settings);
-    expect(stored).toEqual({ musicVolume: 30, sfxVolume: 55, screenShake: false });
+    expect(stored).toEqual({ musicVolume: 30, sfxVolume: 55, screenShake: false, gameSpeed: 1 });
 
     await page.reload();
     await action(page, 'settings').click();
@@ -289,7 +289,8 @@ for (const size of SIZES) {
       await expect(page.locator('.hud-base--enemy .hud-base__hp')).toHaveText(/^(\d+) \/ \1$/);
       await expect(page.locator('.hud-base--player .hud-base__hp')).toHaveText(/^(\d+) \/ \1$/);
       await expect(page.locator('.queue-slot[data-kind="producing"]')).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Hız ×1', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      // Oyun hızı oturumda korunur (PRD G-08): yeniden oyna maç durumunu sıfırlar, seçilen hızı değil.
+      await expect(page.getByRole('button', { name: 'Hız ×16', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
       // Ana menü → kurulum: geçmiş ve toplamlar görünür.
       await page.keyboard.press('Escape');

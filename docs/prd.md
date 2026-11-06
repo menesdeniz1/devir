@@ -56,6 +56,10 @@ Derinlik, çok sayıda düğmeden değil, bu kararların sonuçlarından doğar.
 - **G-05** Normal zorlukta hedef maç süresi 10–15 dakikadır.
 - **G-06** Hesap açmadan oynanır; sunucu gerekmez.
 - **G-07 (N)** Koridorun tamamı tek ekranda görünür; kamera kaydırma yoktur.
+- **G-08** Oyun hızı 1×, 1,5×, 2× veya 3× seçilebilir (karar 2026-11-07, kullanıcı isteği). Üst sınır 3×: daha
+  hızlısında yetenek hedeflemesi ve çağ/kule kararları insan tepkisine yetişmez. Varsayılan Ayarlar'da seçilir ve
+  saklanır; maç içinde üst şeritteki hız düğmesi ya da F tuşu sıradaki hıza geçer. Hız yalnız gerçek zamanın
+  çarpanıdır: kurallar, yapay zekâ ve maç süresi (oyun saatiyle) değişmez; duraklatma her hızda çalışır.
 - **G-08** Mobil, çevrimiçi çok oyunculu mod ve hesap sistemi sonraki sürümlerde değerlendirilecektir.
 
 ## 4. Temel oyun döngüsü

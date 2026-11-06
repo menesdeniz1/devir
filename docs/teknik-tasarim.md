@@ -147,13 +147,15 @@ varken 30 sn oyun süresi boyunca hiçbir birlik konum değiştirmez ve hiç has
 
 ## 4. Oyun döngüsü
 
-- `requestAnimationFrame` + biriktirici: `acc += min(kareSüresi, 250 ms)`; `acc ≥ adım` oldukça `step()`.
+- `requestAnimationFrame` + biriktirici: `acc += min(kareSüresi, 250 ms) × hız`; `acc ≥ adım` oldukça `step()`.
+  Hız (PRD G-08) kesirli olabilir (1,5×); oturumda saklanır, maçlar arasında korunur. Çizimin animasyon süresi de
+  hızla ölçeklenir. Hız durumu değiştirmez: aynı adım sayısı her hızda aynı duruma varır (tests/game-speed).
   Çizim, son iki tick arasında `alpha = acc / adım` ile interpolasyon yapar. Böylece oyun hızı kare hızından
   bağımsızdır (PRD K-09).
 - Arayüz komutları bir kuyruğa yazılır ve bir sonraki tick'e damgalanır.
 - **Duraklatma:** döngü `step()` çağırmaz, biriktirici sıfırlanır, arayüz komut düğmelerini kapatır
   (PRD ÖK-07, K-14). `visibilitychange` (gizli) → duraklat + kaydet. `pagehide` → kaydet.
-- Geliştirme bayrağı `?debug`: hız ×1/×4/×16 (kare başına adım sayısı), menzil çizimi, altın ver, üs canını
+- Geliştirme bayrağı `?debug`: hız ×1/×4/×16 (oyuncu ayarını geçici olarak ezer), menzil çizimi, altın ver, üs canını
   ayarla, durum karmasını göster, performans paneli (fps, adım ms, çizim çağrısı, birlik/mermi sayısı). Üretim derlemesine girmez.
 
 ## 5. Yapay zekâ ve headless araçlar

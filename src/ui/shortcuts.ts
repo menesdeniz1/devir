@@ -1,5 +1,5 @@
 import { activeLocale, tr } from '../i18n';
-import { KEY_ABILITY, KEY_AGE_UP, KEY_CANCEL_LAST, KEY_CLOSE_MENU, UNIT_SHORTCUT_CODES } from './constants';
+import { KEY_ABILITY, KEY_AGE_UP, KEY_CANCEL_LAST, KEY_CLOSE_MENU, KEY_SPEED, UNIT_SHORTCUT_CODES } from './constants';
 
 /**
  * Kısayol listesi (salt görüntüleme). Kısayollar fiziksel tuşa (KeyboardEvent.code) bağlıdır; etiket, Keyboard Map API
@@ -29,6 +29,7 @@ export function shortcutRows(label: KeyLabeler = fallbackLabel): ShortcutRow[] {
     { action: tr.shortcuts.targetMove, keys: ['←', '→'] },
     { action: tr.shortcuts.targetApply, keys: [label('Enter'), label(KEY_ABILITY)] },
     { action: tr.shortcuts.ageUp, keys: [label(KEY_AGE_UP)] },
+    { action: tr.shortcuts.speed, keys: [label(KEY_SPEED)] },
     { action: tr.shortcuts.pause, keys: [label('KeyP'), label(KEY_CLOSE_MENU)] },
     { action: tr.shortcuts.cancelTarget, keys: [label(KEY_CLOSE_MENU)] },
   ];

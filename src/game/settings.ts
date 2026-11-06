@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, STORAGE_KEYS, VOLUME_MAX, VOLUME_MIN } from './constants';
+import { DEFAULT_SETTINGS, GAME_SPEEDS, STORAGE_KEYS, VOLUME_MAX, VOLUME_MIN, type GameSpeed } from './constants';
 import { isLanguage, type Language } from '../i18n/language';
 import type { SafeStorage } from './storage';
 
@@ -9,6 +9,8 @@ export interface Settings {
   /** 0..100 */
   sfxVolume: number;
   screenShake: boolean;
+  /** Oyun hızı çarpanı (PRD G-08); yalnız GAME_SPEEDS değerleri. */
+  gameSpeed: GameSpeed;
   /** Arayüz dili (PRD G-04). Yoksa otomatik: tarayıcı dili uygulama katmanında çözülür; bu katman tarayıcıya dokunmaz. */
   language?: Language;
 }
@@ -22,6 +24,16 @@ function volume(raw: unknown, fallback: number): number {
   return Math.round(Math.min(VOLUME_MAX, Math.max(VOLUME_MIN, raw)));
 }
 
+export function isGameSpeed(value: unknown): value is GameSpeed {
+  return (GAME_SPEEDS as readonly unknown[]).includes(value);
+}
+
+/** Sıradaki oyun hızı (HUD düğmesi ve F kısayolu döngüsel geçer: 1 → 1,5 → 2 → 3 → 1). */
+export function nextGameSpeed(current: GameSpeed): GameSpeed {
+  const i = GAME_SPEEDS.indexOf(current);
+  return GAME_SPEEDS[(i + 1) % GAME_SPEEDS.length]!;
+}
+
 /** Bozuk ya da eksik veriyi varsayılanlarla tamamlar; geçerli alanları korur. */
 export function sanitizeSettings(raw: unknown): Settings {
   const out = defaultSettings();
@@ -30,6 +42,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   out.musicVolume = volume(r['musicVolume'], out.musicVolume);
   out.sfxVolume = volume(r['sfxVolume'], out.sfxVolume);
   if (typeof r['screenShake'] === 'boolean') out.screenShake = r['screenShake'];
+  if (isGameSpeed(r['gameSpeed'])) out.gameSpeed = r['gameSpeed'];
   if (isLanguage(r['language'])) out.language = r['language'];
   return out;
 }

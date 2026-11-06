@@ -33,13 +33,13 @@ export class FixedStepLoop {
     return this.isPaused;
   }
 
-  /** Kare başına adım çarpanı (yalnız geliştirme paneli kullanır). */
+  /** Gerçek zamanın çarpanı (oyun hızı ayarı; geliştirme panelinde ×16'ya kadar). Kesirli olabilir (1,5×). */
   get speed(): number {
     return this.multiplier;
   }
 
   setSpeed(multiplier: number): void {
-    this.multiplier = Math.max(1, Math.floor(multiplier));
+    this.multiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
   }
 
   /** Çizim için ara değer: son iki adım arasında 0..1. */
@@ -65,16 +65,15 @@ export class FixedStepLoop {
       return 0;
     }
     const clamped = Number.isFinite(frameMs) ? Math.min(Math.max(frameMs, 0), this.config.maxFrameMs) : 0;
-    this.acc += clamped;
+    // Hız, biriken oyun süresini ölçekler: tam sayı çarpanlarda adım sayısı eskisiyle aynıdır, kesirli çarpan da çalışır.
+    this.acc += clamped * this.multiplier;
     let steps = 0;
     while (this.acc >= this.config.stepMs) {
       this.acc -= this.config.stepMs;
-      for (let i = 0; i < this.multiplier; i++) {
-        steps += 1;
-        if (this.stepFn() === false) {
-          this.acc = 0;
-          return steps;
-        }
+      steps += 1;
+      if (this.stepFn() === false) {
+        this.acc = 0;
+        return steps;
       }
     }
     return steps;

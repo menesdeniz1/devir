@@ -9,6 +9,8 @@ export const KEY_CANCEL_LAST = 'Backspace';
 export const KEY_AGE_UP = 'KeyE';
 /** Yetenek hedeflemesini açar; hedefleme açıkken imleç konumunda uygular (GDD §11). */
 export const KEY_ABILITY = 'KeyQ';
+/** Oyun hızını döngüsel değiştirir (1× → 1,5× → 2× → 3×). */
+export const KEY_SPEED = 'KeyF';
 /** Açık kule menüsünü kapatır (menü yokken Esc duraklatır). */
 export const KEY_CLOSE_MENU = 'Escape';
 

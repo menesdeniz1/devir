@@ -2,6 +2,7 @@ import { connectAudio } from './app/audioBridge';
 import { createAudioEngine } from './audio';
 import { browserClock } from './game/browserClock';
 import { Flow } from './game/flow';
+import { nextGameSpeed } from './game/settings';
 import { startFrameLoop } from './game/loop';
 import { Session } from './game/session';
 import { loadSettings } from './game/settings';
@@ -90,9 +91,15 @@ async function boot(): Promise<void> {
   const audio = createAudioEngine();
   connectAudio(audio, flow, document);
   flow.settings.subscribe((s) => renderer.setScreenShake(s.screenShake));
+  // Oyun hızı (PRD G-08): ayar oturuma uygulanır; HUD düğmesi ve F kısayolu sıradaki hıza geçer ve saklar.
+  flow.settings.subscribe((s) => session.setSpeed(s.gameSpeed));
+  const speedControl = {
+    value: () => flow.settings.value.gameSpeed,
+    cycle: () => flow.settings.update({ gameSpeed: nextGameSpeed(flow.settings.value.gameSpeed) }),
+  };
 
   const uiLayer = el('div', 'ui-layer', root);
-  const hud = mountHud(uiLayer, session, targeting, { onReject: () => audio.playUi('notice') });
+  const hud = mountHud(uiLayer, session, targeting, { onReject: () => audio.playUi('notice'), speed: speedControl });
   const screens = mountScreens(uiLayer, flow, { onNotice: () => audio.playUi('notice') });
   flow.subscribe((event) => {
     if (event.type === 'screen' && flow.screen !== 'battle') targeting.cancel();
@@ -110,6 +117,7 @@ async function boot(): Promise<void> {
     { dismiss: () => targeting.cancel() || hud.dismissMenu() },
     targeting,
     { blocked: () => screens.blocksGame(), dismiss: () => screens.dismiss() },
+    speedControl,
   );
   mountTargetingPointer(stage, renderer, targeting);
 

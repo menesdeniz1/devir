@@ -1,7 +1,9 @@
 import type { Flow } from '../game/flow';
 import { VOLUME_MAX, VOLUME_MIN } from '../game/constants';
 import { versionLabel } from '../game/version';
-import { fmt, getLanguage, isLanguage, LANGUAGES, tr } from '../i18n';
+import { fmt, formatSpeed, getLanguage, isLanguage, LANGUAGES, tr } from '../i18n';
+import { GAME_SPEEDS } from '../game/constants';
+import { isGameSpeed } from '../game/settings';
 import { VOLUME_STEP } from './constants';
 import { el } from './dom';
 import { fallbackLabel, loadKeyLabeler, shortcutRows, type KeyLabeler } from './shortcuts';
@@ -52,6 +54,27 @@ export function mountSettings(
   const shakeValue = el('output', 'settings__value', shakeRow);
   shakeValue.htmlFor = 'setting-shake';
   shake.addEventListener('change', () => flow.settings.update({ screenShake: shake.checked }));
+
+  // Oyun hızı (PRD G-08): seçim saklanır ve hemen uygulanır.
+  const speedRow = el('div', 'settings__row', form);
+  const speedLabel = el('label', 'settings__label', speedRow);
+  speedLabel.htmlFor = 'setting-speed';
+  speedLabel.textContent = tr.settings.speed;
+  const speed = el('select', 'settings__select', speedRow);
+  speed.id = 'setting-speed';
+  for (const n of GAME_SPEEDS) {
+    const option = el('option', undefined, speed);
+    option.value = String(n);
+    option.textContent = fmt(tr.settings.speedOption, { n: formatSpeed(n) });
+  }
+  const speedHint = el('p', 'settings__hint', form);
+  speedHint.id = 'setting-speed-hint';
+  speedHint.textContent = tr.settings.speedHint;
+  speed.setAttribute('aria-describedby', speedHint.id);
+  speed.addEventListener('change', () => {
+    const next = Number(speed.value);
+    if (isGameSpeed(next)) flow.settings.update({ gameSpeed: next });
+  });
 
   const languageRow = el('div', 'settings__row', form);
   const languageLabel = el('label', 'settings__label', languageRow);
@@ -117,6 +140,7 @@ export function mountSettings(
     sfx.value.textContent = fmt(tr.settings.volumeValue, { n: s.sfxVolume });
     shake.checked = s.screenShake;
     shakeValue.textContent = s.screenShake ? tr.settings.shakeOn : tr.settings.shakeOff;
+    speed.value = String(s.gameSpeed);
   });
 
   const toggle = visibilityToggle(screen, () => music.input, true);

@@ -269,7 +269,7 @@ zaman aşımı %5,5 / %7,5; Zor–Zor zaman aşımı %8,5 / %6,5.
 
 ### Savaş ekranı düzeni (16:9, 1920×1080 mantıksal)
 
-- **Üst şerit:** sol — oyuncu üs canı ve çağ simgesi; orta — maç süresi, Sınır Taşı göstergesi, duraklat
+- **Üst şerit:** sol — oyuncu üs canı ve çağ simgesi; orta — maç süresi, Sınır Taşı göstergesi, oyun hızı (PRD G-08), duraklat
   düğmesi; sağ — rakip üs canı ve çağ simgesi.
 - **Orta:** koridor, üsler, kuleler, birlikler, mermiler, yetenek önizlemesi.
 - **Alt panel (soldan sağa):** altın ve gelir/sn · deneyim çubuğu (mevcut/eşik) ve **Çağ Atla** (ücretiyle) ·
@@ -289,6 +289,7 @@ zaman aşımı %5,5 / %7,5; Zor–Zor zaman aşımı %8,5 / %6,5.
 | Hedeflemeyi iptal et | Sağ tık | Esc |
 | Çağ atla | Çağ Atla düğmesi | E |
 | Duraklat / devam et | Duraklat düğmesi | P veya Esc (hedefleme yokken) |
+| Oyun hızı (1× → 1,5× → 2× → 3×) | Hız düğmesi | F |
 | Kule kur / sat | Yuvaya tık → menü | — (ilk sürümde yalnız fare) |
 
 Kısayollar fiziksel tuş konumuna bağlıdır; etiketler klavye düzenine göre gösterilir (TDD §7).

@@ -4,6 +4,7 @@ import {
   KEY_ABILITY,
   KEY_AGE_UP,
   KEY_CANCEL_LAST,
+  KEY_SPEED,
   KEY_CLOSE_MENU,
   KEY_TARGET_APPLY,
   KEY_TARGET_LEFT,
@@ -41,6 +42,8 @@ export function mountKeyboard(
   targeting: (Pick<Targeting, 'pressKey'> & Partial<Pick<Targeting, 'active' | 'nudge' | 'applyFromKeyboard'>>) | null = null,
   /** Ekran akışı: oyun dışı ekran açıkken tüm oyun kısayolları kapalıdır, yalnız Esc ekrana gider. */
   screens: ScreenGate | null = null,
+  /** F kısayolu: oyun hızını döngüsel değiştirir (verilmezse F işlenmez). */
+  speed: { cycle(): void } | null = null,
 ): () => void {
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target)) return;
@@ -82,6 +85,11 @@ export function mountKeyboard(
     if (code === KEY_ABILITY && targeting !== null) {
       event.preventDefault();
       if (!event.repeat) targeting.pressKey();
+      return;
+    }
+    if (code === KEY_SPEED && speed !== null) {
+      event.preventDefault();
+      if (!event.repeat) speed.cycle();
       return;
     }
     if (code === KEY_CANCEL_LAST) {

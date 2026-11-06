@@ -173,7 +173,7 @@ describe('G-04: dil ayarı (doğrulama ve göç)', () => {
     const mem = new MemoryStorage();
     mem.data.set(STORAGE_KEYS.settings, JSON.stringify({ musicVolume: 25, sfxVolume: 40, screenShake: false }));
     const loaded = loadSettings(new SafeStorage(mem));
-    expect(loaded).toEqual({ musicVolume: 25, sfxVolume: 40, screenShake: false });
+    expect(loaded).toEqual({ musicVolume: 25, sfxVolume: 40, screenShake: false, gameSpeed: 1 });
     expect(loaded.language).toBeUndefined();
     expect(sanitizeSettings(undefined)).toEqual(DEFAULT_SETTINGS);
   });

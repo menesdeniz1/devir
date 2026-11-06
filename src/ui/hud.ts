@@ -2,7 +2,7 @@ import { STONE } from '../data/stone';
 import { ECONOMY, WORLD } from '../data/world';
 import { PLAYER_SIDE } from '../game/constants';
 import type { Session } from '../game/session';
-import { abilityName, ageName, ageNameTo, fmt, rejectText, towerName, tr, unitName } from '../i18n';
+import { abilityName, ageName, ageNameTo, fmt, formatSpeed, rejectText, towerName, tr, unitName } from '../i18n';
 import { getAge, getUnit } from '../sim/compile';
 import type { SideId } from '../sim/types';
 import { abilityDescription, abilityReasonText, abilityTooltip, checkAbility, cooldownSeconds, playerAbility } from './ability';
@@ -31,6 +31,8 @@ import { roleMarkOf, roleNameOf, unitTooltip } from './unitInfo';
 export interface HudHooks {
   /** Oyuncunun komutu simülasyonda reddedilip bildirim gösterildiğinde (karede en çok bir kez); bildirim sesi için. */
   onReject?: () => void;
+  /** Oyun hızı (PRD G-08): düğme etiketi ve tıklayınca sıradaki hız. Verilmezse düğme gösterilmez. */
+  speed?: { value(): number; cycle(): void };
 }
 
 export interface Hud {
@@ -119,6 +121,27 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
   pauseButton.textContent = tr.hud.pause;
   pauseButton.setAttribute('aria-label', tr.hud.pauseAria);
   pauseButton.addEventListener('click', () => session.togglePause());
+  const speedHook = hooks.speed;
+  const speedButton = speedHook === undefined ? null : el('button', 'btn btn--speed', clockRow);
+  let speedShown = -1;
+  if (speedButton !== null && speedHook !== undefined) {
+    speedButton.type = 'button';
+    speedButton.dataset['action'] = 'speed';
+    speedButton.addEventListener('click', () => speedHook.cycle());
+  }
+  /** Hız değişince düğme metni, erişilebilir adı ve ipucu yazılır. */
+  function updateSpeed(): void {
+    if (speedButton === null || speedHook === undefined) return;
+    const v = speedHook.value();
+    if (v === speedShown) return;
+    speedShown = v;
+    const n = formatSpeed(v);
+    speedButton.textContent = fmt(tr.hud.speed, { n });
+    speedButton.setAttribute('aria-label', fmt(tr.hud.speedAria, { n, key: 'F' }));
+    speedButton.title = fmt(tr.hud.speedTip, { key: 'F' });
+    speedButton.dataset['speed'] = String(v);
+  }
+  updateSpeed();
   const enemyBar = buildBase(top, 1, tr.hud.enemy);
 
   // Sınır Taşı göstergesi (üst şeridin ortasında, saatin altında).
@@ -723,6 +746,7 @@ export function mountHud(root: HTMLElement, session: Session, targeting: Targeti
     enemyBar.setAge(foe.age);
     writeClock(formatClock(state.tick / WORLD.tickRate));
     writePauseDisabled(session.ended);
+    updateSpeed();
     updateStone();
 
     // Bildirim süresi.

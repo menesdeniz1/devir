@@ -79,6 +79,8 @@ export class Session {
   private gameState: GameState;
   private controllers: [Controller | null, Controller | null];
   private loop: FixedStepLoop;
+  /** Oyun hızı: döngü her maçta yeniden kurulduğu için oturumda tutulur. */
+  private speedMultiplier = 1;
   private commandQueue: QueuedCommand[] = [];
   private prevX = new Map<number, number>();
   private prevProjectileX = new Map<number, number>();
@@ -246,7 +248,9 @@ export class Session {
   }
 
   private newLoop(): FixedStepLoop {
-    return new FixedStepLoop(createLoopConfig(WORLD.tickRate), () => this.stepOnce());
+    const loop = new FixedStepLoop(createLoopConfig(WORLD.tickRate), () => this.stepOnce());
+    loop.setSpeed(this.speedMultiplier);
+    return loop;
   }
 
   // ---- Yeniden oyna --------------------------------------------------------
@@ -275,11 +279,16 @@ export class Session {
     this.emit({ type: 'paused', paused: false });
   }
 
-  // ---- Geliştirme yardımcıları (yalnız ?debug) -----------------------------
-
+  /**
+   * Oyun hızı (PRD G-08; geliştirme paneli de kullanır). Oturumda saklanır: yeni maç ve kayıttan devam aynı hızla başlar.
+   * Simülasyon kurallarını değiştirmez; yalnız gerçek zamanın kaç adıma karşılık geldiğini belirler.
+   */
   setSpeed(multiplier: number): void {
+    this.speedMultiplier = multiplier;
     this.loop.setSpeed(multiplier);
   }
+
+  // ---- Geliştirme yardımcıları (yalnız ?debug) -----------------------------
 
   /** Durumu doğrudan değiştirir. YALNIZ geliştirme paneli içindir. */
   debugMutate(mutate: (state: GameState) => void): void {

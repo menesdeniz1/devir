@@ -131,6 +131,9 @@ button:focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; }
   z-index: 4;
 }
 .hud-clock { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 4ch; text-align: center; }
+/* Oyun hızı düğmesi: "1×" ile "1,5×" arasında genişlik değişmez (üst şerit zıplamaz). */
+.btn--speed { min-width: 4.6em; padding-left: 10px; padding-right: 10px; font-variant-numeric: tabular-nums; }
+.btn--speed:not([data-speed="1"]) { color: var(--c-gold); border-color: var(--c-gold); }
 
 /* ---- Alt panel ---- */
 .hud-bottom {

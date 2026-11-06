@@ -160,7 +160,8 @@ describe('K-08: yeniden oyna tamamen yeni durum kurar', () => {
     expect(controllerSets).toBe(2);
     expect(events.some((e) => e.type === 'reset')).toBe(true);
     expect(session.paused).toBe(false);
-    expect(session.speed).toBe(1);
+    // Oyun hızı oyuncunun ayarıdır (PRD G-08): yeniden başlatmada korunur; durum yine tamamen yenidir.
+    expect(session.speed).toBe(4);
     expect(session.pendingCommandCount).toBe(0);
     expect(session.tick).toBe(0);
     expect(session.state.units).toEqual([]);

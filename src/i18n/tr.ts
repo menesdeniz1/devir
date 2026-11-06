@@ -163,6 +163,10 @@ export const tr = {
     /** Sınır Taşı sendeyken gelir satırı: toplam gelir ve taşın payı. */
     incomeWithStone: '+{n}/sn · taş +{stone}',
     pause: 'Duraklat',
+    /** Oyun hızı düğmesi (PRD G-08). */
+    speed: '{n}×',
+    speedAria: 'Oyun hızı {n}×. Değiştir: {key}',
+    speedTip: 'Oyun hızı — tıkla ya da {key}: 1× → 1,5× → 2× → 3×',
     pauseAria: 'Oyunu duraklat',
     unitTitle: '{name} — {cost} altın [{key}]',
     produceAria: 'Üret: {name}, {cost} altın, kısayol {key}',
@@ -338,6 +342,9 @@ export const tr = {
     /** Her dil kendi adıyla yazılır (iki tabloda aynıdır). */
     languageOptions: { tr: 'Türkçe', en: 'English' },
     languageLocked: 'Öğretici sırasında dil değiştirilemez.',
+    speed: 'Oyun hızı',
+    speedOption: '{n}×',
+    speedHint: 'Maç sırasında hız düğmesiyle ya da F tuşuyla da değişir.',
     back: 'Geri',
     backAria: 'Ayarlardan çık',
   },
@@ -350,6 +357,7 @@ export const tr = {
     ageUp: 'Çağ atla',
     pause: 'Duraklat / devam et',
     cancelTarget: 'Hedeflemeyi ya da açık menüyü kapat',
+    speed: 'Oyun hızını değiştir (1× → 1,5× → 2× → 3×)',
   },
   tutorial: {
     region: 'Öğretici',

@@ -221,7 +221,8 @@ export async function createRenderer(host: HTMLElement, session: Session, option
     render(frameMs: number): void {
       const t0 = performance.now();
       layout();
-      const animMs = session.paused ? 0 : Math.min(Math.max(frameMs, 0), MAX_ANIM_FRAME_MS);
+      // Animasyon oyun hızıyla ölçeklenir: hızlı oyunda yürüyüş ve efektler hareketle uyumlu kalır.
+      const animMs = session.paused ? 0 : Math.min(Math.max(frameMs, 0), MAX_ANIM_FRAME_MS) * session.speed;
       const alpha = session.renderAlpha;
       const state = session.state;
 
