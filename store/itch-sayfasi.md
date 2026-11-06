@@ -1,33 +1,35 @@
 # itch.io sayfası — Devir
 
-Yayında: https://menesdeniz.itch.io/devir. 2026-11-06'da 1.0.1 olarak yayınlandı, aynı gün bu dosyadaki adımlarla
-1.1.0'a güncellendi (İngilizce sayfa). Görseller bu klasörde: `en-*` İngilizce (1.1.0), önek olmayanlar Türkçe (1.0.1 arayüzü).
-Paket: GitHub sürüm sayfasındaki `devir-1.1.0-html5.zip` (yerelde `release/devir-1.1.0-html5.zip`).
+Yayında: https://menesdeniz.itch.io/devir.
+- 2026-11-06: 1.0.1 olarak yayınlandı, aynı gün 1.1.0'a güncellendi (İngilizce sayfa).
+- 1.2.0: bu dosyadaki adımlarla güncellenir.
 
-## Mevcut sayfayı 1.1.0'a güncelleme (adım adım)
+Görseller bu klasörde (1.2.0 arayüzü): `en-*` İngilizce, önek olmayanlar Türkçe.
+Paket: GitHub sürüm sayfasındaki `devir-1.2.0-html5.zip` (yerelde `release/devir-1.2.0-html5.zip`).
+
+## Mevcut sayfayı 1.2.0'a güncelleme (adım adım)
 
 1. https://menesdeniz.itch.io/devir → üstteki **Edit game**.
 2. **Uploads:**
-   - Eski `devir-1.0.1-html5.zip` dosyasının yanındaki çöp kutusuyla onu sil.
-   - **Upload files** ile `devir-1.1.0-html5.zip` dosyasını yükle.
+   - Eski `devir-1.1.0-html5.zip` dosyasını çöp kutusuyla sil.
+   - **Upload files** ile `devir-1.2.0-html5.zip` dosyasını yükle.
    - Yeni dosyada **This file will be played in the browser** kutusunu işaretle.
-   - Embed options aynı kalır: 1280 × 720 ve Fullscreen button.
-3. **Short description or tagline:** aşağıdaki İngilizce satırla değiştir.
-4. **Description:** aşağıdaki "Description" bloğunun tamamını yapıştır. İngilizce önde, Türkçe altta.
+   - **Embed options** bölümünde 1280 × 720 ve **Fullscreen button** açık mı, kontrol et. Yeni yüklemede ayarlar sıfırlanabilir.
+3. **Short description or tagline:** aşağıdaki satırla değiştir (70 karakter; sınır 120).
+4. **Description:** aşağıdaki bloğun tamamını yapıştır.
 5. **Cover image:** `en-kapak-630x500.png` yükle.
 6. **Screenshots:** eski görselleri kaldır, `en-ekran-1` … `en-ekran-5` dosyalarını sırayla yükle.
-7. **Tags:** mevcutlar kalsın; istersen `english` ekle (en fazla 10).
-8. **Save.** Sonra sayfada **Run game** ile kısa bir deneme yap:
-   - Ana menünün altında "Version 1.1.0" ya da "Sürüm 1.1.0" yazmalı.
-   - Ayarlar → Dil çalışmalı.
-9. İstersen sayfadaki **Devlog → Create new post** ile aşağıdaki güncelleme notunu paylaş. Takipçilere bildirim gider.
+7. **AI generation disclosure:** Yes; Graphics, Sounds, Text & Dialog, Code (değişmedi).
+8. **Save.** Sonra sayfada **Run game** ile kısa bir deneme yap. Kontrol edilecekler:
+   - ana menünün altında "Version 1.2.0" ya da "Sürüm 1.2.0" yazıyor
+   - maç kurulumunda **Erosion / Aşınma** seçeneği görünüyor
+   - üst şeritte hız düğmesi var
+9. İstersen **Devlog → Create new post** ile aşağıdaki güncelleme notunu paylaş; takipçilere bildirim gider.
 
 ## Short description or tagline
 
-itch.io sınırı 120 karakter; bu satır 81 karakter.
-
 ```text
-One lane, five ages: build an army, hold the Border Stone and out-age your rival.
+One lane, five ages: build an army, hold the mine and raid your rival.
 ```
 
 ## Description
@@ -37,16 +39,18 @@ Devir is a single-player age-progression strategy game for the browser. Two base
 
 HOW TO PLAY
 • Train frontline, ranged and heavy units; they march down the lane on their own.
-• Kill enemy units to earn gold and XP. When the XP bar fills, age up: every age unlocks stronger units, towers and a new special ability.
+• Kill enemy units and hit the enemy base to earn XP. When the XP bar fills, age up: every age unlocks stronger units, towers and a new special ability.
 • Build towers in the slots in front of your base; towers defend without losses.
-• Hold the Border Stone in the middle of the lane: while only your units stand next to it, it becomes yours and pays extra gold and XP every second.
-• Destroy the enemy base to win. A match takes about 10–12 minutes.
+• Hold the gold mine in the middle of the lane: while only your units stand next to it, it is yours. Every second it digs up gold: half goes to you right away, half piles up in the mine's store. Take the mine from its owner to raid the whole store. The mine grows with every age.
+• Destroy the enemy base to win. A match takes about 12–15 minutes.
 
 FEATURES
 • 5 ages, 15 units, 10 towers, 5 special abilities (Stampede, Fire Trench, Caltrops, Barrage, Stasis Field)
 • Easy / Normal / Hard computer opponent that only uses what it can see and gets no extra resources
+• Erosion (on by default): after 13:00 both bases slowly erode, so a match can't stall; turn it off for a long game
+• Game speed 1× / 1.5× / 2× / 3× (button next to Pause, or F)
 • 10-step skippable tutorial, autosave and continue, detailed results screen
-• Original code-drawn art, synthesized sound effects and music for every age
+• Original code-drawn art with unit and tower portraits, synthesized sound effects and music for every age
 • English and Turkish (Settings → Language)
 
 CONTROLS
@@ -54,6 +58,7 @@ CONTROLS
 • Backspace: cancel the last waiting order
 • Q: special ability. Aim, then press Q again or click to cast (← → to move, Enter to cast)
 • E: age up
+• F: change game speed
 • P / Esc: pause / resume
 Fully playable with the mouse too.
 
@@ -61,32 +66,34 @@ REQUIREMENTS
 A current desktop browser with WebGL2 (Chrome, Edge, Firefox, Safari 17+), window at least 1280×720.
 
 — Türkçe —
-Devir, tarayıcıda oynanan tek oyunculu bir çağ ilerleme stratejisi. İki üs, tek koridor, beş çağ. Birlik üret, rakibi öldürüp altın ve deneyim kazan, çağ atla, kule kur ve koridorun ortasındaki Sınır Taşı'nı tut: taş sendeyken her saniye ek altın ve deneyim kazanırsın. Rakip üssü yıkan kazanır. Arayüz Türkçe ve İngilizce (Ayarlar → Dil).
+Devir, tarayıcıda oynanan tek oyunculu bir çağ ilerleme stratejisi. İki üs, tek koridor, beş çağ. Birlik üret, rakibi öldürüp ve üssüne vurup deneyim kazan, çağ atla, kule kur. Koridorun ortasındaki madeni tut: her saniye altın çıkarır, yarısı hemen sana gelir, yarısı depoda birikir; madeni rakipten alırsan deposunu yağmalarsın. Maden her çağda büyür. Aşınma (isteğe bağlı) maçın kilitlenmesini önler; oyun hızı 3×'e kadar. Arayüz Türkçe ve İngilizce (Ayarlar → Dil).
 ```
 
 ## Devlog güncelleme notu (isteğe bağlı)
 
 ```text
-Update 1.1.0 — English, a clearer Border Stone and softer sound
+Update 1.2.0: the Gold Mine, game speed and unit portraits
 
-Thanks to the first playtest feedback:
-• English language support (Settings → Language). The game picks your browser language on first launch.
-• The Border Stone's reward is now visible: the income line shows the stone's share, the stone indicator shows the owner's bonus, and "+N gold" rises from the stone every second.
-• Softer, more natural sound effects: the harsh high hiss and clicky starts are gone, and frequent sounds vary and stack less in big fights.
-Your 1.0 saves still load.
+Thanks to playtest feedback:
+• The Border Stone is now a Gold Mine that grows with every age. It pays only gold: half goes to the holder right away, half piles up in its store, and whoever takes the mine from its owner raids the whole store. Holding the middle no longer decides the match on its own.
+• XP now comes from kills and from damaging the enemy base, which rewards pressure.
+• Erosion: after 13:00 both bases slowly erode so matches can't stall. You can switch it off in match setup for a long game.
+• Game speed: 1× / 1.5× / 2× / 3× (button next to Pause, or F).
+• Unit and tower portraits on the buttons, a polished interface, and a shorter bottom panel.
+Your saves from 1.0 and 1.1 still load.
 ```
 
-## Proje ayarları (ilk oluşturma için başvuru)
+## Proje ayarları (başvuru)
 
 | Alan | Değer |
 |---|---|
 | Kind of project | HTML |
 | Pricing | No payments |
-| Uploads | `devir-1.1.0-html5.zip` → This file will be played in the browser |
+| Uploads | `devir-1.2.0-html5.zip` → This file will be played in the browser |
 | Viewport | 1280 × 720; Fullscreen button açık; Mobile friendly, Automatically start, Enable scrollbars, SharedArrayBuffer kapalı |
 | Genre | Strategy |
-| Tags | 2d, singleplayer, real-time-strategy, tower-defense, medieval, science-fiction, cartoon (isteğe bağlı english, turkish) |
-| AI generation disclosure | Yes; türler: Graphics, Sounds, Text & Dialog, Code (dördü de). İsteğe bağlı açıklama aşağıda |
+| Tags | 2d, singleplayer, real-time-strategy, tower-defense, medieval, science-fiction, cartoon |
+| AI generation disclosure | Yes: Graphics, Sounds, Text & Dialog, Code |
 | Community | Comments |
 
 ## Statement of AI usage (isteğe bağlı, sayfada herkese görünür)
