@@ -1,5 +1,19 @@
 # Devir
 
+A single-player browser strategy game: push through five ages along one lane, balancing army, defense and the timing of each age-up, and destroy the enemy base. No account needed; saves stay in the browser.
+
+**Play:** https://menesdeniz.itch.io/devir (English and Turkish)
+
+**For engineers:** TypeScript, PixiJS 8, Vite. The simulation core (`src/data`, `src/sim`, `src/ai`) is deterministic: no DOM, no `Math.random`, no timers. Game state is plain JSON, with seeded randomness and checksummed saves. An architecture test enforces the layer rules. Unit tests (Vitest), a production build and a 200-game headless soak run in CI; end-to-end tests (Playwright) are in `e2e/`. Headless match, tournament and soak tools (`npm run sim`) are used for balance.
+
+**How it was built:** by directing AI coding agents. I designed the architecture, the test strategy and the acceptance criteria. Design documents are in `docs/` (Turkish).
+
+The source is public for reading. No license is granted for reuse.
+
+---
+
+## Türkçe
+
 İlkel Çağ'dan Gelecek Çağı'na uzanan tek bir koridorda ordunu, savunmanı ve çağ atlama zamanını dengeleyerek rakip
 üssü yıktığın, tek oyunculu bir tarayıcı strateji oyunu. Hesap gerekmez; kayıtlar tarayıcıda tutulur.
 
